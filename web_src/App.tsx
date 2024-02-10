@@ -1,40 +1,58 @@
-import { useState } from 'react'
-import './App.css'
+import { TextureLoader, SpriteMaterial, Sprite } from 'three'
 
+import { useMemo, useRef, useEffect } from 'react'
+import { OrbitControls, Html } from '@react-three/drei'
+import { Canvas, render, useFrame, useThree, useGraph } from '@react-three/fiber'
+import ThreeForceGraph from 'three-forcegraph'
 
-// Point Eel web socket to the instance
-declare const window: any;
-export const eel = window.eel
-eel.set_host( 'ws://localhost:5169' )
+// imperatively using three-forcegraph
 
-// Expose the `sayHelloJS` function to Python as `say_hello_js`
-function sayHelloJS( x: any ) {
-  console.log( 'Hello from ' + x )
+const loader = new TextureLoader()
+
+const nodeToThree = ({  }) => {
+  const imgTexture = loader.load('./assets/battle.png')
+  const material = new SpriteMaterial({ map: imgTexture })
+  const sprite = new Sprite(material)
+  sprite.scale.set(10, 10,10)
+
+  return sprite
 }
-// WARN: must use window.eel to keep parse-able eel.expose{...}
-window.eel.expose( sayHelloJS, 'say_hello_js' )
 
-// Test anonymous function when minimized. See https://github.com/samuelhwilliams/Eel/issues/363
-function show_log(msg:string) {
-  console.log(msg)
-}
-window.eel.expose(show_log, 'show_log')
+export default function App() {
+  const { scene } = useThree()
 
-// Test calling sayHelloJS, then call the corresponding Python function
-sayHelloJS( 'Javascript World!' )
-eel.say_hello_py( 'Javascript World!' )
+  const graph = useMemo(() => {
 
-// Set the default path. Would be a text input, but this is a basic example after all
-const defPath = '~'
+    let gData = {nodes:[], links:[]};
 
-function App() {
+    const f = async () => {
+        await fetch('./datasets/output.json').then(res => res.json()).then(data => {
+            let nodes = data.nodes;
+            let links = data.links;
 
+            gData = data;
+        });
+    }
+    f();
 
-  return (  
-        <>
+    return new ThreeForceGraph().graphData(gData).nodeThreeObject(nodeToThree)
+  }, [])
 
-        </>
+  useEffect(() => {
+    while (scene.children.length > 0) {
+      scene.remove(scene.children[0])
+    }
+
+    scene.add(graph)
+  }, [])
+
+  useFrame(() => {
+    graph.tickFrame()
+  })
+
+  return (
+    <>
+      <OrbitControls />
+    </>
   )
 }
-
-export default App
