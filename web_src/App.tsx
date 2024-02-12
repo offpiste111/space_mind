@@ -23,17 +23,16 @@ export default function App() {
 
   const graph = useMemo(() => {
 
-    let gData = {nodes:[], links:[]};
-
-    const f = async () => {
-        await fetch('./datasets/output.json').then(res => res.json()).then(data => {
-            let nodes = data.nodes;
-            let links = data.links;
-
-            gData = data;
-        });
+    const N = 300
+    const gData = {
+      nodes: [...Array(N).keys()].map((i) => ({ id: i })),
+      links: [...Array(N).keys()]
+        .filter((id) => id)
+        .map((id) => ({
+          source: id,
+          target: Math.round(Math.random() * (id - 1)),
+        })),
     }
-    f();
 
     return new ThreeForceGraph().graphData(gData).nodeThreeObject(nodeToThree)
   }, [])

@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom/client'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
@@ -9,70 +9,82 @@ import satori from 'satori'
 import { html } from "satori-html";
 
 import {CSS2DObject, CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRenderer'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
+
+
+import { useState} from 'react'
+
 
 import { Canvas } from '@react-three/fiber'
 import { Html, Loader } from '@react-three/drei'
-
-
 import { TextureLoader, SpriteMaterial, Sprite } from 'three'
-
-import { useMemo , useState} from 'react'
 import { OrbitControls } from '@react-three/drei'
 import { render, useFrame, useThree, useGraph } from '@react-three/fiber'
 import ThreeForceGraph from 'three-forcegraph'
-
-import { Button, ChakraProvider, FormControl, FormLabel, Input } from '@chakra-ui/react'
-import {
-    Modal,
-    ModalOverlay,
-    ModalContent,
-    ModalHeader,
-    ModalFooter,
-    ModalBody,
-    ModalCloseButton,
-    useDisclosure, //utility hooks の一つ
-   } from "@chakra-ui/react";
-    
-
 
 import './index.css'
 const Container = (props:any) => <div className="container" {...props} />
 
 
 const { useRef, useCallback, useEffect } = React;
-  
-fetch('./datasets/output.json').then(res => res.json()).then(data => {
-  let nodes = data.nodes;
-  let links = data.links;
 
-  const MindMapGraph = () => {
+const MindMapGraph = (props:any) => {
 
+    interface GraphData {
+        nodes: object[];
+        links: object[];
+    }
+
+    const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
     
-    const { isOpen, onOpen, onClose } = useDisclosure()
-
-    const initialRef = React.useRef(null)
-    const finalRef = React.useRef(null)
-
     const fgRef = useRef<any>();
+    //const nodeAddModalRef = useRef<HTMLDivElement>(null);
 
     const label_key = "name";
-
     const z_layer = -300
 
-    //z軸固定
-    nodes = nodes.map((node:any) => {
-        node.fz = z_layer;
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+            const response = await fetch('./datasets/output.json');
+            if (!response.ok) {
+                throw new Error('Failed to fetch data');
+            }
+            const jsonData = await response.json();
 
-        delete node['x'];
-        delete node['y']; 
-        delete node['vx']; 
-        delete node['vy']; 
-        delete node['fx']; 
-        delete node['fy']; 
-        delete node['__bckgDimensions']; 
-        
-        return node;
-    })
+            //z軸固定
+            jsonData.nodes = jsonData.nodes.map((node:any) => {
+                node.fz = z_layer;
+
+                //node['fx'] = node['x']
+                //node['fy'] = node['y']
+
+                //delete node['x'];
+                //delete node['y']; 
+                delete node['vx']; 
+                delete node['vy']; 
+                //delete node['fx']; 
+                //delete node['fy']; 
+                delete node['__bckgDimensions']; 
+                
+                return node;
+            })
+            
+            setGraphData(jsonData);
+
+            } catch (error) {
+            console.error('Error fetching data:', error);
+            }
+
+        };
+
+        if (graphData.nodes.length === 0 && graphData.links.length === 0)
+        {
+            fetchData();
+        }
+    
+    }, []); // 第2引数に空の配列を渡すことで、初回のレンダリング時のみ実行されます。
+
 
 
     const handleClick = useCallback((node: { x: number; y: number; z: number; }) => {
@@ -88,16 +100,9 @@ fetch('./datasets/output.json').then(res => res.json()).then(data => {
         );
     }, [fgRef]);
 
-    const extraRenderers = [new CSS2DRenderer()];
+    //const extraRenderers = [new CSS2DRenderer()];
     
-    const handleOpen = () => {
-        onOpen();
-        fgRef.current.pauseAnimation();
-    };
-    const handleClose = () => {
-        onClose();
-        fgRef.current.resumeAnimation();
-    };
+
     const handleBackgroundClick = useCallback((event:any) => {
 
         let camera = fgRef.current.camera();
@@ -112,16 +117,16 @@ fetch('./datasets/output.json').then(res => res.json()).then(data => {
 
         let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, (-z_layer + camera.position.z) );
 
-        let nodeId = Math.max(...nodes.map((item:any) => item.id)) + 1;
+        let nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
         let groupId = 1
-        if(nodes.length > 0){
-            groupId = Math.max(...nodes.map((item:any) => item.group)) + 1
+        if(graphData.nodes.length > 0){
+            groupId = Math.max(...graphData.nodes.map((item:any) => item.group)) + 1
         }
         
-        nodes.push({ id: nodeId, name: "new", group: groupId, fx: coords.x, fy: coords.y, fz: coords.z }); // fx: coords.x, fy: coords.y
+        graphData.nodes.push({ id: nodeId, name: "new", group: groupId, fx: coords.x, fy: coords.y, fz: coords.z }); // fx: coords.x, fy: coords.y
         fgRef.current.refresh();
 
-    }, [fgRef]);
+    }, [graphData]);
        
     const nodeThreeObject = (node: any) => {
         
@@ -133,11 +138,14 @@ fetch('./datasets/output.json').then(res => res.json()).then(data => {
 
     };
 
-    const [state, setState] = useState({});
-    const nodeThreeObjectImage = (node: any) => {
+    interface Obj3DCache {
+        [key: string]: THREE.Group;
+    }
+    const [Obj3Ds, setObj3D] = useState<Obj3DCache>({});
+    const nodeThreeObjectImage = (node: {id:number,name:string}) => {
 
         // useEffect自体ではasyncの関数を受け取れないので内部で関数を定義して呼び出す。
-        const asatori = async () => {
+        const conv_svg = async () => {
         // fetch font information
         const endpoint = new URL('https://www.googleapis.com/webfonts/v1/webfonts');
         endpoint.searchParams.set('family', 'M PLUS 1p');
@@ -182,25 +190,25 @@ fetch('./datasets/output.json').then(res => res.json()).then(data => {
         //delete clone[node.id];
 
         //setState({...clone, [node.id]:obj3d}); // stateに反映する
-        const setObj = (key:number, value:any) => {
-            setState((oldState) => {
-            return { ...oldState, [key]: value };
+        const setObj = (key:string, value:THREE.Group) => {
+            setObj3D((oldObj3D) => {
+            return { ...oldObj3D, [key]: value };
             });
         };
 
-        setObj('obj' + String(node.id), obj3d);
+        setObj(node.id.toString(), obj3d);
 
         //console.log(state)
 
         };
 
-        if (('obj' + String(node.id) in state) === false)
+        if ((node.id.toString() in Obj3Ds) === false)
         {
-            asatori();
+            conv_svg();
         }
         
         //console.log(state['obj'+String(node.id)])
-        return state['obj' + String(node.id)];
+        return Obj3Ds[node.id.toString()];
     }
       
    
@@ -259,101 +267,63 @@ fetch('./datasets/output.json').then(res => res.json()).then(data => {
       };
 
     useEffect(() => {
+
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 4, 1, 0);
+        //bloomPass.strength = 4;
+        //bloomPass.radius = 1;
+        //bloomPass.threshold = 0;
+        //fgRef.current.postProcessingComposer().addPass(bloomPass);
+
         // add collision force
-        fgRef.current.d3Force('collision', d3force.forceCollide((node:any) => 30));
+        fgRef.current.d3Force('collision', d3force.forceCollide((node:any) => 100));
         //(node:any) => Math.sqrt(400 / (node.level + 1))+5)
         //fgRef.current.dagMode="rl"; kikanai
-    }, []);
+    }, [fgRef]);
 
-    const data = {'nodes' : nodes, 'links' : links}
 
     return (
-    <><ForceGraph3D
-          ref={fgRef}
-          graphData={data}
-          //dagLevelDistance={10}
-          backgroundColor="#202030"
-          linkColor={() => 'rgba(255,255,255,0.8)'}
-          //nodeOpacity={1}
-          nodeId="id"
-          nodeLabel={label_key}
-          nodeAutoColorBy="group"
-          //nodeVal={node => 100 / (node.level + 1)}
-          //linkDirectionalParticles={2}
-          linkDirectionalParticleWidth={1}
-          //linkDirectionalArrowLength={6}
-          d3VelocityDecay={0.4}
-          onNodeClick={handleClick}
-          onBackgroundRightClick={handleOpen}
-          //extraRenderers={extraRenderers}
-          //dagMode="radialin"
-          d3AlphaDecay={0.02}
-          nodeThreeObject={nodeThreeObjectImage}
-          nodeThreeObjectExtend={true}
-          onBackgroundClick={handleBackgroundClick}
-          onNodeDragEnd={(node:any) => {
-            node.fx = node.x;
-            node.fy = node.y;
-            //node.fz = node.z;
-          }} />
-          <ChakraProvider>
-            <Modal
-                initialFocusRef={initialRef}
-                finalFocusRef={finalRef}
-                isOpen={isOpen}
-                onClose={handleClose}>
+    <>
+    <ForceGraph3D
+        ref={fgRef}
+        graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
+        //dagLevelDistance={10}
+        backgroundColor="#202030"
+        linkColor={() => 'rgba(255,255,255,0.8)'}
+        //nodeOpacity={1}
+        nodeId="id"
+        nodeLabel={label_key}
+        nodeAutoColorBy="group"
+        //nodeVal={node => 100 / (node.level + 1)}
+        //linkDirectionalParticles={2}
+        linkDirectionalParticleWidth={1}
+        //linkDirectionalArrowLength={6}
+        d3VelocityDecay={0.4}
+        onNodeClick={props.showModal}
+        onBackgroundRightClick={props.showModal}
+        //extraRenderers={extraRenderers}
+        //dagMode="radialin"
+        d3AlphaDecay={0.02}
+        nodeThreeObject={nodeThreeObjectImage}
+        nodeThreeObjectExtend={true}
+        onBackgroundClick={handleBackgroundClick}
+        onNodeDragEnd={(node:any) => {
+        node.fx = node.x;
+        node.fy = node.y;
+        //node.fz = node.z;
+        }} />
 
-                <ModalOverlay />
-                <ModalContent>
-                <ModalHeader>Create your account</ModalHeader>
-                <ModalCloseButton />
-                <ModalBody pb={6}>
-                    <FormControl>
-                    <FormLabel>First name</FormLabel>
-                    <Input ref={initialRef} placeholder='First name' />
-                    </FormControl>
+        </>
+    );
+};
 
-                    <FormControl mt={4}>
-                    <FormLabel>Last name</FormLabel>
-                    <Input placeholder='Last name' />
-                    </FormControl>
-                </ModalBody>
+export default MindMapGraph;
 
-                <ModalFooter>
-                    <Button colorScheme='blue' mr={3} onClick={handleClose}>
-                    Save
-                    </Button>
-                    <Button onClick={handleClose}>Cancel</Button>
-                </ModalFooter>
-                </ModalContent>
-            </Modal>
-            </ChakraProvider>
-          </>
-        );
-  };
- 
-  /*
 
-    <Container>
-      <Canvas camera={{ position: [200, 200, 200], near: 0.1, far: 60000, fov: 40 }}>
-        <ambientLight />
-        <pointLight position={[-10, 10, 10]} intensity={1} />
-        <Suspense
-          fallback={
-            <Html center>
-              <Loader />
-            </Html>
-          }>
-        </Suspense>
-      </Canvas>
-    </Container>
-    
-  */
+
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <React.StrictMode>
         
-    <MindMapGraph />
+        <MindMapGraph />
 
-  </React.StrictMode>,
+    </React.StrictMode>,
   );
-});

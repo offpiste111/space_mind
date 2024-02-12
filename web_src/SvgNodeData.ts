@@ -13,8 +13,7 @@ import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader'
 const loader = new SVGLoader()
 
 /**
- * @param {string} url Path to SVG file
- * @param {string} c Color
+ * @param {string} svg Path to SVG
  */
 const SVGNode = (svg : string) => {
 
@@ -86,8 +85,6 @@ const SVGNode = (svg : string) => {
         }
       }
     }
-
-  //})
 
   return group
 }
