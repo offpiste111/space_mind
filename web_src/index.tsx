@@ -1,8 +1,10 @@
-import React, {Suspense, useState} from 'react'
+import React, {Suspense, useState,useEffect, useCallback} from 'react'
 import ReactDOM from 'react-dom/client'
 
 import { ChakraProvider, useDisclosure } from '@chakra-ui/react'
 import NodeAddModal from './NodeAddModal'
+
+import { Modal , Button, Popover} from 'antd';  
 
 //import { Canvas } from '@react-three/fiber'
 //import { Html, Loader} from '@react-three/drei'
@@ -20,20 +22,42 @@ const App = () => {
     //const [isModalOpen, setIsModalOpen] = useState(false);
     const { isOpen, onOpen, onClose } = useDisclosure()
 
+    const [x, setX] = useState(0)
+    const [y, setY] = useState(0)
 
-    const handleClick = () => {
+  
+    const handleClick = (node_x:number, node_y:number) => {
         //setIsModalOpen(true);
-        onOpen();
+
+        setX(node_x);
+        setY(node_y);
+
+        if (document.getElementById("add_popup"))
+        {
+            //document.getElementById(‘test’).style = ‘font-size:18px;background-color:red’;
+            document.getElementById("add_popup").click();
+        }
+        //onOpen();
     }
 
+
+    const content = (
+        <div>
+          <p>Content</p>
+          <p>Content</p>
+        </div>
+      );
     //<NodeAddModal2 
     //setIsModalOpen={setIsModalOpen}
     //isModalOpen = {isModalOpen}
     return (
         <>
-
         <MindMapGraph 
             showModal={handleClick} />
+
+        <Popover content={content} title="Title" trigger="click" >
+            <Button id="add_popup" style={{position:"absolute",  opacity: 0, top: y + "px", left: x+ "px"}}></Button>
+        </Popover>
 
         <ChakraProvider>
             <NodeAddModal 

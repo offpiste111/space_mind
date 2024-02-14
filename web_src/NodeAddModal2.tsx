@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Canvas } from '@react-three/fiber'
 import { Html, Loader} from '@react-three/drei'
-import { Modal , Button} from 'antd';  
+import { Modal , Button, Popover} from 'antd';  
 
 //const Container = (props:any) => <div className="container" {...props} />
 
@@ -21,11 +21,19 @@ const NodeAddModal2: React.FC = (props:any) => {
         props.setIsModalOpen(false);
     };
 
+    const content = (
+        <div>
+          <p>Content</p>
+          <p>Content</p>
+        </div>
+      );
+
     return (
         <>
-          <Button type="primary" onClick={showModal}>
-            Open Modal
-          </Button>
+            <Popover content={content} title="Title" trigger="click" style={{position:"absolute", top: "130px", left: "330px"}}>
+                <Button>Click me</Button>
+            </Popover>
+
           <Modal title="Basic Modal" open={props.isModalOpen} onOk={handleOk} onCancel={handleCancel}>
             <p>Some contents...</p>
             <p>Some contents...</p>

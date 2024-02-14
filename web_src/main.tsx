@@ -102,6 +102,11 @@ const MindMapGraph = (props:any) => {
 
     //const extraRenderers = [new CSS2DRenderer()];
     
+    const handleRightClick = useCallback((node: { x: number; y: number; z: number; }) => {
+        const screen_coords = fgRef.current.graph2ScreenCoords(node.x, node.y, node.z);
+
+        props.showModal(screen_coords.x, screen_coords.y)
+      }, [fgRef]);
 
     const handleBackgroundClick = useCallback((event:any) => {
 
@@ -298,8 +303,9 @@ const MindMapGraph = (props:any) => {
         linkDirectionalParticleWidth={1}
         //linkDirectionalArrowLength={6}
         d3VelocityDecay={0.4}
-        onNodeClick={props.showModal}
-        onBackgroundRightClick={props.showModal}
+        onNodeClick={handleClick}
+        onNodeRightClick={handleRightClick}
+        //onBackgroundRightClick={props.showModal}
         //extraRenderers={extraRenderers}
         //dagMode="radialin"
         d3AlphaDecay={0.02}
