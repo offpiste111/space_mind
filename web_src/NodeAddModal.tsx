@@ -1,54 +1,51 @@
-import React from 'react'
-import { Button, ChakraProvider, FormControl, FormLabel, Input } from '@chakra-ui/react'
-import { Modal,ModalOverlay,ModalContent,ModalHeader,ModalBody,useDisclosure,ModalCloseButton, ModalFooter} from "@chakra-ui/react";
-    
-   const NodeAddModal = (props:any) => {
- 
+import React,{useState, forwardRef, useImperativeHandle } from 'react'
+import { Modal, Input} from 'antd';  
+import _ from 'lodash';
 
-    const initialRef = React.useRef(null)
-    const finalRef = React.useRef(null)
+const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
+    const [isNodeAddModalOpen, setIsNodeAddModalOpen] = useState(false);
+    const [contents, setContents] = useState("");
+    const [editNode, setEditNode] = useState(null);
 
-    const handleOpen = () => {
-        props.onOpen();
+       
+    useImperativeHandle(ref, () => ({
+        showModal: (node:any) => {
+            setContents(node.name);
+            setIsNodeAddModalOpen(true);
+
+            setEditNode(node);
+        }
+    }));
+
+    const handleOk = () => {
+        setIsNodeAddModalOpen(false);
+
+        //let clone_node:any= _.cloneDeep(editNode);
+        //let clone_node:any = JSON.parse(JSON.stringify(editNode))
+        //clone_node.name = contents
+
+
+        //write
+        if (editNode){
+            editNode.name = contents
+        }
+
+        props.onRefreshNode(editNode);
     };
-    const handleClose = () => {
-        props.onClose();
+  
+    const handleCancel = () => {
+        setIsNodeAddModalOpen(false);
     };
+
 
     return (
-      <>
-        <Modal
-            initialFocusRef={initialRef}
-            finalFocusRef={finalRef}
-            isOpen={props.isOpen}
-            onClose={handleClose}>
-
-            <ModalOverlay />
-            <ModalContent>
-            <ModalHeader>Create your account</ModalHeader>
-            <ModalCloseButton />
-            <ModalBody pb={6}>
-                <FormControl>
-                <FormLabel>First name</FormLabel>
-                <Input ref={initialRef} placeholder='First name' />
-                </FormControl>
-
-                <FormControl mt={4}>
-                <FormLabel>Last name</FormLabel>
-                <Input placeholder='Last name' />
-                </FormControl>
-            </ModalBody>
-
-            <ModalFooter>
-                <Button colorScheme='blue' mr={3} onClick={handleClose}>
-                Save
-                </Button>
-                <Button onClick={handleClose}>Cancel</Button>
-            </ModalFooter>
-            </ModalContent>
-        </Modal>
-      </>
-    );
-   };
+        <>
+          <Modal title="Edit Node" open={isNodeAddModalOpen} onOk={handleOk} onCancel={handleCancel}>
+          <Input placeholder="Contents" value={contents} onChange={(e)=>setContents(e.target.value)}/>
+         
+          </Modal>
+        </>
+      );
+   });
     
    export default NodeAddModal;

@@ -12,7 +12,7 @@ import {CSS2DObject, CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRend
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 
 
-import { useState} from 'react'
+import { useState, forwardRef, useImperativeHandle} from 'react'
 
 
 import { Canvas } from '@react-three/fiber'
@@ -23,12 +23,11 @@ import { render, useFrame, useThree, useGraph } from '@react-three/fiber'
 import ThreeForceGraph from 'three-forcegraph'
 
 import './index.css'
-const Container = (props:any) => <div className="container" {...props} />
 
 
 const { useRef, useCallback, useEffect } = React;
 
-const MindMapGraph = (props:any) => {
+const MindMapGraph = forwardRef((props:any, ref:any) => {
 
     interface GraphData {
         nodes: object[];
@@ -36,14 +35,73 @@ const MindMapGraph = (props:any) => {
     }
 
     const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
-    
+    //const [enableNaviCtrl, setEnableNaviCtrl] = useState<boolean>(true);
+    //const [isHover, setIsHover] = useState<boolean>(false);
+    const setRotateVecFunc = ((vec:THREE.Vector3) => {
+        
+        return new THREE.Vector3(0,0,3000);
+        
+    });   
+
+    const [rotateVec, setRotateVec] = useState<THREE.Vector3>(setRotateVecFunc);
+
     const fgRef = useRef<any>();
     //const nodeAddModalRef = useRef<HTMLDivElement>(null);
 
     const label_key = "name";
     const z_layer = -300
 
+    useImperativeHandle(ref, () => ({
+        refreshNode: (node:any) => {
+
+            setObj3D((oldObj3D) => {
+                const tmp_ndoes = { ...oldObj3D }
+                delete tmp_ndoes[node.id];
+                return tmp_ndoes;
+                });
+
+            fgRef.current.refresh();
+
+        }
+    }));
+
+
+
     useEffect(() => {
+
+ 
+        var GraphCanvas = document.getElementsByTagName('canvas')[0];
+        GraphCanvas.addEventListener('mousedown', function(e) {
+            if(e.button === 0) {
+                //setEnableNaviCtrl(false);
+
+                let camera = fgRef.current.camera();
+                setRotateVec(new THREE.Vector3(camera.position.x,camera.position.y,camera.position.z));
+                
+            }
+        });
+        GraphCanvas.addEventListener('mouseup', function(e) {
+            if(e.button === 0) {
+                //setEnableNaviCtrl(true);
+                let camera = fgRef.current.camera();
+                camera.up.x = 0;
+                camera.up.y = 1;
+                camera.up.z = 0;
+
+                setRotateVec((pre_vec) => {
+                    if (fgRef.current){
+                        fgRef.current.cameraPosition(
+                            pre_vec, // new position
+                            { x: 0, y: 0, z: 0 }, // lookAt
+                            2000  // ms transition duration
+                        );
+                    }
+                    return pre_vec;
+                })
+            }
+        });
+    
+
         const fetchData = async () => {
             try {
             const response = await fetch('./datasets/output.json');
@@ -63,8 +121,8 @@ const MindMapGraph = (props:any) => {
                 //delete node['y']; 
                 delete node['vx']; 
                 delete node['vy']; 
-                //delete node['fx']; 
-                //delete node['fy']; 
+                delete node['fx']; 
+                delete node['fy']; 
                 delete node['__bckgDimensions']; 
                 
                 return node;
@@ -96,18 +154,31 @@ const MindMapGraph = (props:any) => {
         fgRef.current.cameraPosition(
             { x: node.x, y: node.y, z: distance }, // new position
             node, // lookAt ({ x, y, z })
-            3000  // ms transition duration
+            2000  // ms transition duration
         );
     }, [fgRef]);
 
     //const extraRenderers = [new CSS2DRenderer()];
     
-    const handleRightClick = useCallback((node: { x: number; y: number; z: number; }) => {
-        const screen_coords = fgRef.current.graph2ScreenCoords(node.x, node.y, node.z);
+    const handleRightClick = (node: { id:number, x: number; y: number; z: number; }) => {
+        
+        props.onNodeEdit(node)
+    };
 
-        props.showModal(screen_coords.x, screen_coords.y)
-      }, [fgRef]);
+    const handleHover = (node: { x: number; y: number; z: number; }, prevNode:{ x: number; y: number; z: number; }) => {
 
+        /*
+        if (node){
+            const screen_coords = fgRef.current.graph2ScreenCoords(node.x, node.y, node.z);
+    
+            props.onHover(screen_coords.x, screen_coords.y)
+        }
+        */
+    
+
+    };
+
+    
     const handleBackgroundClick = useCallback((event:any) => {
 
         let camera = fgRef.current.camera();
@@ -160,12 +231,12 @@ const MindMapGraph = (props:any) => {
         const fontBuffer = await fontResponse.arrayBuffer();
 
         const styles = [
-            "padding: 0.5em 1em; margin: 2em 0; font-weight: bold; color: #6091d3; background: #FFF; border: solid 3px #6091d3; border-radius: 10px;",
-            "padding: 0.5em 1em; margin: 2em 0; color: #232323; background: #fff8e8; border-left: solid 10px #ffc06e;",
-            "padding: 0.5em 1em; margin: 2em 0; color: #00BCD4; background: #e4fcff; border-top: solid 6px #1dc1d6; box-shadow: 0 3px 4px rgba(0, 0, 0, 0.32);",
-            "padding: 8px 19px; margin: 2em 0; color: #2c2c2f; background: #cde4ff; border-top: solid 5px #5989cf; border-bottom: solid 5px #5989cf;",
-            "padding: 0.2em 0.5em; margin: 2em 0; color: #565656; background: #ffeaea; box-shadow: 0px 0px 0px 10px #ffeaea; border: dashed 2px #ffc3c3; border-radius: 8px;",
-            "padding: 0.5em 1em; margin: 1em 0; background: #f4f4f4; border-left: solid 6px #5bb7ae; box-shadow: 0px 2px 3px rgba(0, 0, 0, 0.33);"
+            "padding: 0.5em 1em; margin: 2em 0; font-size: 10px; color: #6091d3; background: #FFF; border: solid 1px #6091d3; border-radius: 7px;",
+            "padding: 0.5em 1em; margin: 2em 0; font-size: 12px; color: #232323; background: #fff8e8; border-left: solid 3px #ffc06e;",
+            "padding: 0.5em 1em; margin: 2em 0; font-size: 12px; color: #00BCD4; background: #e4fcff; border-top: solid 3px #1dc1d6;",
+            "padding: 8px 19px; margin: 2em 0; font-size: 12px; color: #2c2c2f; background: #cde4ff; border-top: solid 3px #5989cf; border-bottom: solid 3px #5989cf;",
+            "padding: 0.2em 0.5em; margin: 2em 0; font-size: 12px; color: #565656; background: #ffeaea; border: dashed 2px #ffc3c3; border-radius: 8px;",
+            "padding: 0.5em 1em; margin: 1em 0; font-size: 12px; background: #f4f4f4; border-left: solid 3px #5bb7ae; "
         ];
 
         const markup:any = html`<div style="
@@ -285,12 +356,16 @@ const MindMapGraph = (props:any) => {
         //fgRef.current.dagMode="rl"; kikanai
     }, [fgRef]);
 
+    
+
+
 
     return (
     <>
     <ForceGraph3D
         ref={fgRef}
         graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
+        enableNavigationControls={true}
         //dagLevelDistance={10}
         backgroundColor="#202030"
         linkColor={() => 'rgba(255,255,255,0.8)'}
@@ -305,6 +380,7 @@ const MindMapGraph = (props:any) => {
         d3VelocityDecay={0.4}
         onNodeClick={handleClick}
         onNodeRightClick={handleRightClick}
+        onNodeHover={handleHover}
         //onBackgroundRightClick={props.showModal}
         //extraRenderers={extraRenderers}
         //dagMode="radialin"
@@ -320,7 +396,7 @@ const MindMapGraph = (props:any) => {
 
         </>
     );
-};
+});
 
 export default MindMapGraph;
 
