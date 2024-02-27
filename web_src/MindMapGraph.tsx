@@ -217,31 +217,39 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     interface Obj3DCache {
         [key: string]: THREE.Group;
     }
+
+    const notoSansJP = fetch('/assets/ZenOldMincho-Regular.ttf').then((res) =>
+        res.arrayBuffer()
+    )
+
     const [Obj3Ds, setObj3D] = useState<Obj3DCache>({});
     const nodeThreeObjectImage = (node: {id:number,name:string}) => {
 
         // useEffect自体ではasyncの関数を受け取れないので内部で関数を定義して呼び出す。
         const conv_svg = async () => {
         // fetch font information
-        const endpoint = new URL('https://www.googleapis.com/webfonts/v1/webfonts');
-        endpoint.searchParams.set('family', 'M PLUS 1p');
-        endpoint.searchParams.set('key', 'AIzaSyBwuN1FH6Yn7tpZEGy9c1xzRqB0YldWJ44');
-        const fontInfo = await fetch(endpoint).then(res => res.json());
-        const fontResponse = await fetch(fontInfo.items[0].files['800']);
-        const fontBuffer = await fontResponse.arrayBuffer();
+        //const endpoint = new URL('https://www.googleapis.com/webfonts/v1/webfonts');
+        //endpoint.searchParams.set('family', 'M PLUS 1p');
+        //endpoint.searchParams.set('key', 'AIzaSyBwuN1FH6Yn7tpZEGy9c1xzRqB0YldWJ44');
+        //const fontInfo = await fetch(endpoint).then(res => res.json());
+        //const fontResponse = await fetch(fontInfo.items[0].files['800']);
+        //const fontBuffer = await fontResponse.arrayBuffer();
 
         const styles = [
-            "padding: 0.5em 1em; margin: 2em 0; font-size: 10px; color: #6091d3; background: #FFF; border: solid 1px #6091d3; border-radius: 7px;",
-            "padding: 0.5em 1em; margin: 2em 0; font-size: 12px; color: #232323; background: #fff8e8; border-left: solid 3px #ffc06e;",
-            "padding: 0.5em 1em; margin: 2em 0; font-size: 12px; color: #00BCD4; background: #e4fcff; border-top: solid 3px #1dc1d6;",
-            "padding: 8px 19px; margin: 2em 0; font-size: 12px; color: #2c2c2f; background: #cde4ff; border-top: solid 3px #5989cf; border-bottom: solid 3px #5989cf;",
-            "padding: 0.2em 0.5em; margin: 2em 0; font-size: 12px; color: #565656; background: #ffeaea; border: dashed 2px #ffc3c3; border-radius: 8px;",
-            "padding: 0.5em 1em; margin: 1em 0; font-size: 12px; background: #f4f4f4; border-left: solid 3px #5bb7ae; "
+            "margin: 2em 0; font-size: 8px; color: #6091d3; background: #FFF; border: solid 1px #6091d3; border-radius: 7px;",
+            "margin: 2em 0; font-size: 8px; color: #232323; background: #fff8e8; border-left: solid 3px #ffc06e;",
+            "margin: 2em 0; font-size: 8px; color: #00BCD4; background: #e4fcff; border-top: solid 3px #1dc1d6;",
+            "margin: 2em 0; font-size: 8px; color: #2c2c2f; background: #cde4ff; border-top: solid 3px #5989cf; border-bottom: solid 3px #5989cf;",
+            "margin: 2em 0; font-size: 8px; color: #565656; background: #ffeaea; border: dashed 2px #ffc3c3; border-radius: 8px;",
+            "margin: 1em 0; font-size: 8px; background: #f4f4f4; border-left: solid 3px #5bb7ae; "
         ];
 
         const markup:any = html`<div style="
-                                min-height: 50px;
-                                min-width: 150px;
+                                min-height: 30px;
+                                min-width: 100px;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
                                 ${styles[node.id%styles.length]}
                                 transform: scale(1,-1);">
                                 ${node.name}
@@ -251,8 +259,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             height: 1,
             fonts: [
             {
-                name: 'M PLUS 1p',
-                data: fontBuffer, // ここに渡す
+                name: 'Noto Sans JP',
+                data: await notoSansJP,
             },
             ],
         });
