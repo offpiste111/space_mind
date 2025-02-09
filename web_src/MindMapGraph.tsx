@@ -105,9 +105,11 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 camera.getWorldDirection(up);
                 right.crossVectors(up, camera.up);
                 
-                // 移動量を計算（感度調整のため0.95を掛ける）
-                const moveX = right.multiplyScalar(-deltaX * 0.95);
-                const moveY = camera.up.clone().multiplyScalar(deltaY * 0.95);
+                // 移動量をカメラのz軸に応じて調整
+ 
+                let move_scale = fgRef.current.cameraPosition().z / 1000 + 1;
+                const moveX = right.multiplyScalar(-deltaX * move_scale);
+                const moveY = camera.up.clone().multiplyScalar(deltaY * move_scale);
                 
                 if (isTranslating) {
                     // カメラと注視点を同時に移動
