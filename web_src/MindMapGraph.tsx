@@ -136,7 +136,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     
                     fgRef.current.cameraPosition(
                         newPosition,
-                        undefined,
+                        tempLookAt,
                         0
                     );
                 }
@@ -154,9 +154,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             if (!isHovering.current && fgRef.current) {
 
                 if (e.button === 0 || e.button === 2) {
-                    if (isTranslating) {
+                    if (isTranslating && !tempLookAt.equals(lookAtTarget)) {
                         // 移動が完了したときにのみlookAtTargetを更新
-                        console.log('handleMouseUp setLookAtTarget', tempLookAt);
                         setLookAtTarget(new THREE.Vector3().copy(tempLookAt));
                     }
                     isPanning = false;
@@ -222,7 +221,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     useEffect(() => {
         console.log('Wheel useEffect called, lookAtTarget:', lookAtTarget);
         var GraphCanvas = document.getElementsByTagName('canvas')[0];
-        
+
         const handleWheel = function(e: WheelEvent) {
             e.preventDefault();
             if (fgRef.current) {
@@ -260,7 +259,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
-            const distance = 80;
+            const distance = 100;
             const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
 
             // 視点座標を保存
@@ -270,7 +269,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 fgRef.current.cameraPosition(
                     { x: node.x, y: node.y, z: distance }, // new position
                     { x: node.x, y: node.y, z: node.z }, // lookAt ({ x, y, z })
-                    200  // ms transition duration
+                    600  // ms transition duration
                 );
             }
         }
@@ -286,7 +285,20 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
     const handleBackgroundClick = useCallback((event:any) => {
         let camera = fgRef.current.camera();
-        let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, (-z_layer + camera.position.z) );
+        //クリック位置からnodeのx,y,z_layerを探索する処理
+        let distance = camera.position.distanceTo(new THREE.Vector3(0, 0, z_layer));
+        let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance );
+        let iterations = 0;
+        while (iterations < 10) {
+            const diff = coords.z - z_layer;
+            if (Math.abs(diff) <= 5) {
+            break;
+            }
+            // Increase adjustment magnitude for faster convergence.
+            distance += diff * 0.5;
+            coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance);
+            iterations++;
+        }
 
         let nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
         let groupId = 1
