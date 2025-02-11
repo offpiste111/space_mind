@@ -31,8 +31,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
     interface NodeData {
         id: number;
-        name: string;
-        group?: number;
+        img: string;
         x?: number;
         y?: number;
         z?: number;
@@ -82,7 +81,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         const handleMouseDown = function(e: MouseEvent) {
             if (!isHovering.current && fgRef.current) {
 
-                if (e.button === 0 || e.button === 2) { // 左ボタンまたは右ボタン
+                if (e.button === 0) { // 左ボタンまたは右ボタン
                     isTranslating = true;
                     lastX = e.clientX;
                     lastY = e.clientY;
@@ -90,11 +89,17 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     tempLookAt.copy(lookAtTarget);
                     e.preventDefault();
                 }
+                else if (e.button === 2) { // 右ボタン
+                    isPanning = true;
+                    lastX = e.clientX;
+                    lastY = e.clientY;
+                    e.preventDefault();
+                }
             }
         };
 
         const handleMouseMove = function(e: MouseEvent) {
-        if (isTranslating && !isDraggingNode.current && fgRef.current) {
+        if ((isTranslating || isPanning) && !isDraggingNode.current && fgRef.current) {
                 const camera = fgRef.current.camera();
                 const deltaX = e.clientX - lastX;
                 const deltaY = e.clientY - lastY;
@@ -179,6 +184,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         GraphCanvas.addEventListener('mouseleave', handleMouseLeave);
 
         // データ取得
+
+
+
         const fetchData = async () => {
             try {
                 const response = await fetch('./datasets/output.json');
@@ -186,6 +194,22 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     throw new Error('Failed to fetch data');
                 }
                 const jsonData = await response.json();
+
+                const imgs = ['battle.png','react.svg','27077.png','27078.png'];
+
+                // Random connected graph
+                const gData = {
+                  nodes: imgs.map((img, id) => ({ id, img })),
+                  links: [...Array(imgs.length).keys()]
+                    .filter(id => id)
+                      .map(id => ({
+                        source: id,
+                        target: Math.round(Math.random() * (id-1))
+                      }))
+                };
+
+                console.log(gData)
+
 
                 //z軸固定
                 jsonData.nodes = jsonData.nodes.map((node:any) => {
@@ -198,7 +222,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     return node;
                 })
                 
-                setGraphData(jsonData);
+                setGraphData(gData);
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
@@ -278,7 +302,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     }, [fgRef]);
     
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
-        console.log(lookAtTarget)
+        
     };
 
     const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
@@ -308,7 +332,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             groupId = Math.max(...graphData.nodes.map((item:any) => item.group)) + 1
         }
         
-        graphData.nodes.push({ id: nodeId, name: "new", group: groupId, fx: coords.x, fy: coords.y, fz: z_layer });
+        graphData.nodes.push({ id: nodeId, img: "", fx: coords.x, fy: coords.y, fz: z_layer });
         fgRef.current.refresh();
     }, [graphData]);
        
@@ -426,6 +450,19 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         return MultilineText;
     };
 
+    const nodeThreeObjectImageTexture = ( node:any ) => {
+        const imgTexture = new THREE.TextureLoader().load(`./assets/${node['img']}`);
+        imgTexture.colorSpace = THREE.SRGBColorSpace;
+        const material = new THREE.SpriteMaterial({ map: imgTexture });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(30, 30,30);
+
+        return sprite;
+    };
+
+
+    
+
     useEffect(() => {
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 4, 1, 0);
         fgRef.current.d3Force('collision', d3force.forceCollide((node:any) => 100));
@@ -441,7 +478,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 linkColor={() => 'rgba(255,255,255,0.8)'}
                 nodeId="id"
                 nodeLabel={label_key}
-                nodeAutoColorBy="group"
+                //nodeAutoColorBy="group"
                 linkDirectionalParticleWidth={1}
                 d3VelocityDecay={0.4}
                 onNodeClick={handleClick}
@@ -451,8 +488,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 }}
                 onNodeHover={handleHover}
                 d3AlphaDecay={0.02}
-                nodeThreeObject={nodeThreeObjectImage}
-                nodeThreeObjectExtend={true}
+                nodeThreeObject={nodeThreeObjectImageTexture}
+                //nodeThreeObjectExtend={true}
                 onBackgroundClick={handleBackgroundClick}
                 onNodeDragEnd={(node:any) => {
                     node.fx = node.x;

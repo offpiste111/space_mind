@@ -81,6 +81,15 @@ def start_eel(develop):
 
     #eel.show_log('https://github.com/samuelhwilliams/Eel/issues/363 (show_log)')
 
+
+    #create images
+    import imgkit
+    config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
+
+    body = '<html><head></head>Hello World!</html>'
+
+    imgkit.from_string(body, './manual.png', config=config)
+    imgkit.from_file('./manual.html', 'out.jpg', config=config)
     
 
     eel_kwargs = dict(
