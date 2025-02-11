@@ -336,7 +336,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 "margin: 2em 0; font-size: 8px; color: #00BCD4; background: #e4fcff; border-top: solid 3px #1dc1d6;",
                 "margin: 2em 0; font-size: 8px; color: #2c2c2f; background: #cde4ff; border-top: solid 3px #5989cf; border-bottom: solid 3px #5989cf;",
                 "margin: 2em 0; font-size: 8px; color: #565656; background: #ffeaea; border: dashed 2px #ffc3c3; border-radius: 8px;",
-                "margin: 1em 0; font-size: 8px; background: #f4f4f4; border-left: solid 3px #5bb7ae; "
+                "margin: 2em 0; font-size: 8px; background: #f4f4f4; border-left: solid 3px #5bb7ae; "
             ];
 
             const markup:any = html`<div style="
@@ -350,8 +350,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                                     ${node.name}
                                 </div>`;
             const svg = await satori(markup, {
-                width: 1,
-                height: 1,
+                width: 0,
+                height: 0,
                 fonts: [
                     {
                         name: 'Noto Sans JP',
@@ -362,7 +362,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         
             const obj3d = SVGNodeData(svg);
             obj3d.scale.set(1,1,1)
-            obj3d.position.set(-100, -50, 0);
+            obj3d.position.set(-50, -30, 0);
 
             const setObj = (key:string, value:THREE.Group) => {
                 setObj3D((oldObj3D) => {
