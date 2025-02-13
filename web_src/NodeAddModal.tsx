@@ -5,7 +5,12 @@ import _ from 'lodash';
 const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
     const [isNodeAddModalOpen, setIsNodeAddModalOpen] = useState(false);
     const [contents, setContents] = useState("");
-    const [editNode, setEditNode] = useState(null);
+    interface Node {
+        name: string;
+        isNew?: boolean;
+    }
+    
+    const [editNode, setEditNode] = useState<Node | null>(null);
 
        
     useImperativeHandle(ref, () => ({
@@ -19,15 +24,13 @@ const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
 
     const handleOk = () => {
         setIsNodeAddModalOpen(false);
-
-        //let clone_node:any= _.cloneDeep(editNode);
-        //let clone_node:any = JSON.parse(JSON.stringify(editNode))
-        //clone_node.name = contents
-
-
         //write
         if (editNode){
             editNode.name = contents
+            //other
+        }
+        if (editNode && _.has(editNode, 'isNew') && editNode.isNew){
+            editNode.isNew = false;
         }
 
         props.onRefreshNode(editNode);
@@ -35,6 +38,10 @@ const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
   
     const handleCancel = () => {
         setIsNodeAddModalOpen(false);
+        if (editNode && _.has(editNode, 'isNew') && editNode.isNew){
+            props.onDeleteNode(editNode);
+        }
+        
     };
 
 

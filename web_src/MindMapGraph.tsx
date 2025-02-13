@@ -39,6 +39,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         fx?: number;
         fy?: number;
         fz?: number;
+        isNew?: boolean;
     }
 
     interface GraphData {
@@ -65,10 +66,18 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             //    delete tmp_ndoes[node.id];
             //    return tmp_ndoes;
             //});
+            console.log('refreshNode', node);
+
             fgRef.current.refresh();
         }
     }));
-
+    useImperativeHandle(ref, () => ({
+        deleteNode: (node:any) => {
+            console.log('deleteNode', node);
+            graphData.nodes = graphData.nodes.filter((item:any) => item.id !== node.id);
+            fgRef.current.refresh();
+        }
+    }));
     // マウス操作とデータ取得のuseEffect
     useEffect(() => {
         console.log('Mouse operation useEffect initialized');
@@ -316,9 +325,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         if(graphData.nodes.length > 0){
             groupId = Math.max(...graphData.nodes.map((item:any) => item.group)) + 1
         }
-        
-        graphData.nodes.push({ id: nodeId, img: `node_img/${nodeId}.png`, group: groupId, fx: coords.x, fy: coords.y, fz: z_layer });
+        let new_node = { id: nodeId, img: "new_node.png", group: groupId, style_id: 1, fx: coords.x, fy: coords.y, fz: z_layer, isNew: true };
+        graphData.nodes.push(new_node);
         fgRef.current.refresh();
+        props.onNodeEdit(new_node);
     }, [graphData]);
        
     const nodeThreeObject = (node: any) => {

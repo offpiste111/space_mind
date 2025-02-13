@@ -64,7 +64,12 @@ const App = () => {
        
         //setEditNode(contents);
     }
-
+    const handleDeleteNode = (node:any) => {
+        if (mindMapGraphRef.current) {
+            mindMapGraphRef.current.deleteNode(node);
+        }
+    }
+     
     const handleHover = (node_x:number, node_y:number) => {
         
 
@@ -130,7 +135,8 @@ const App = () => {
 
         <NodeAddModal
             ref={nodeAddModalRef}
-            onRefreshNode={handleRefreshNode}/>
+            onRefreshNode={handleRefreshNode}
+            onDeteleNode={handleDeleteNode} />
 
         <TreeDrawer
             ref={treeDrawerRef}/>
