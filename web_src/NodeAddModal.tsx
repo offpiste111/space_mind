@@ -29,9 +29,6 @@ const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
             editNode.name = contents
             //other
         }
-        if (editNode && _.has(editNode, 'isNew') && editNode.isNew){
-            editNode.isNew = false;
-        }
 
         props.onRefreshNode(editNode);
     };

@@ -136,7 +136,7 @@ const App = () => {
         <NodeAddModal
             ref={nodeAddModalRef}
             onRefreshNode={handleRefreshNode}
-            onDeteleNode={handleDeleteNode} />
+            onDeleteNode={handleDeleteNode} />
 
         <TreeDrawer
             ref={treeDrawerRef}/>

@@ -82,7 +82,7 @@ def generate_image(node):
             'height': '120'
         }
         #既存の画像がある場合は削除
-        if 'img' in node and node['img'] is not None and node['img'] != "":
+        if 'isNew' not in node or node['isNew'] == False:
             if os.path.exists(f"./web_src/assets/{node['img']}"):
                 os.remove(f"./web_src/assets/{node['img']}")
 

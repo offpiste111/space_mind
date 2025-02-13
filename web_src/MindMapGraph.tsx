@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import _ from 'lodash'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import * as d3force from 'd3-force'
@@ -67,17 +68,26 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             //    return tmp_ndoes;
             //});
             console.log('refreshNode', node);
-
+            //nodeにisNewがある場合、キーを削除する
+            if (node && _.has(node, 'isNew')) {
+                delete node.isNew;
+            }
             fgRef.current.refresh();
-        }
-    }));
-    useImperativeHandle(ref, () => ({
-        deleteNode: (node:any) => {
+        },
+        deleteNode: (node: any) => {
             console.log('deleteNode', node);
-            graphData.nodes = graphData.nodes.filter((item:any) => item.id !== node.id);
+            deleteNode(node.id);
             fgRef.current.refresh();
         }
     }));
+    // node.idと一致するnodeをgraphDataから削除する関数
+    const deleteNode = (nodeId: number) => {
+        setGraphData(prevData => ({
+        nodes: prevData.nodes.filter(node => node.id !== nodeId),
+        links: prevData.links.filter(link => link.source !== nodeId && link.target !== nodeId)
+        }));
+    };
+
     // マウス操作とデータ取得のuseEffect
     useEffect(() => {
         console.log('Mouse operation useEffect initialized');
@@ -292,6 +302,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     600  // ms transition duration
                 );
             }
+            console.log('Node clicked:', node);
         }
     }, [fgRef]);
     
