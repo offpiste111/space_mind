@@ -12,6 +12,16 @@ import NodeAddModal from './NodeAddModal'
 import TreeDrawer from './TreeDrawer'
 import { FloatButton } from 'antd';
 
+declare const window: any;
+export const eel = window.eel
+eel.set_host( 'ws://localhost:5169' )
+
+// Expose the `sayHelloJS` function to Python as `say_hello_js`
+function sayHelloJS( x: any ) {
+  console.log( 'Hello from ' + x )
+}
+// WARN: must use window.eel to keep parse-able eel.expose{...}
+window.eel.expose( sayHelloJS, 'say_hello_js' )
 
 const App = () => {
 
@@ -43,10 +53,15 @@ const App = () => {
     }
 
     const handleRefreshNode = (node:any) => {
-        console.log(node.name);
-        if(mindMapGraphRef.current){
-            mindMapGraphRef.current.refreshNode(node);
-        }
+        sayHelloJS( 'Javascript World!' )
+        eel.say_hello_py( 'Javascript World!' )
+        eel.generate_image(node)((generatedImage: any) => {
+            node.img = generatedImage;
+            if(mindMapGraphRef.current){
+                mindMapGraphRef.current.refreshNode(node);
+            }
+        })
+       
         //setEditNode(contents);
     }
 

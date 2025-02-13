@@ -32,6 +32,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     interface NodeData {
         id: number;
         img: string;
+        group?: number;
         x?: number;
         y?: number;
         z?: number;
@@ -59,11 +60,11 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const [lookAtTarget, setLookAtTarget] = useState<THREE.Vector3>(new THREE.Vector3(0, 0, z_layer));
     useImperativeHandle(ref, () => ({
         refreshNode: (node:any) => {
-            setObj3D((oldObj3D) => {
-                const tmp_ndoes = { ...oldObj3D }
-                delete tmp_ndoes[node.id];
-                return tmp_ndoes;
-            });
+            //setObj3D((oldObj3D) => {
+            //    const tmp_ndoes = { ...oldObj3D }
+            //    delete tmp_ndoes[node.id];
+            //    return tmp_ndoes;
+            //});
             fgRef.current.refresh();
         }
     }));
@@ -195,34 +196,18 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 }
                 const jsonData = await response.json();
 
-                const imgs = ['battle.png','react.svg','27077.png','27078.png'];
-
-                // Random connected graph
-                const gData = {
-                  nodes: imgs.map((img, id) => ({ id, img })),
-                  links: [...Array(imgs.length).keys()]
-                    .filter(id => id)
-                      .map(id => ({
-                        source: id,
-                        target: Math.round(Math.random() * (id-1))
-                      }))
-                };
-
-                console.log(gData)
-
-
                 //z軸固定
                 jsonData.nodes = jsonData.nodes.map((node:any) => {
                     node.fz = z_layer;
-                    node['fx'] = node['x']
-                    node['fy'] = node['y']
+                    node['x'] = node['x']
+                    node['y'] = node['y']
                     delete node['vx']; 
                     delete node['vy']; 
                     delete node['__bckgDimensions']; 
                     return node;
                 })
                 
-                setGraphData(gData);
+                setGraphData(jsonData);
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
@@ -302,7 +287,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     }, [fgRef]);
     
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
-        
+        props.onNodeEdit(node)
     };
 
     const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
@@ -332,7 +317,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             groupId = Math.max(...graphData.nodes.map((item:any) => item.group)) + 1
         }
         
-        graphData.nodes.push({ id: nodeId, img: "", fx: coords.x, fy: coords.y, fz: z_layer });
+        graphData.nodes.push({ id: nodeId, img: `node_img/${nodeId}.png`, group: groupId, fx: coords.x, fy: coords.y, fz: z_layer });
         fgRef.current.refresh();
     }, [graphData]);
        
@@ -455,7 +440,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         imgTexture.colorSpace = THREE.SRGBColorSpace;
         const material = new THREE.SpriteMaterial({ map: imgTexture });
         const sprite = new THREE.Sprite(material);
-        sprite.scale.set(30, 30,30);
+        sprite.scale.set(200, 60, 1);
 
         return sprite;
     };
