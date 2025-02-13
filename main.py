@@ -35,11 +35,11 @@ def save_json(data):
 wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
 
 node_styles = [
-    "font-size: 32px; color: #6091d3; background: #FFF; border: solid 3px #6091d3; border-radius: 7px;",
+    "font-size: 32px; color: #6091d3; background: #FFF; border: solid 6px #6091d3; border-radius: 7px;",
     "font-size: 32px; color: #232323; background: #fff8e8; border: solid 6px #ffc06e; border-radius: 7px;",
     "font-size: 32px; color: #00BCD4; background: #e4fcff; border: solid 6px #1dc1d6; border-radius: 7px;",
     "font-size: 32px; color: #2c2c2f; background: #cde4ff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
-    "font-size: 32px; color: #565656; background: #ffeaea; border: dashed 4px #ffc3c3; border-radius: 8px;",
+    "font-size: 32px; color: #565656; background: #ffeaea; border: dashed 6px #ffc3c3; border-radius: 8px;",
     "font-size: 32px; background: #f4f4f4; border: solid 6px #5bb7ae; border-radius: 7px;"
 ]
 
@@ -83,7 +83,7 @@ def generate_image(node):
                 """
         options = {
             'width': '400',
-            'height': '120'
+            'height': '109'
         }
         #既存の画像がある場合は削除
         if 'isNew' not in node or node['isNew'] == False:

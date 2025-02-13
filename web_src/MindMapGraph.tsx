@@ -222,6 +222,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     node['y'] = node['y']
                     delete node['vx']; 
                     delete node['vy']; 
+                    delete node['fx']; 
+                    delete node['fy']; 
                     delete node['__bckgDimensions']; 
                     return node;
                 })
