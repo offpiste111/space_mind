@@ -36,11 +36,11 @@ wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimag
 
 node_styles = [
     "font-size: 32px; color: #6091d3; background: #FFF; border: solid 3px #6091d3; border-radius: 7px;",
-    "font-size: 32px; color: #232323; background: #fff8e8; border-left: solid 6px #ffc06e;",
-    "font-size: 32px; color: #00BCD4; background: #e4fcff; border-top: solid 6px #1dc1d6;",
+    "font-size: 32px; color: #232323; background: #fff8e8; border: solid 6px #ffc06e; border-radius: 7px;",
+    "font-size: 32px; color: #00BCD4; background: #e4fcff; border: solid 6px #1dc1d6; border-radius: 7px;",
     "font-size: 32px; color: #2c2c2f; background: #cde4ff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
     "font-size: 32px; color: #565656; background: #ffeaea; border: dashed 4px #ffc3c3; border-radius: 8px;",
-    "font-size: 32px; background: #f4f4f4; border-left: solid 6px #5bb7ae; "
+    "font-size: 32px; background: #f4f4f4; border: solid 6px #5bb7ae; border-radius: 7px;"
 ]
 
 
@@ -66,13 +66,17 @@ def generate_image(node):
                 </head>
                 <body style="margin: 0; padding: 0; background: black;"></body>
                     <div style="
-                        min-height: 120px;
+                        min-height: 60px;
                         min-width: 400px;
-                        display: flex;
-                        justify-content: center;
+                        text-align: center;
                         {node_styles[node['style_id']-1]}
                         ">
-                        {node['name']}
+                        <div style="
+                            margin: 30px;">
+                            {node['name']}
+
+                        </div>
+                        
                     </div>
                 </body>
                 </html>
