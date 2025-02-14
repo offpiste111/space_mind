@@ -468,11 +468,49 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         return sprite;
     };
 
+    const [dragSourceNode, setDragSourceNode] = useState<any>(null);
+    const [interimLink, setInterimLinkState] = useState<any>(null);
+    const [nodeIdCounter, setNodeIdCounter] = useState<number>(0);
+    const [linkIdCounter, setLinkIdCounter] = useState<number>(0);
 
-    
+    const distance = (node1: any, node2: any) => {
+        return Math.sqrt(Math.pow(node1.x - node2.x, 2) + Math.pow(node1.y - node2.y, 2));
+    };
 
+    const snapInDistance = 15; // Define snapInDistance with an appropriate value
+    const snapOutDistance = 40
+
+    const setInterimLink = (source: any, target: any) => {
+        setLinkIdCounter(prev => {
+            const linkId = prev + 1;
+            const newLink = { id: linkId, source: source, target: target, name: 'link_' + linkId };
+            setGraphData(prevData => ({
+                ...prevData,
+                links: [...prevData.links, newLink]
+            }));
+            setInterimLinkState(newLink);
+            fgRef.current.refresh();
+            return linkId;
+        });
+    };
+
+    const removeLink = (link: any) => {
+        setGraphData(prevData => ({
+            ...prevData,
+            links: prevData.links.filter(l => l !== link)
+        }));
+    };
+
+    const removeInterimLinkWithoutAddingIt = () => {
+        if (interimLink) {
+            removeLink(interimLink);
+            setInterimLinkState(null);
+            fgRef.current.refresh();
+        }
+    };
     useEffect(() => {
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 4, 1, 0);
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.2, 0.001, 0.9);
+        //fgRef.current.postProcessingComposer().addPass(bloomPass);
         fgRef.current.d3Force('collision', d3force.forceCollide((node:any) => 100));
     }, [fgRef]);
 
@@ -491,8 +529,28 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 d3VelocityDecay={0.4}
                 onNodeClick={handleClick}
                 onNodeRightClick={handleRightClick}
-                onNodeDrag={(node:any) => {
+                onNodeDrag={(dragNode:any) => {
                     isDraggingNode.current = true;
+                    setDragSourceNode(dragNode);
+                    for (let node of graphData.nodes) {
+                      if (dragNode === node) {
+                        continue;
+                      }
+                      console.log(distance(dragNode, node))
+                      // close enough: snap onto node as target for suggested link
+                      if (!interimLink && distance(dragNode, node) < snapInDistance) {
+                        setInterimLink(dragSourceNode, node);
+                      }
+                      // close enough to other node: snap over to other node as target for suggested link
+                      if (interimLink && node !== interimLink.target && distance(dragNode, node) < snapInDistance) {
+                        removeLink(interimLink);
+                        setInterimLink(dragSourceNode, node);
+                      }
+                    }
+                    // far away enough: snap out of the current target node
+                    if (interimLink && distance(dragNode, interimLink.target) > snapOutDistance) {
+                      removeInterimLinkWithoutAddingIt();
+                    }
                 }}
                 onNodeHover={handleHover}
                 d3AlphaDecay={0.02}
