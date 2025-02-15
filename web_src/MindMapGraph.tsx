@@ -55,6 +55,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
     const fgRef = useRef<any>();
     const isDraggingNode = useRef<boolean>(false);
+    const dragCounter = useRef<number>(0);
     const isHovering = useRef<boolean>(false);
     const label_key = "name";
     const z_layer = -300
@@ -222,8 +223,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     node['y'] = node['y']
                     delete node['vx']; 
                     delete node['vy']; 
-                    delete node['fx']; 
-                    delete node['fy']; 
+                    //delete node['fx']; 
+                    //delete node['fy']; 
                     delete node['__bckgDimensions']; 
                     return node;
                 })
@@ -468,46 +469,42 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         return sprite;
     };
 
-    const [dragSourceNode, setDragSourceNode] = useState<any>(null);
     const [interimLink, setInterimLinkState] = useState<any>(null);
-    const [nodeIdCounter, setNodeIdCounter] = useState<number>(0);
-    const [linkIdCounter, setLinkIdCounter] = useState<number>(0);
 
     const distance = (node1: any, node2: any) => {
-        return Math.sqrt(Math.pow(node1.x - node2.x, 2) + Math.pow(node1.y - node2.y, 2));
+        return Math.sqrt(
+            Math.pow(node1.x - node2.x, 2) +
+            Math.pow(node1.y - node2.y, 2) +
+            Math.pow(node1.z - node2.z, 2)
+        );
     };
 
-    const snapInDistance = 15; // Define snapInDistance with an appropriate value
-    const snapOutDistance = 40
+    const snapInDistance = 220; // Define snapInDistance with an appropriate value
+    const snapOutDistance = 250; // Define snapOutDistance with an appropriate value
 
-    const setInterimLink = (source: any, target: any) => {
-        setLinkIdCounter(prev => {
-            const linkId = prev + 1;
-            const newLink = { id: linkId, source: source, target: target, name: 'link_' + linkId };
-            setGraphData(prevData => ({
-                ...prevData,
-                links: [...prevData.links, newLink]
-            }));
-            setInterimLinkState(newLink);
-            fgRef.current.refresh();
-            return linkId;
-        });
-    };
-
-    const removeLink = (link: any) => {
+    const setInterimLink = (linkId: number, source: any, target: any) => {
+        if (linkId < 0){
+            linkId = graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1;
+        }
+        const newLink = { index: linkId, source: source, target: target, name: source.name + ' to ' + target.name };
         setGraphData(prevData => ({
             ...prevData,
-            links: prevData.links.filter(l => l !== link)
+            links: [...prevData.links, newLink]
         }));
+        setInterimLinkState(newLink);
     };
 
-    const removeInterimLinkWithoutAddingIt = () => {
-        if (interimLink) {
-            removeLink(interimLink);
-            setInterimLinkState(null);
-            fgRef.current.refresh();
-        }
+
+    const removeLink = (link: any): number => {
+        const removedIndex = link.index;
+        setGraphData(prevData => ({
+            ...prevData,
+            links: prevData.links.filter(l => l.index !== removedIndex)
+        }));
+        return removedIndex;
     };
+
+
     useEffect(() => {
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.2, 0.001, 0.9);
         //fgRef.current.postProcessingComposer().addPass(bloomPass);
@@ -521,36 +518,49 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
                 enableNavigationControls={false}
                 backgroundColor="#202030"
-                linkColor={() => 'rgba(255,255,255,0.8)'}
+                linkColor={(link) => link === interimLink ? 'rgb(246, 147, 177)' : 'rgba(255,255,255,1)'}
                 nodeId="id"
+                //linkDirectionalArrowLength={6}
+                //linkDirectionalArrowRelPos={1}
                 nodeLabel={label_key}
                 //nodeAutoColorBy="group"
                 linkDirectionalParticleWidth={1}
+                linkLineDash={(link:any) => link === interimLink ? [2, 2] : []}
                 d3VelocityDecay={0.4}
                 onNodeClick={handleClick}
                 onNodeRightClick={handleRightClick}
                 onNodeDrag={(dragNode:any) => {
                     isDraggingNode.current = true;
-                    setDragSourceNode(dragNode);
+                
+                    //onNodeDragが実行される回数をカウントしておき、100回に1回しか実行しない
+                    dragCounter.current += 1;
+                    if (dragCounter.current < 100) return;
+
+                    dragCounter.current = 0;
                     for (let node of graphData.nodes) {
-                      if (dragNode === node) {
+                      console.log("onNodeDrag loop")
+                      if (dragNode.id === node.id) {
                         continue;
                       }
-                      console.log(distance(dragNode, node))
-                      // close enough: snap onto node as target for suggested link
+                      // 十分に近い：推奨リンクのターゲットとしてノードにスナップする
                       if (!interimLink && distance(dragNode, node) < snapInDistance) {
-                        setInterimLink(dragSourceNode, node);
+                        setInterimLink(-1, dragNode, node);
+                        break;
                       }
-                      // close enough to other node: snap over to other node as target for suggested link
-                      if (interimLink && node !== interimLink.target && distance(dragNode, node) < snapInDistance) {
-                        removeLink(interimLink);
-                        setInterimLink(dragSourceNode, node);
+                      // 十分に他のノードに近い場合: 推奨リンクのターゲットとして他のノードにスナップ
+                      if (interimLink && node.id !== interimLink.target.id && distance(dragNode, node) < snapInDistance) {
+                        let removed_index = removeLink(interimLink);
+                        setInterimLink(removed_index, dragNode, node);
+                        break;
                       }
                     }
-                    // far away enough: snap out of the current target node
+
+                    // 十分に離れている場合：現在のターゲットノードからスナップアウト
                     if (interimLink && distance(dragNode, interimLink.target) > snapOutDistance) {
-                      removeInterimLinkWithoutAddingIt();
+                        removeLink(interimLink);
+                        setInterimLinkState(null);
                     }
+
                 }}
                 onNodeHover={handleHover}
                 d3AlphaDecay={0.02}
@@ -560,7 +570,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 onNodeDragEnd={(node:any) => {
                     node.fx = node.x;
                     node.fy = node.y;
-                    isDraggingNode.current = false;
+                    isDraggingNode.current = false;  
+                    
+                    setInterimLinkState(null);
+                    
                 }}
             />
         </>
