@@ -29,6 +29,7 @@ import './index.css'
 const { useRef, useCallback, useEffect } = React;
 
 const MindMapGraph = forwardRef((props:any, ref:any) => {
+    const fgRef = useRef<any>();
 
     // 選択されたノードを追跡するstate
     const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
