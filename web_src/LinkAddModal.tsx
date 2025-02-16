@@ -2,66 +2,60 @@ import React,{useState, forwardRef, useImperativeHandle } from 'react'
 import { Modal, Input, Button, Flex } from 'antd';  
 import _ from 'lodash';
 
-const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
-    const [isNodeAddModalOpen, setIsNodeAddModalOpen] = useState(false);
+const LinkAddModal: React.FC = forwardRef((props:any, ref:any) => {
+    const [isLinkAddModalOpen, setIsLinkAddModalOpen] = useState(false);
     const [contents, setContents] = useState("");
-    interface Node {
+    
+    interface Link {
         name: string;
+        source: any;
+        target: any;
+        index: number;
         isNew?: boolean;
     }
     
-    const [editNode, setEditNode] = useState<Node | null>(null);
-
+    const [editLink, setEditLink] = useState<Link | null>(null);
        
     useImperativeHandle(ref, () => ({
-        showModal: (node:any) => {
-            setContents(node.name);
-            setIsNodeAddModalOpen(true);
-
-            setEditNode(node);
+        showModal: (link:any) => {
+            setContents(link.name);
+            setIsLinkAddModalOpen(true);
+            setEditLink(link);
         }
     }));
 
     const handleOk = () => {
-        setIsNodeAddModalOpen(false);
-        //write
-        if (editNode){
-            editNode.name = contents
-            //other
+        setIsLinkAddModalOpen(false);
+        if (editLink){
+            editLink.name = contents;
         }
-
-        props.onRefreshNode(editNode);
+        props.onRefreshLink(editLink);
     };
   
     const handleCancel = () => {
-        setIsNodeAddModalOpen(false);
-        if (editNode && _.has(editNode, 'isNew') && editNode.isNew){
-            props.onDeleteNode(editNode);
-        }
-        
+        setIsLinkAddModalOpen(false);
     };
-
 
     return (
         <>
           <Modal 
-            title="Edit Node" 
-            open={isNodeAddModalOpen} 
+            title="Edit Link" 
+            open={isLinkAddModalOpen} 
             onOk={handleOk} 
             onCancel={handleCancel}
             footer={
               <Flex justify="space-between" align="center">
-                {editNode && !editNode.isNew && (
+                {editLink && !editLink.isNew && (
                   <Button danger onClick={() => {
-                    if (editNode) {
-                      props.onDeleteNode(editNode);
-                      setIsNodeAddModalOpen(false);
+                    if (editLink) {
+                      props.onDeleteLink(editLink);
+                      setIsLinkAddModalOpen(false);
                     }
                   }}>
                     削除
                   </Button>
                 )}
-                <Flex gap="small" style={{ marginLeft: editNode?.isNew ? 'auto' : 0 }}>
+                <Flex gap="small" style={{ marginLeft: editLink?.isNew ? 'auto' : 0 }}>
                   <Button onClick={handleCancel}>
                     キャンセル
                   </Button>
@@ -81,15 +75,14 @@ const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
             }}
           >
           <Input 
-            placeholder="Contents" 
+            placeholder="Link Name" 
             value={contents} 
             onChange={(e)=>setContents(e.target.value)}
             onPressEnter={handleOk}
           />
-         
           </Modal>
         </>
-      );
-   });
+    );
+});
     
-   export default NodeAddModal;
+export default LinkAddModal;

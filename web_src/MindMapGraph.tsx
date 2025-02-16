@@ -79,6 +79,24 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             console.log('deleteNode', node);
             deleteNode(node.id);
             fgRef.current.refresh();
+        },
+        deleteLink: (link: any) => {
+            console.log('deleteLink', link);
+            setGraphData(prevData => ({
+                ...prevData,
+                links: prevData.links.filter(l => l.index !== link.index)
+            }));
+            fgRef.current.refresh();
+        },
+        refreshLink: (link: any) => {
+            console.log('refreshLink', link);
+            setGraphData(prevData => ({
+                ...prevData,
+                links: prevData.links.map(l => 
+                    l.index === link.index ? link : l
+                )
+            }));
+            fgRef.current.refresh();
         }
     }));
     // node.idと一致するnodeをgraphDataから削除する関数
@@ -328,6 +346,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         //deleteNode(node.id);
     };
 
+    const handleLinkRightClick = (link: any) => {
+        props.onLinkEdit(link)
+    };
+
     const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
         isHovering.current = !!node;
     };
@@ -505,6 +527,17 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const snapOutDistance = 250; // Define snapOutDistance with an appropriate value
 
     const setInterimLink = (linkId: number, source: any, target: any) => {
+        // 既存のリンクと同じsourceとtargetの組み合わせがあるかチェック
+        const existingLink = graphData.links.find(link => 
+            (link.source.id === source.id && link.target.id === target.id) ||
+            (link.source.id === target.id && link.target.id === source.id)
+        );
+
+        // 既存のリンクがある場合は追加しない
+        if (existingLink) {
+            return;
+        }
+
         if (linkId < 0){
             linkId = graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1;
         }
@@ -550,7 +583,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 //linkLineDash={(link:any) => link === interimLink ? [2, 2] : []}
                 d3VelocityDecay={0.4}
                 onNodeClick={handleClick}
+
                 onNodeRightClick={handleRightClick}
+                onLinkRightClick={handleLinkRightClick}
                 onNodeDrag={(dragNode:any) => {
                     isDraggingNode.current = true;
                 

@@ -9,6 +9,7 @@ import { Input , Button, Popover} from 'antd';
 
 import MindMapGraph from './MindMapGraph'
 import NodeAddModal from './NodeAddModal'
+import LinkAddModal from './LinkAddModal'
 import TreeDrawer from './TreeDrawer'
 import { FloatButton } from 'antd';
 
@@ -32,6 +33,7 @@ const App = () => {
 
     const mindMapGraphRef = useRef(null)
     const nodeAddModalRef = useRef(null)
+    const linkAddModalRef = useRef(null)
     const treeDrawerRef = useRef(null)
 
 
@@ -50,6 +52,24 @@ const App = () => {
         }
         */
 
+    }
+
+    const handleLinkEdit = (link:any) => {
+        if(linkAddModalRef.current){
+            linkAddModalRef.current.showModal(link);
+        }
+    }
+
+    const handleRefreshLink = (link:any) => {
+        if(mindMapGraphRef.current){
+            mindMapGraphRef.current.refreshLink(link);
+        }
+    }
+
+    const handleDeleteLink = (link:any) => {
+        if(mindMapGraphRef.current){
+            mindMapGraphRef.current.deleteLink(link);
+        }
     }
 
     const handleRefreshNode = (node:any) => {
@@ -127,7 +147,8 @@ const App = () => {
         <MindMapGraph 
             ref={mindMapGraphRef}
             onHover={handleHover}
-            onNodeEdit={handleNodeEdit} />
+            onNodeEdit={handleNodeEdit}
+            onLinkEdit={handleLinkEdit} />
 
         <Popover content={content} title="Node Edit" trigger="click" >
             <Button id="add_popup" css={setCss(x,y)}></Button>
@@ -137,6 +158,11 @@ const App = () => {
             ref={nodeAddModalRef}
             onRefreshNode={handleRefreshNode}
             onDeleteNode={handleDeleteNode} />
+
+        <LinkAddModal
+            ref={linkAddModalRef}
+            onRefreshLink={handleRefreshLink}
+            onDeleteLink={handleDeleteLink} />
 
         <TreeDrawer
             ref={treeDrawerRef}/>
