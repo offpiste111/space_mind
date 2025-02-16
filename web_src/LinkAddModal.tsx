@@ -2,7 +2,16 @@ import React,{useState, forwardRef, useImperativeHandle } from 'react'
 import { Modal, Input, Button, Flex } from 'antd';  
 import _ from 'lodash';
 
-const LinkAddModal: React.FC = forwardRef((props:any, ref:any) => {
+interface ModalRef {
+    showModal: (data: any) => void;
+}
+
+interface LinkAddModalProps {
+    onRefreshLink: (link: any) => void;
+    onDeleteLink: (link: any) => void;
+}
+
+const LinkAddModal = forwardRef<ModalRef, LinkAddModalProps>((props, ref) => {
     const [isLinkAddModalOpen, setIsLinkAddModalOpen] = useState(false);
     const [contents, setContents] = useState("");
     

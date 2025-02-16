@@ -1,7 +1,11 @@
 import React,{useState, forwardRef, useImperativeHandle } from 'react'
-import { Drawer } from 'antd';
+import { Drawer, Button } from 'antd';
 
-const TreeDrawer = forwardRef((props:any, ref:any) => {
+interface TreeDrawerProps {
+  onSave: () => void;
+}
+
+const TreeDrawer = forwardRef(({onSave}: TreeDrawerProps, ref:any) => {
 
 const [openTreeDraw, setOpenTreeDraw] = useState(false);
 
@@ -18,6 +22,13 @@ useImperativeHandle(ref, () => ({
   return (
     <>
       <Drawer title="Basic Drawer" onClose={onClose} open={openTreeDraw}>
+        <Button 
+          type="primary" 
+          onClick={onSave}
+          style={{ marginBottom: 16 }}
+        >
+          保存
+        </Button>
         <p>Some contents...</p>
         <p>Some contents...</p>
         <p>Some contents...</p>

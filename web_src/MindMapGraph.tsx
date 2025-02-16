@@ -13,7 +13,7 @@ import {CSS2DObject, CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRend
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 
 
-import { useState, forwardRef, useImperativeHandle} from 'react'
+import { useState, forwardRef, useImperativeHandle, useMemo} from 'react'
 
 
 import { Canvas } from '@react-three/fiber'
@@ -29,6 +29,10 @@ import './index.css'
 const { useRef, useCallback, useEffect } = React;
 
 const MindMapGraph = forwardRef((props:any, ref:any) => {
+
+    // 選択されたノードを追跡するstate
+    const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+
 
     interface NodeData {
         id: number;
@@ -53,7 +57,6 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         return new THREE.Vector3(0,0,3000);
     };   
 
-    const fgRef = useRef<any>();
     const isDraggingNode = useRef<boolean>(false);
     const dragCounter = useRef<number>(0);
     const isHovering = useRef<boolean>(false);
@@ -62,6 +65,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const [rotateVec, setRotateVec] = useState<THREE.Vector3>(setRotateVecFunc);
     const [lookAtTarget, setLookAtTarget] = useState<THREE.Vector3>(new THREE.Vector3(0, 0, z_layer));
     useImperativeHandle(ref, () => ({
+        getGraphData: () => {
+            //const jsonData = JSON.stringify(graphData, null, 2);
+            return graphData;
+        },
         refreshNode: (node:any) => {
             //setObj3D((oldObj3D) => {
             //    const tmp_ndoes = { ...oldObj3D }
@@ -239,14 +246,13 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
                 //z軸固定
                 jsonData.nodes = jsonData.nodes.map((node:any) => {
-                    node.fz = z_layer;
-                    node['x'] = node['x']
-                    node['y'] = node['y']
+                    //node.fz = z_layer;
+                    node['fx'] = node['x']
+                    node['fy'] = node['y']
+                    node['fz'] = node['z']
                     delete node['vx']; 
                     delete node['vy']; 
-                    //delete node['fx']; 
-                    //delete node['fy']; 
-                    delete node['__bckgDimensions']; 
+                    delete node['vz']; 
                     return node;
                 })
                 
@@ -323,6 +329,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
 */
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
+        // 選択されたノードを更新
+        setSelectedNode(node);
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
             const distance = 500;
             const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
@@ -352,6 +360,40 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
     const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
         isHovering.current = !!node;
+    };
+
+    const handleNodeDrag = (dragNode:any) => {
+        isDraggingNode.current = true;
+    
+        //onNodeDragが実行される回数をカウントしておき、100回に1回しか実行しない
+        dragCounter.current += 1;
+        if (dragCounter.current < 100) return;
+
+        dragCounter.current = 0;
+        for (let node of graphData.nodes) {
+          console.log("onNodeDrag loop")
+          if (dragNode.id === node.id) {
+            continue;
+          }
+          // 十分に近い：推奨リンクのターゲットとしてノードにスナップする
+          if (!interimLink && distance(dragNode, node) < snapInDistance) {
+            setInterimLink(-1, dragNode, node);
+            break;
+          }
+          // 十分に他のノードに近い場合: 推奨リンクのターゲットとして他のノードにスナップ
+          if (interimLink && node.id !== interimLink.target.id && distance(dragNode, node) < snapInDistance) {
+            let removed_index = removeLink(interimLink);
+            setInterimLink(removed_index, dragNode, node);
+            break;
+          }
+        }
+
+        // 十分に離れている場合：現在のターゲットノードからスナップアウト
+        if (interimLink && distance(dragNode, interimLink.target) > snapOutDistance) {
+            removeLink(interimLink);
+            setInterimLinkState(null);
+        }
+
     };
 
     const handleBackgroundClick = (event:any) => {
@@ -561,9 +603,16 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
 
     useEffect(() => {
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.2, 0.001, 0.9);
-        //fgRef.current.postProcessingComposer().addPass(bloomPass);
-        //fgRef.current.d3Force('collision', d3force.forceCollide((node:any) => 100));
+        if (fgRef.current) {
+            // ノード間の反発力を設定
+            fgRef.current.d3Force('charge').strength(-50);
+        
+            // リンクの距離を設定
+            fgRef.current.d3Force('link').distance(200);
+
+            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.17, 0.2, 0.95);
+            fgRef.current.postProcessingComposer().addPass(bloomPass);
+        }
     }, [fgRef]);
 
     return (
@@ -571,8 +620,24 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             <ForceGraph3D
                 ref={fgRef}
                 graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
+                nodeThreeObject={(node) => {
+                    const sprite = nodeThreeObjectImageTexture(node);
+                    if (sprite instanceof THREE.Sprite) {
+                        const material = sprite.material as THREE.SpriteMaterial;
+                        if (selectedNode && node.id === selectedNode.id) {
+                            // 選択されたノードは明るく黄色く
+                            material.color = new THREE.Color(0xffffff);
+                            material.opacity = 1;
+                        } else {
+                            // 選択されていないノードは少し暗く
+                            material.color = new THREE.Color(0xe0e0e0);
+                            material.opacity = 1;
+                        }
+                    }
+                    return sprite;
+                }}
                 enableNavigationControls={true}
-                backgroundColor="#202030"
+                backgroundColor="#010101"
                 linkColor={(link) => link === interimLink ? 'rgb(246, 147, 177)' : 'rgba(255,255,255,1)'}
                 linkWidth={(link) => link === interimLink ? 4 : 2}
                 nodeId="id"
@@ -587,42 +652,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
                 onNodeRightClick={handleRightClick}
                 onLinkRightClick={handleLinkRightClick}
-                onNodeDrag={(dragNode:any) => {
-                    isDraggingNode.current = true;
-                
-                    //onNodeDragが実行される回数をカウントしておき、100回に1回しか実行しない
-                    dragCounter.current += 1;
-                    if (dragCounter.current < 100) return;
-
-                    dragCounter.current = 0;
-                    for (let node of graphData.nodes) {
-                      console.log("onNodeDrag loop")
-                      if (dragNode.id === node.id) {
-                        continue;
-                      }
-                      // 十分に近い：推奨リンクのターゲットとしてノードにスナップする
-                      if (!interimLink && distance(dragNode, node) < snapInDistance) {
-                        setInterimLink(-1, dragNode, node);
-                        break;
-                      }
-                      // 十分に他のノードに近い場合: 推奨リンクのターゲットとして他のノードにスナップ
-                      if (interimLink && node.id !== interimLink.target.id && distance(dragNode, node) < snapInDistance) {
-                        let removed_index = removeLink(interimLink);
-                        setInterimLink(removed_index, dragNode, node);
-                        break;
-                      }
-                    }
-
-                    // 十分に離れている場合：現在のターゲットノードからスナップアウト
-                    if (interimLink && distance(dragNode, interimLink.target) > snapOutDistance) {
-                        removeLink(interimLink);
-                        setInterimLinkState(null);
-                    }
-
-                }}
+                onNodeDrag={handleNodeDrag}
                 onNodeHover={handleHover}
-                d3AlphaDecay={0.02}
-                nodeThreeObject={nodeThreeObjectImageTexture}
+                d3AlphaDecay={0.2}
                 //nodeThreeObjectExtend={true}
                 onBackgroundClick={handleBackgroundClick}
                 onNodeDragEnd={(node:any) => {

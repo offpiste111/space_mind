@@ -1,13 +1,24 @@
 import React,{useState, forwardRef, useImperativeHandle } from 'react'
-import { Modal, Input, Button, Flex } from 'antd';  
+import { Modal, Input, Button, Flex, Select } from 'antd';  
 import _ from 'lodash';
 
-const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
+interface ModalRef {
+    showModal: (data: any) => void;
+}
+
+interface NodeAddModalProps {
+    onRefreshNode: (node: any) => void;
+    onDeleteNode: (node: any) => void;
+}
+
+const NodeAddModal = forwardRef<ModalRef, NodeAddModalProps>((props, ref) => {
     const [isNodeAddModalOpen, setIsNodeAddModalOpen] = useState(false);
     const [contents, setContents] = useState("");
+    const [styleId, setStyleId] = useState<number>(1);
     interface Node {
         name: string;
         isNew?: boolean;
+        style_id?: number;
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
@@ -16,6 +27,7 @@ const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
     useImperativeHandle(ref, () => ({
         showModal: (node:any) => {
             setContents(node.name);
+            setStyleId(node.style_id || 1);
             setIsNodeAddModalOpen(true);
 
             setEditNode(node);
@@ -26,7 +38,8 @@ const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
         setIsNodeAddModalOpen(false);
         //write
         if (editNode){
-            editNode.name = contents
+            editNode.name = contents;
+            editNode.style_id = styleId;
             //other
         }
 
@@ -80,13 +93,26 @@ const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
               }
             }}
           >
-          <Input 
-            placeholder="Contents" 
-            value={contents} 
-            onChange={(e)=>setContents(e.target.value)}
-            onPressEnter={handleOk}
-          />
-         
+          <Flex vertical gap="small">
+            <Input 
+              placeholder="Contents" 
+              value={contents} 
+              onChange={(e)=>setContents(e.target.value)}
+              onPressEnter={handleOk}
+            />
+            <Select
+              value={styleId}
+              onChange={(value) => setStyleId(value)}
+              options={[
+                { value: 1, label: 'スタイル1' },
+                { value: 2, label: 'スタイル2' },
+                { value: 3, label: 'スタイル3' },
+                { value: 4, label: 'スタイル4' },
+                { value: 5, label: 'スタイル5' },
+                { value: 6, label: 'スタイル6' },
+              ]}
+            />
+          </Flex>
           </Modal>
         </>
       );

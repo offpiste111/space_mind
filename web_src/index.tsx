@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client'
 import { css } from "@emotion/react";
 
 
-import { Input , Button, Popover} from 'antd';  
+import { Input , Button, Popover, message} from 'antd';  
 
 import MindMapGraph from './MindMapGraph'
 import NodeAddModal from './NodeAddModal'
@@ -31,10 +31,26 @@ const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
 
-    const mindMapGraphRef = useRef(null)
-    const nodeAddModalRef = useRef(null)
-    const linkAddModalRef = useRef(null)
-    const treeDrawerRef = useRef(null)
+    interface MindMapGraphRef {
+        getGraphData: () => void;
+        refreshNode: (node: any) => void;
+        deleteNode: (node: any) => void;
+        refreshLink: (link: any) => void;
+        deleteLink: (link: any) => void;
+    }
+
+    interface ModalRef {
+        showModal: (data: any) => void;
+    }
+
+    interface TreeDrawerRef {
+        showDrawer: () => void;
+    }
+
+    const mindMapGraphRef = useRef<MindMapGraphRef>(null)
+    const nodeAddModalRef = useRef<ModalRef>(null)
+    const linkAddModalRef = useRef<ModalRef>(null)
+    const treeDrawerRef = useRef<TreeDrawerRef>(null)
 
 
   
@@ -105,20 +121,31 @@ const App = () => {
 
     }
 
-    const keyFunction = useCallback((event:any) => {
+    const handleSave = useCallback(() => {
+        if(mindMapGraphRef.current){
+            let data = mindMapGraphRef.current.getGraphData();
+            eel.save_data(data);
+            message.success({
+                content: '保存しました',
+                duration: 3,
+            });
+        }
+    }, []);
 
+    const keyFunction = useCallback((event:any) => {
         if(event.ctrlKey) {
-            if(event.code === "KeyC"){
+            if(event.code === "KeyS"){
+                event.preventDefault();
+                handleSave();
+            }
+            else if(event.code === "KeyC"){
 
             }
             else if(event.code === "KeyZ"){
 
             }
-
-          }
-
-        
-      }, []);
+        }
+      }, [handleSave]);
     
       useEffect(() => {
         document.addEventListener("keydown", keyFunction, false);
@@ -165,7 +192,8 @@ const App = () => {
             onDeleteLink={handleDeleteLink} />
 
         <TreeDrawer
-            ref={treeDrawerRef}/>
+            ref={treeDrawerRef}
+            onSave={handleSave}/>
 
         <FloatButton onClick={() => showDrawer()} />
 
