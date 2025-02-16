@@ -574,6 +574,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 enableNavigationControls={true}
                 backgroundColor="#202030"
                 linkColor={(link) => link === interimLink ? 'rgb(246, 147, 177)' : 'rgba(255,255,255,1)'}
+                linkWidth={(link) => link === interimLink ? 4 : 2}
                 nodeId="id"
                 //linkDirectionalArrowLength={6}
                 //linkDirectionalArrowRelPos={1}
