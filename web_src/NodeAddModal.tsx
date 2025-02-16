@@ -44,8 +44,26 @@ const NodeAddModal: React.FC = forwardRef((props:any, ref:any) => {
 
     return (
         <>
-          <Modal title="Edit Node" open={isNodeAddModalOpen} onOk={handleOk} onCancel={handleCancel}>
-          <Input placeholder="Contents" value={contents} onChange={(e)=>setContents(e.target.value)}/>
+          <Modal 
+            title="Edit Node" 
+            open={isNodeAddModalOpen} 
+            onOk={handleOk} 
+            onCancel={handleCancel}
+            afterOpenChange={(visible) => {
+              if (visible) {
+                setTimeout(() => {
+                  const input = document.querySelector('.ant-modal input') as HTMLInputElement;
+                  if (input) input.focus();
+                }, 100);
+              }
+            }}
+          >
+          <Input 
+            placeholder="Contents" 
+            value={contents} 
+            onChange={(e)=>setContents(e.target.value)}
+            onPressEnter={handleOk}
+          />
          
           </Modal>
         </>

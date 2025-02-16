@@ -85,12 +85,14 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const deleteNode = (nodeId: number) => {
         setGraphData(prevData => ({
         nodes: prevData.nodes.filter(node => node.id !== nodeId),
-        links: prevData.links.filter(link => link.source !== nodeId && link.target !== nodeId)
+        links: prevData.links.filter(link => link.source.id !== nodeId && link.target.id !== nodeId)
         }));
     };
 
     // マウス操作とデータ取得のuseEffect
     useEffect(() => {
+
+/*
         console.log('Mouse operation useEffect initialized');
         var GraphCanvas = document.getElementsByTagName('canvas')[0];
         let isPanning = false;
@@ -203,14 +205,15 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         GraphCanvas.addEventListener('contextmenu', handleContextMenu);
         GraphCanvas.addEventListener('mouseup', handleMouseUp);
         GraphCanvas.addEventListener('mouseleave', handleMouseLeave);
-
+*/
         // データ取得
-
-
-
+        const controller = new AbortController();
+        
         const fetchData = async () => {
             try {
-                const response = await fetch('./datasets/output.json');
+                const response = await fetch('./datasets/output.json', {
+                    signal: controller.signal
+                });
                 if (!response.ok) {
                     throw new Error('Failed to fetch data');
                 }
@@ -230,15 +233,24 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 })
                 
                 setGraphData(jsonData);
-            } catch (error) {
+            } catch (error: any) {
+                if (error?.name === 'AbortError') {
+                    return; // フェッチがキャンセルされた場合は何もしない
+                }
                 console.error('Error fetching data:', error);
             }
         };
 
         if (graphData.nodes.length === 0 && graphData.links.length === 0) {
             fetchData();
+            console.log('Fetching data');
         }
 
+        // クリーンアップ関数でフェッチをキャンセル
+        return () => {
+            controller.abort();
+        };
+/*
         // クリーンアップ関数
         return () => {
             console.log('Cleaning up mouse operation useEffect');
@@ -248,8 +260,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             GraphCanvas.removeEventListener('mouseup', handleMouseUp);
             GraphCanvas.removeEventListener('mouseleave', handleMouseLeave);
         };
-    }, []); // 初期化時のみ実行
-
+*/
+    }, [graphData.nodes.length, graphData.links.length]); // データの状態に基づいて実行
+/*
     // ズーム機能の実装（lookAtTargetの依存関係を持つ）
     useEffect(() => {
         console.log('Wheel useEffect called, lookAtTarget:', lookAtTarget);
@@ -290,9 +303,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         };
     }, [lookAtTarget, fgRef]); // lookAtTargetとfgRefの更新時に再設定
 
+*/
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
-            const distance = 100;
+            const distance = 500;
             const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
 
             // 視点座標を保存
@@ -300,7 +314,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
             if (fgRef.current) {
                 fgRef.current.cameraPosition(
-                    { x: node.x, y: node.y, z: distance }, // new position
+                    { x: node.x, y: node.y, z: node.z + distance }, // new position
                     { x: node.x, y: node.y, z: node.z }, // lookAt ({ x, y, z })
                     600  // ms transition duration
                 );
@@ -311,17 +325,20 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
         props.onNodeEdit(node)
+        //deleteNode(node.id);
     };
 
     const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
         isHovering.current = !!node;
     };
 
-    const handleBackgroundClick = useCallback((event:any) => {
+    const handleBackgroundClick = (event:any) => {
         let camera = fgRef.current.camera();
         //クリック位置からnodeのx,y,z_layerを探索する処理
-        let distance = camera.position.distanceTo(new THREE.Vector3(0, 0, z_layer));
+        //let distance = camera.position.distanceTo(new THREE.Vector3(0, 0, z_layer));
+        const distance = 500;
         let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance );
+        /*
         let iterations = 0;
         while (iterations < 10) {
             const diff = coords.z - z_layer;
@@ -333,17 +350,22 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance);
             iterations++;
         }
+        */
 
         let nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
         let groupId = 1
         if(graphData.nodes.length > 0){
             groupId = Math.max(...graphData.nodes.map((item:any) => item.group)) + 1
         }
-        let new_node = { id: nodeId, img: "new_node.png", group: groupId, style_id: 1, fx: coords.x, fy: coords.y, fz: z_layer, isNew: true };
+        //enableNavigationControls={true}にしたとき、なぜかhandleBackgroundClickが走り、-Infinityのnodeが追加されるため暫定処置
+        if (nodeId === -Infinity) {
+            return;
+        }
+        let new_node = { id: nodeId, img: "new_node.png", group: groupId, style_id: 1, fx: coords.x, fy: coords.y, fz: /*z_layer*/coords.z, isNew: true };
         graphData.nodes.push(new_node);
         fgRef.current.refresh();
         props.onNodeEdit(new_node);
-    }, [graphData]);
+    };
        
     const nodeThreeObject = (node: any) => {
         const nodeEl = document.createElement('div');
@@ -508,7 +530,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     useEffect(() => {
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.2, 0.001, 0.9);
         //fgRef.current.postProcessingComposer().addPass(bloomPass);
-        fgRef.current.d3Force('collision', d3force.forceCollide((node:any) => 100));
+        //fgRef.current.d3Force('collision', d3force.forceCollide((node:any) => 100));
     }, [fgRef]);
 
     return (
@@ -516,7 +538,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             <ForceGraph3D
                 ref={fgRef}
                 graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
-                enableNavigationControls={false}
+                enableNavigationControls={true}
                 backgroundColor="#202030"
                 linkColor={(link) => link === interimLink ? 'rgb(246, 147, 177)' : 'rgba(255,255,255,1)'}
                 nodeId="id"
@@ -525,7 +547,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 nodeLabel={label_key}
                 //nodeAutoColorBy="group"
                 linkDirectionalParticleWidth={1}
-                linkLineDash={(link:any) => link === interimLink ? [2, 2] : []}
+                //linkLineDash={(link:any) => link === interimLink ? [2, 2] : []}
                 d3VelocityDecay={0.4}
                 onNodeClick={handleClick}
                 onNodeRightClick={handleRightClick}
@@ -581,9 +603,3 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 });
 
 export default MindMapGraph;
-
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <React.StrictMode>
-        <MindMapGraph />
-    </React.StrictMode>
-);
