@@ -6,13 +6,13 @@ interface ModalRef {
     showModal: (data: any) => void;
 }
 
-interface LinkAddModalProps {
+interface LinkEditorProps {
     onRefreshLink: (link: any) => void;
     onDeleteLink: (link: any) => void;
 }
 
-const LinkAddModal = forwardRef<ModalRef, LinkAddModalProps>((props, ref) => {
-    const [isLinkAddModalOpen, setIsLinkAddModalOpen] = useState(false);
+const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
+    const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
     const [contents, setContents] = useState("");
     
     interface Link {
@@ -28,13 +28,13 @@ const LinkAddModal = forwardRef<ModalRef, LinkAddModalProps>((props, ref) => {
     useImperativeHandle(ref, () => ({
         showModal: (link:any) => {
             setContents(link.name);
-            setIsLinkAddModalOpen(true);
+            setIsLinkEditorOpen(true);
             setEditLink(link);
         }
     }));
 
     const handleOk = () => {
-        setIsLinkAddModalOpen(false);
+        setIsLinkEditorOpen(false);
         if (editLink){
             editLink.name = contents;
         }
@@ -42,14 +42,14 @@ const LinkAddModal = forwardRef<ModalRef, LinkAddModalProps>((props, ref) => {
     };
   
     const handleCancel = () => {
-        setIsLinkAddModalOpen(false);
+        setIsLinkEditorOpen(false);
     };
 
     return (
         <>
           <Modal 
             title="Edit Link" 
-            open={isLinkAddModalOpen} 
+            open={isLinkEditorOpen} 
             onOk={handleOk} 
             onCancel={handleCancel}
             footer={
@@ -58,7 +58,7 @@ const LinkAddModal = forwardRef<ModalRef, LinkAddModalProps>((props, ref) => {
                   <Button danger onClick={() => {
                     if (editLink) {
                       props.onDeleteLink(editLink);
-                      setIsLinkAddModalOpen(false);
+                      setIsLinkEditorOpen(false);
                     }
                   }}>
                     削除
@@ -94,4 +94,4 @@ const LinkAddModal = forwardRef<ModalRef, LinkAddModalProps>((props, ref) => {
     );
 });
     
-export default LinkAddModal;
+export default LinkEditor;

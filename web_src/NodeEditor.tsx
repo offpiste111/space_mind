@@ -1,18 +1,18 @@
 import React,{useState, forwardRef, useImperativeHandle } from 'react'
-import { Modal, Input, Button, Flex, Select } from 'antd';  
+import { Modal, Input, Button, Flex, Select } from 'antd';
 import _ from 'lodash';
 
 interface ModalRef {
     showModal: (data: any) => void;
 }
 
-interface NodeAddModalProps {
+interface NodeEditorProps {
     onRefreshNode: (node: any) => void;
     onDeleteNode: (node: any) => void;
 }
 
-const NodeAddModal = forwardRef<ModalRef, NodeAddModalProps>((props, ref) => {
-    const [isNodeAddModalOpen, setIsNodeAddModalOpen] = useState(false);
+const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
+    const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
     const [contents, setContents] = useState("");
     const [styleId, setStyleId] = useState<number>(1);
     interface Node {
@@ -23,43 +23,36 @@ const NodeAddModal = forwardRef<ModalRef, NodeAddModalProps>((props, ref) => {
     
     const [editNode, setEditNode] = useState<Node | null>(null);
 
-       
     useImperativeHandle(ref, () => ({
-        showModal: (node:any) => {
+        showModal: (node: any) => {
             setContents(node.name);
             setStyleId(node.style_id || 1);
-            setIsNodeAddModalOpen(true);
-
+            setIsNodeEditorOpen(true);
             setEditNode(node);
         }
     }));
 
     const handleOk = () => {
-        setIsNodeAddModalOpen(false);
-        //write
+        setIsNodeEditorOpen(false);
         if (editNode){
             editNode.name = contents;
             editNode.style_id = styleId;
-            //other
         }
-
         props.onRefreshNode(editNode);
     };
   
     const handleCancel = () => {
-        setIsNodeAddModalOpen(false);
+        setIsNodeEditorOpen(false);
         if (editNode && _.has(editNode, 'isNew') && editNode.isNew){
             props.onDeleteNode(editNode);
         }
-        
     };
-
 
     return (
         <>
           <Modal 
             title="Edit Node" 
-            open={isNodeAddModalOpen} 
+            open={isNodeEditorOpen} 
             onOk={handleOk} 
             onCancel={handleCancel}
             footer={
@@ -68,7 +61,7 @@ const NodeAddModal = forwardRef<ModalRef, NodeAddModalProps>((props, ref) => {
                   <Button danger onClick={() => {
                     if (editNode) {
                       props.onDeleteNode(editNode);
-                      setIsNodeAddModalOpen(false);
+                      setIsNodeEditorOpen(false);
                     }
                   }}>
                     削除
@@ -97,7 +90,7 @@ const NodeAddModal = forwardRef<ModalRef, NodeAddModalProps>((props, ref) => {
             <Input 
               placeholder="Contents" 
               value={contents} 
-              onChange={(e)=>setContents(e.target.value)}
+              onChange={(e) => setContents(e.target.value)}
               onPressEnter={handleOk}
             />
             <Select
@@ -116,6 +109,6 @@ const NodeAddModal = forwardRef<ModalRef, NodeAddModalProps>((props, ref) => {
           </Modal>
         </>
       );
-   });
-    
-   export default NodeAddModal;
+});
+
+export default NodeEditor;

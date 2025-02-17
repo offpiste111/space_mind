@@ -8,8 +8,8 @@ import { css } from "@emotion/react";
 import { Input , Button, Popover, message} from 'antd';  
 
 import MindMapGraph from './MindMapGraph'
-import NodeAddModal from './NodeAddModal'
-import LinkAddModal from './LinkAddModal'
+import NodeEditor from './NodeEditor'
+import LinkEditor from './LinkEditor'
 import TreeDrawer from './TreeDrawer'
 import { FloatButton } from 'antd';
 
@@ -48,7 +48,7 @@ const App = () => {
     }
 
     const mindMapGraphRef = useRef<MindMapGraphRef>(null)
-    const nodeAddModalRef = useRef<ModalRef>(null)
+    const nodeEditorRef = useRef<ModalRef>(null)
     const linkAddModalRef = useRef<ModalRef>(null)
     const treeDrawerRef = useRef<TreeDrawerRef>(null)
 
@@ -56,10 +56,10 @@ const App = () => {
   
     const handleNodeEdit = (node:any) => {
 
-        if(nodeAddModalRef.current){
-            nodeAddModalRef.current.showModal(node);
+        if(nodeEditorRef.current){
+            nodeEditorRef.current.showModal(node);
         }
-        //setIsNodeAddModalOpen(true);
+        //setIsNodeEditorOpen(true);
 
         /*
         if (document.getElementById("add_popup") !== null)
@@ -181,12 +181,12 @@ const App = () => {
             <Button id="add_popup" css={setCss(x,y)}></Button>
         </Popover>
 
-        <NodeAddModal
-            ref={nodeAddModalRef}
+        <NodeEditor
+            ref={nodeEditorRef}
             onRefreshNode={handleRefreshNode}
             onDeleteNode={handleDeleteNode} />
 
-        <LinkAddModal
+        <LinkEditor
             ref={linkAddModalRef}
             onRefreshLink={handleRefreshLink}
             onDeleteLink={handleDeleteLink} />
