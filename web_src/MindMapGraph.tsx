@@ -38,6 +38,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     interface NodeData {
         id: number;
         img: string;
+        name?: string;
         group?: number;
         x?: number;
         y?: number;
@@ -105,6 +106,17 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 )
             }));
             fgRef.current.refresh();
+        },
+        // 検索用のメソッドを追加
+        searchNodes: (searchText: string) => {
+            if (!searchText) return [];
+            return graphData.nodes.filter(node => 
+                node.name && node.name.toLowerCase().includes(searchText.toLowerCase())
+            );
+        },
+        // ノード選択用のメソッドを追加
+        selectNode: (node: any) => {
+            handleClick(node, null as any);
         }
     }));
     // node.idと一致するnodeをgraphDataから削除する関数

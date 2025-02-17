@@ -37,6 +37,8 @@ const App = () => {
         deleteNode: (node: any) => void;
         refreshLink: (link: any) => void;
         deleteLink: (link: any) => void;
+        searchNodes: (text: string) => any[];
+        selectNode: (node: any) => void;
     }
 
     interface ModalRef {
@@ -132,6 +134,16 @@ const App = () => {
         }
     }, []);
 
+    const handleSearch = useCallback((text: string) => {
+        if (!mindMapGraphRef.current || !text) return [];
+        return mindMapGraphRef.current.searchNodes(text);
+    }, []);
+
+    const handleNodeSelect = useCallback((node: any) => {
+        if (!mindMapGraphRef.current) return;
+        mindMapGraphRef.current.selectNode(node);
+    }, []);
+
     const keyFunction = useCallback((event:any) => {
         if(event.ctrlKey) {
             if(event.code === "KeyS"){
@@ -193,7 +205,9 @@ const App = () => {
 
         <TreeDrawer
             ref={treeDrawerRef}
-            onSave={handleSave}/>
+            onSave={handleSave}
+            onSearch={handleSearch}
+            onNodeSelect={handleNodeSelect}/>
 
         <FloatButton onClick={() => showDrawer()} />
 
