@@ -25,11 +25,56 @@ function sayHelloJS( x: any ) {
 window.eel.expose( sayHelloJS, 'say_hello_js' )
 
 const App = () => {
-
-    
-
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
+    const [graphData, setGraphData] = useState<{nodes: any[], links: any[]}>({nodes:[], links:[]});
+    const [currentFileName, setCurrentFileName] = useState<string>('output.json');
+
+    const handleFileSelect = (file: File) => {
+        setCurrentFileName(file.name);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const jsonData = JSON.parse(e.target?.result as string);
+                // z軸固定
+                jsonData.nodes = jsonData.nodes.map((node:any) => {
+                    node['fx'] = node['x']
+                    node['fy'] = node['y']
+                    node['fz'] = node['z']
+                    delete node['vx']; 
+                    delete node['vy']; 
+                    delete node['vz']; 
+                    return node;
+                });
+                setGraphData(jsonData);
+            } catch (error) {
+                console.error('Error parsing JSON:', error);
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    // 初期データの読み込み
+    useEffect(() => {
+        if (graphData.nodes.length === 0 && graphData.links.length === 0) {
+            fetch('./datasets/output.json')
+                .then(response => response.json())
+                .then(jsonData => {
+                    jsonData.nodes = jsonData.nodes.map((node:any) => {
+                        node['fx'] = node['x']
+                        node['fy'] = node['y']
+                        node['fz'] = node['z']
+                        delete node['vx']; 
+                        delete node['vy']; 
+                        delete node['vz']; 
+                        return node;
+                    });
+                    setGraphData(jsonData);
+                    setCurrentFileName('output.json');
+                })
+                .catch(error => console.error('Error loading initial data:', error));
+        }
+    }, []);
 
     interface MindMapGraphRef {
         getGraphData: () => void;
@@ -185,6 +230,7 @@ const App = () => {
         <>
         <MindMapGraph 
             ref={mindMapGraphRef}
+            graphData={graphData}
             onHover={handleHover}
             onNodeEdit={handleNodeEdit}
             onLinkEdit={handleLinkEdit} />
@@ -207,7 +253,9 @@ const App = () => {
             ref={treeDrawerRef}
             onSave={handleSave}
             onSearch={handleSearch}
-            onNodeSelect={handleNodeSelect}/>
+            onNodeSelect={handleNodeSelect}
+            onFileSelect={handleFileSelect}
+            currentFileName={currentFileName}/>
 
         <FloatButton onClick={() => showDrawer()} />
 

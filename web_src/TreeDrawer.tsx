@@ -5,9 +5,11 @@ interface TreeDrawerProps {
   onSave: () => void;
   onSearch: (text: string) => any[];
   onNodeSelect: (node: any) => void;
+  onFileSelect: (file: File) => void;
+  currentFileName: string;
 }
 
-const TreeDrawer = forwardRef(({onSave, onSearch, onNodeSelect}: TreeDrawerProps, ref:any) => {
+const TreeDrawer = forwardRef(({onSave, onSearch, onNodeSelect, onFileSelect, currentFileName}: TreeDrawerProps, ref:any) => {
 
 const [openTreeDraw, setOpenTreeDraw] = useState(false);
 const [searchText, setSearchText] = useState('');
@@ -35,9 +37,29 @@ useImperativeHandle(ref, () => ({
     setOpenTreeDraw(false);
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      onFileSelect(file);
+    }
+  };
+
   return (
     <>
       <Drawer title="ノード検索" onClose={onClose} open={openTreeDraw}>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: 8 }}>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleFileChange}
+              style={{ width: '100%' }}
+            />
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            現在のファイル: {currentFileName}
+          </div>
+        </div>
         <Input
           placeholder="ノード名を入力"
           value={searchText}
