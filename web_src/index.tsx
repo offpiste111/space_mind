@@ -28,25 +28,27 @@ const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
     const [graphData, setGraphData] = useState<{nodes: any[], links: any[]}>({nodes:[], links:[]});
-    const [currentFileName, setCurrentFileName] = useState<string>('output.json');
+    const [currentFileName, setCurrentFileName] = useState<string>('');
 
     const handleFileSelect = (file: File) => {
         setCurrentFileName(file.name);
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const jsonData = JSON.parse(e.target?.result as string);
-                // z軸固定
-                jsonData.nodes = jsonData.nodes.map((node:any) => {
-                    node['fx'] = node['x']
-                    node['fy'] = node['y']
-                    node['fz'] = node['z']
-                    delete node['vx']; 
-                    delete node['vy']; 
-                    delete node['vz']; 
-                    return node;
+                let node_data = JSON.parse(e.target?.result as string);
+                eel.load_data(node_data)((node_data_result: any) => {
+                    node_data_result.nodes = node_data_result.nodes.map((node: any) => {
+                        node['fx'] = node['x']
+                        node['fy'] = node['y']
+                        node['fz'] = node['z']
+                        delete node['vx']; 
+                        delete node['vy']; 
+                        delete node['vz']; 
+                        return node;
+                    });
+                    setGraphData(node_data_result);
                 });
-                setGraphData(jsonData);
+                setGraphData(node_data);
             } catch (error) {
                 console.error('Error parsing JSON:', error);
             }
@@ -56,24 +58,7 @@ const App = () => {
 
     // 初期データの読み込み
     useEffect(() => {
-        if (graphData.nodes.length === 0 && graphData.links.length === 0) {
-            fetch('./datasets/output.json')
-                .then(response => response.json())
-                .then(jsonData => {
-                    jsonData.nodes = jsonData.nodes.map((node:any) => {
-                        node['fx'] = node['x']
-                        node['fy'] = node['y']
-                        node['fz'] = node['z']
-                        delete node['vx']; 
-                        delete node['vy']; 
-                        delete node['vz']; 
-                        return node;
-                    });
-                    setGraphData(jsonData);
-                    setCurrentFileName('output.json');
-                })
-                .catch(error => console.error('Error loading initial data:', error));
-        }
+        setGraphData({nodes:[],links:[]});
     }, []);
 
     interface MindMapGraphRef {
@@ -171,7 +156,8 @@ const App = () => {
     const handleSave = useCallback(() => {
         if(mindMapGraphRef.current){
             let data = mindMapGraphRef.current.getGraphData();
-            eel.save_data(data);
+            console.log(data);
+            eel.save_data(data, currentFileName);
             message.success({
                 content: '保存しました',
                 duration: 3,

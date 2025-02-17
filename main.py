@@ -21,12 +21,36 @@ import imgkit
 import concurrent.futures
 
 g_node_data = {}
-json_path = "./web_src/datasets/output.json"
-def read_json():
+
+def read_json(json_path):
     with open(json_path, "r", encoding="utf-8") as f:
         node_data = json.load(f)
     return node_data
-def save_json(data):
+def save_json(data, json_path):
+
+    # data["nodes"]の各要素のキーはid,name,group,x,y,color,index,fx,fyのみ、それ以外は削除
+    for node in data["nodes"]:
+        node_keys = list(node.keys())
+        for key in node_keys:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index"]:
+                del node[key]
+
+
+    # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
+    for link in data["links"]:
+        link_keys = list(link.keys())
+        for key in link_keys:
+            if key not in ["source","target","__indexColor","index","__controlPoints"]:
+                del link[key]
+
+        #source,targetをidに変換
+        #link["source"]がハッシュ配列型であるかつidキーがある場合のみ変換
+        if isinstance(link["source"], dict) and "id" in link["source"]:
+            link["source"] = link["source"]["id"]
+        #link["target"]がハッシュ配列型であるかつidキーがある場合のみ変換
+        if isinstance(link["target"], dict) and "id" in link["target"]:
+            link["target"] = link["target"]["id"]
+
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return
@@ -35,12 +59,12 @@ def save_json(data):
 wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
 
 node_styles = [
-    "font-size: 32px; color: #6091d3; background: #FFF; border: solid 6px #6091d3; border-radius: 7px;",
-    "font-size: 32px; color: #232323; background: #fff8e8; border: solid 6px #ffc06e; border-radius: 7px;",
-    "font-size: 32px; color: #00BCD4; background: #e4fcff; border: solid 6px #1dc1d6; border-radius: 7px;",
-    "font-size: 32px; color: #2c2c2f; background: #cde4ff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
-    "font-size: 32px; color: #565656; background: #ffeaea; border: dashed 6px #ffc3c3; border-radius: 8px;",
-    "font-size: 32px; background: #f4f4f4; border: solid 6px #5bb7ae; border-radius: 7px;"
+    "font-size: 32px; color: #000000; background: #ffffff; border: solid 6px #6091d3; border-radius: 7px;",
+    "font-size: 32px; color: #000000; background: #ffffff; border: solid 6px #ffc06e; border-radius: 7px;",
+    "font-size: 32px; color: #000000; background: #ffffff; border: solid 6px #1dc1d6; border-radius: 7px;",
+    "font-size: 32px; color: #000000; background: #ffffff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
+    "font-size: 32px; color: #000000; background: #ffffff; border: dashed 6px #ffc3c3; border-radius: 8px;",
+    "font-size: 32px; color: #000000; background: #ffffff; border: solid 6px #5bb7ae; border-radius: 7px;"
 ]
 
 
@@ -56,6 +80,27 @@ def say_hello_py(x):
     print('Hello from %s' % x)  # noqa T001
     eel.say_hello_js('Python {from within say_hello_py()}!')
 
+@eel.expose
+def load_json(path):
+    node_data = read_json(path)
+    generate_images(node_data)
+    return node_data
+
+@eel.expose
+def load_data(node_data):
+    generate_images(node_data)
+    return node_data
+
+def generate_images(node_data):
+    node_img_dir_name = "web_src/assets/node_img"
+    if os.path.exists(node_img_dir_name):
+        shutil.rmtree(node_img_dir_name)
+    os.makedirs(node_img_dir_name)  
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        executor.map(generate_image, node_data.get("nodes", []))
+
+    return node_data
 @eel.expose
 def generate_image(node):
         html = f"""
@@ -96,7 +141,12 @@ def generate_image(node):
         node['img'] = f"node_img/{node['id']}_{now}.png"
 
         return node['img']
-        
+
+@eel.expose
+def save_data(data, json_path):
+    save_json(data, json_path)
+    return
+
 @eel.expose
 def expand_user(folder):
     """Return the full path to display in the UI."""
@@ -152,16 +202,7 @@ def start_eel(develop):
 
     #create images
 
-    # 既に存在する場合は削除して再作成
-    node_img_dir_name = "web_src/assets/node_img"
-    if os.path.exists(node_img_dir_name):
-        shutil.rmtree(node_img_dir_name)
-    os.makedirs(node_img_dir_name)  
 
-    g_node_data = read_json()
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.map(generate_image, g_node_data.get("nodes", []))
-    save_json(g_node_data)
     
 
     eel_kwargs = dict(
