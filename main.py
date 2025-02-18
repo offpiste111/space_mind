@@ -13,6 +13,8 @@ import random
 import sys
 import importlib
 import socket, errno
+import tkinter as tk
+from tkinter import filedialog
 from py_src.contrib.replace_in_file import replaceInfile, findFileRe
 from py_src.contrib.port_check import find_unused_port
 import shutil
@@ -21,6 +23,29 @@ import imgkit
 import concurrent.futures
 
 g_node_data = {}
+g_current_file_path = None  # 現在開いているファイルのパスを保持
+
+@eel.expose
+def select_file_dialog():
+    # Create and configure main Tkinter window
+    root = tk.Tk()
+    root.withdraw()
+    
+    # Make it appear on top of other windows
+    root.attributes('-topmost', True)
+    root.lift()
+    
+    # Show file dialog and get selected file path
+    file_path = filedialog.askopenfilename(
+        parent=root,
+        filetypes=[('JSON files', '*.json'), ('All files', '*.*')]
+    )
+    
+    if file_path:
+        global g_current_file_path
+        g_current_file_path = file_path
+        return load_json(file_path)
+    return None
 
 def read_json(json_path):
     with open(json_path, "r", encoding="utf-8") as f:
@@ -144,9 +169,29 @@ def generate_image(node):
         return node['img']
 
 @eel.expose
-def save_data(data, json_path):
-    save_json(data, json_path)
-    return
+def save_data(data):
+    global g_current_file_path
+    if g_current_file_path:
+        save_json(data, g_current_file_path)
+        return True
+    else:
+        # ファイルが選択されていない場合は保存ダイアログを表示
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        root.lift()
+        
+        file_path = filedialog.asksaveasfilename(
+            parent=root,
+            defaultextension='.json',
+            filetypes=[('JSON files', '*.json'), ('All files', '*.*')]
+        )
+        
+        if file_path:
+            g_current_file_path = file_path
+            save_json(data, file_path)
+            return True
+    return False
 
 @eel.expose
 def expand_user(folder):

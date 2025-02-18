@@ -29,31 +29,27 @@ const App = () => {
     const [y, setY] = useState(0);
     const [currentFileName, setCurrentFileName] = useState<string>('');
 
-    const handleFileSelect = (file: File) => {
-        setCurrentFileName(file.name);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                let node_data = JSON.parse(e.target?.result as string);
-                eel.load_data(node_data)((node_data_result: any) => {
-                    node_data_result.nodes = node_data_result.nodes.map((node: any) => {
-                        node['fx'] = node['x']
-                        node['fy'] = node['y']
-                        node['fz'] = node['z']
-                        delete node['vx']; 
-                        delete node['vy']; 
-                        delete node['vz']; 
-                        return node;
-                    });
-                    if (mindMapGraphRef.current) {
-                        mindMapGraphRef.current.setGraphData(node_data_result);
-                    }
+    const handleFileSelect = async () => {
+        try {
+            const node_data = await eel.select_file_dialog()();
+            if (node_data) {
+                node_data.nodes = node_data.nodes.map((node: any) => {
+                    node['fx'] = node['x']
+                    node['fy'] = node['y']
+                    node['fz'] = node['z']
+                    delete node['vx']; 
+                    delete node['vy']; 
+                    delete node['vz']; 
+                    return node;
                 });
-            } catch (error) {
-                console.error('Error parsing JSON:', error);
+                if (mindMapGraphRef.current) {
+                    mindMapGraphRef.current.setGraphData(node_data);
+                }
             }
-        };
-        reader.readAsText(file);
+        } catch (error) {
+            console.error('Error loading file:', error);
+            message.error('ファイルの読み込みに失敗しました');
+        }
     };
 
     // 初期データの読み込み
@@ -156,16 +152,23 @@ const App = () => {
 
     }
 
-    const handleSave = useCallback(() => {
+    const handleSave = useCallback(async () => {
         if(mindMapGraphRef.current){
             let data = mindMapGraphRef.current.getGraphData();
-            console.log(data);
-            console.log(currentFileName);
-            eel.save_data(data, currentFileName);
-            message.success({
-                content: '保存しました',
-                duration: 3,
-            });
+            try {
+                const success = await eel.save_data(data)();
+                if (success) {
+                    message.success({
+                        content: '保存しました',
+                        duration: 3,
+                    });
+                } else {
+                    message.error('保存に失敗しました');
+                }
+            } catch (error) {
+                console.error('Error saving file:', error);
+                message.error('保存に失敗しました');
+            }
         }
     }, []);
 
