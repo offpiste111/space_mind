@@ -27,7 +27,8 @@ def read_json(json_path):
         node_data = json.load(f)
     return node_data
 def save_json(data, json_path):
-
+    
+    print(json_path)
     # data["nodes"]の各要素のキーはid,name,group,x,y,color,index,fx,fyのみ、それ以外は削除
     for node in data["nodes"]:
         node_keys = list(node.keys())

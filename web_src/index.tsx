@@ -27,7 +27,6 @@ window.eel.expose( sayHelloJS, 'say_hello_js' )
 const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
-    const [graphData, setGraphData] = useState<{nodes: any[], links: any[]}>({nodes:[], links:[]});
     const [currentFileName, setCurrentFileName] = useState<string>('');
 
     const handleFileSelect = (file: File) => {
@@ -46,9 +45,10 @@ const App = () => {
                         delete node['vz']; 
                         return node;
                     });
-                    setGraphData(node_data_result);
+                    if (mindMapGraphRef.current) {
+                        mindMapGraphRef.current.setGraphData(node_data_result);
+                    }
                 });
-                setGraphData(node_data);
             } catch (error) {
                 console.error('Error parsing JSON:', error);
             }
@@ -58,11 +58,14 @@ const App = () => {
 
     // 初期データの読み込み
     useEffect(() => {
-        setGraphData({nodes:[],links:[]});
+        if (mindMapGraphRef.current) {
+            mindMapGraphRef.current.setGraphData({nodes:[],links:[]});
+        }
     }, []);
 
     interface MindMapGraphRef {
         getGraphData: () => void;
+        setGraphData: (data: any) => void;
         refreshNode: (node: any) => void;
         deleteNode: (node: any) => void;
         refreshLink: (link: any) => void;
@@ -157,6 +160,7 @@ const App = () => {
         if(mindMapGraphRef.current){
             let data = mindMapGraphRef.current.getGraphData();
             console.log(data);
+            console.log(currentFileName);
             eel.save_data(data, currentFileName);
             message.success({
                 content: '保存しました',
@@ -216,7 +220,6 @@ const App = () => {
         <>
         <MindMapGraph 
             ref={mindMapGraphRef}
-            graphData={graphData}
             onHover={handleHover}
             onNodeEdit={handleNodeEdit}
             onLinkEdit={handleLinkEdit} />
