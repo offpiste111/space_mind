@@ -158,8 +158,9 @@ def generate_image(node):
         }
         #既存の画像がある場合は削除
         if 'isNew' not in node or node['isNew'] == False:
-            if os.path.exists(f"./web_src/assets/{node['img']}"):
-                os.remove(f"./web_src/assets/{node['img']}")
+            if node['img'] != "logo.png":
+                if os.path.exists(f"./web_src/assets/{node['img']}"):
+                    os.remove(f"./web_src/assets/{node['img']}")
 
         #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
         now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')

@@ -72,7 +72,34 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             return graphData;
         },
         setGraphData: (graphData:any) => {
-            setGraphData(graphData);
+            // nodesとlinksが空の場合、新規ノードを作成
+            if (graphData.nodes.length === 0 && graphData.links.length === 0) {
+                let camera = fgRef.current.camera();
+                const distance = 500;
+                // 画面中央に新規ノードを配置
+                const coords = { x: 0, y: 0, z: -300 };
+                
+                let new_node = { 
+                    id: 1, 
+                    img: "logo.png", 
+                    group: 1, 
+                    style_id: 1, 
+                    fx: coords.x, 
+                    fy: coords.y, 
+                    fz: coords.z, 
+                    name: "SpaceMind",
+                };
+                
+                setGraphData({
+                    nodes: [new_node],
+                    links: []
+                });
+                
+                // 編集モーダルを表示
+                //props.onNodeEdit(new_node);
+            } else {
+                setGraphData(graphData);
+            }
         },
         refreshNode: (node:any) => {
             //setObj3D((oldObj3D) => {
