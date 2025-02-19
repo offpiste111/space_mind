@@ -111,6 +111,11 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             //nodeにisNewがある場合、キーを削除する
             if (node && _.has(node, 'isNew')) {
                 delete node.isNew;
+                graphData.links.forEach(link => {
+                    if (link.source.id === node.id || link.target.id === node.id) {
+                        refreshLink(link);
+                    }
+                });
             }
             fgRef.current.refresh();
         },
@@ -128,13 +133,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             fgRef.current.refresh();
         },
         refreshLink: (link: any) => {
-            console.log('refreshLink', link);
-            setGraphData(prevData => ({
-                ...prevData,
-                links: prevData.links.map(l => 
-                    l.index === link.index ? link : l
-                )
-            }));
+            refreshLink(link);
             fgRef.current.refresh();
         },
         // 検索用のメソッドを追加
@@ -156,10 +155,15 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         links: prevData.links.filter(link => link.source.id !== nodeId && link.target.id !== nodeId)
         }));
     };
-
+    const refreshLink = (link: any) => {
+        console.log('refreshLink', link);
+        //linkにisNewがある場合、キーを削除する
+        if (link && _.has(link, 'isNew')) {
+            delete link.isNew;
+            link.name = `${link.source.name || ''} to ${link.target.name || ''}`;
+        }
+    };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
-        // 選択されたノードを更新
-        setSelectedNode(node);
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
             const distance = 500;
             const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
@@ -175,8 +179,40 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 );
             }
             console.log('Node clicked:', node);
+
+            // 選択中のノードをクリックした場合のみ新規ノードを追加
+            if (selectedNode && selectedNode.id === node.id) {
+                // 新規ノードを作成
+                const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
+                const groupId = node.group || 1;
+                const newNode = { 
+                    id: nodeId, 
+                    img: "new_node.png", 
+                    group: groupId, 
+                    style_id: 1, 
+                    x: node.fx + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                    y: node.fy + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                    fz: node.fz,
+                    isNew: true 
+                };
+                console.log('New Node:', newNode);
+
+                // 新規ノードを追加
+                graphData.nodes.push(newNode);
+                graphData.links.push({
+                    index: graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1,
+                    source: node,
+                    target: newNode,
+                    isNew: true,
+                });
+
+                // 編集モーダルを表示
+                props.onNodeEdit(newNode);
+            }
         }
-    }, [fgRef]);
+        // 選択されたノードを更新（これは常に行う）
+        setSelectedNode(node);
+    }, [fgRef, selectedNode, graphData]);
     
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
         props.onNodeEdit(node)
@@ -186,7 +222,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const handleLinkRightClick = (link: any) => {
         props.onLinkEdit(link)
     };
-
+    const handleLinkClick = (link: any) => {
+        console.log('handleLinkClick', link);
+    };
     const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
         isHovering.current = !!node;
     };
@@ -412,11 +450,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         if (linkId < 0){
             linkId = graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1;
         }
-        const newLink = { index: linkId, source: source, target: target, name: source.name + ' to ' + target.name };
-        setGraphData(prevData => ({
-            ...prevData,
-            links: [...prevData.links, newLink]
-        }));
+        const newLink = { index: linkId, source: source, target: target, isNew: true };
+        graphData.links.push(newLink);
+        refreshLink(newLink)
         setInterimLinkState(newLink);
     };
 
@@ -455,7 +491,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                         const material = sprite.material as THREE.SpriteMaterial;
                         if (selectedNode && node.id === selectedNode.id) {
                             // 選択されたノードは明るく黄色く
-                            material.color = new THREE.Color(0xffffff);
+                            material.color = new THREE.Color(0xe0e0e0);
                             material.opacity = 1;
                         } else {
                             // 選択されていないノードは少し暗く
@@ -474,6 +510,23 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 //linkDirectionalArrowRelPos={1}
                 nodeLabel={label_key}
                 //nodeAutoColorBy="group"
+                
+                linkThreeObjectExtend={true}
+                linkThreeObject={link => {
+                    // extend link with text sprite
+                    const sprite = new SpriteText(`${link.name}`);
+                    sprite.color = 'lightgrey';
+                    sprite.textHeight = 10.5;
+                    return sprite;
+                }}
+                linkPositionUpdate={(sprite, { start, end }) => {
+                    const middlePos = { x: 0, y: 0, z: 0 };
+                    (['x', 'y', 'z'] as Array<'x' | 'y' | 'z'>).forEach((c: 'x' | 'y' | 'z') => {
+                      middlePos[c] = start[c] + (end[c] - start[c]) / 2; // calc middle point
+                    });
+                    // Position sprite
+                    Object.assign(sprite.position, middlePos);
+                }}
                 linkDirectionalParticleWidth={1}
                 //linkLineDash={(link:any) => link === interimLink ? [2, 2] : []}
                 d3VelocityDecay={0.4}
@@ -481,6 +534,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
                 onNodeRightClick={handleRightClick}
                 onLinkRightClick={handleLinkRightClick}
+                onLinkClick={handleLinkClick}
                 onNodeDrag={handleNodeDrag}
                 onNodeHover={handleHover}
                 d3AlphaDecay={0.2}

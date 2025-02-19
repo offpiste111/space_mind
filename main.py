@@ -66,7 +66,7 @@ def save_json(data, json_path):
     for link in data["links"]:
         link_keys = list(link.keys())
         for key in link_keys:
-            if key not in ["source","target","__indexColor","index","__controlPoints"]:
+            if key not in ["source","target","index","name"]:
                 del link[key]
 
         #source,targetをidに変換
