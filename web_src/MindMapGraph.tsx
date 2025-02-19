@@ -33,6 +33,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
     // 選択されたノードを追跡するstate
     const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+    // 複数選択されたノードを追跡するstate
+    const [selectedNodeList, setSelectedNodeList] = useState<NodeData[]>([]);
 
 
     interface NodeData {
@@ -150,6 +152,14 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         // 選択中のノードを取得する関数を追加
         getSelectedNode: () => {
             return selectedNode;
+        },
+        // 複数選択中のノードリストを取得する関数を追加
+        getSelectedNodeList: () => {
+            return selectedNodeList;
+        },
+        // 複数選択をクリアする関数を追加
+        clearSelectedNodeList: () => {
+            setSelectedNodeList([]);
         }
     }));
     // node.idと一致するnodeをgraphDataから削除する関数
@@ -168,7 +178,25 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
+        // Ctrlキーが押されている場合は複数選択モード
+        if (event && event.ctrlKey && node) {
+            // 通常選択を解除
+            setSelectedNode(null);
+            
+            // 既に選択されているノードをクリックした場合は選択解除
+            if (selectedNodeList.some(n => n.id === node.id)) {
+                setSelectedNodeList(prev => prev.filter(n => n.id !== node.id));
+            } else {
+                // 新しいノードを選択リストに追加
+                setSelectedNodeList(prev => [...prev, node]);
+            }
+            return;
+        }
+
+        // 通常の選択モード
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
+            // 複数選択をクリア
+            setSelectedNodeList([]);
             const distance = 500;
             const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
 
@@ -194,8 +222,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     img: "new_node.png", 
                     group: groupId, 
                     style_id: 1, 
-                    fx: node.fx + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
-                    fy: node.fy + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                    fx: (node.fx || node.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                    fy: (node.fy || node.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
                     fz: node.fz,
                     isNew: true 
                 };
@@ -493,15 +521,19 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     const sprite = nodeThreeObjectImageTexture(node);
                     if (sprite instanceof THREE.Sprite) {
                         const material = sprite.material as THREE.SpriteMaterial;
-                        if (selectedNode && node.id === selectedNode.id) {
-                            // 選択されたノードは明るく黄色く
-                            material.color = new THREE.Color(0xe0e0e0);
-                            material.opacity = 1;
-                        } else {
-                            // 選択されていないノードは少し暗く
-                            material.color = new THREE.Color(0xe0e0e0);
-                            material.opacity = 1;
-                        }
+                    if (selectedNode && node.id === selectedNode.id) {
+                        // 通常選択されたノードは明るく黄色く
+                        material.color = new THREE.Color(0xe0e0e0);
+                        material.opacity = 1;
+                    } else if (selectedNodeList.some(n => n.id === node.id)) {
+                        // 複数選択されたノードは青く
+                        material.color = new THREE.Color(0x4169e1);
+                        material.opacity = 1;
+                    } else {
+                        // 選択されていないノードは通常表示
+                        material.color = new THREE.Color(0xe0e0e0);
+                        material.opacity = 1;
+                    }
                     }
                     return sprite;
                 }}

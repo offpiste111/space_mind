@@ -69,6 +69,7 @@ const App = () => {
         searchNodes: (text: string) => any[];
         selectNode: (node: any) => void;
         getSelectedNode: () => any;
+        getSelectedNodeList: () => any[];
     }
 
     interface ModalRef {
@@ -198,9 +199,18 @@ const App = () => {
         }
         else if(event.key === "Delete") {
             if(mindMapGraphRef.current) {
+                // 通常選択されたノードを削除
                 const selectedNode = mindMapGraphRef.current.getSelectedNode();
                 if (selectedNode) {
                     mindMapGraphRef.current.deleteNode(selectedNode);
+                }
+                
+                // 複数選択されたノードを削除
+                const selectedNodes = mindMapGraphRef.current.getSelectedNodeList();
+                if (selectedNodes && selectedNodes.length > 0) {
+                    selectedNodes.forEach(node => {
+                        mindMapGraphRef.current?.deleteNode(node);
+                    });
                 }
             }
         }
