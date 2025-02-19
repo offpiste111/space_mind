@@ -55,6 +55,7 @@ const App = () => {
     // 初期データの読み込み
     useEffect(() => {
         if (mindMapGraphRef.current) {
+            eel.init();
             mindMapGraphRef.current.setGraphData({nodes:[],links:[]});
         }
     }, []);
