@@ -55,6 +55,7 @@ const App = () => {
     // 初期データの読み込み
     useEffect(() => {
         if (mindMapGraphRef.current) {
+            eel.init();
             mindMapGraphRef.current.setGraphData({nodes:[],links:[]});
         }
     }, []);
@@ -68,6 +69,8 @@ const App = () => {
         deleteLink: (link: any) => void;
         searchNodes: (text: string) => any[];
         selectNode: (node: any) => void;
+        getSelectedNode: () => any;
+        getSelectedNodeList: () => any[];
     }
 
     interface ModalRef {
@@ -193,6 +196,23 @@ const App = () => {
             }
             else if(event.code === "KeyZ"){
 
+            }
+        }
+        else if(event.key === "Delete") {
+            if(mindMapGraphRef.current) {
+                // 通常選択されたノードを削除
+                const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                if (selectedNode) {
+                    mindMapGraphRef.current.deleteNode(selectedNode);
+                }
+                
+                // 複数選択されたノードを削除
+                const selectedNodes = mindMapGraphRef.current.getSelectedNodeList();
+                if (selectedNodes && selectedNodes.length > 0) {
+                    selectedNodes.forEach(node => {
+                        mindMapGraphRef.current?.deleteNode(node);
+                    });
+                }
             }
         }
       }, [handleSave]);

@@ -22,7 +22,6 @@ import eel
 import imgkit
 import concurrent.futures
 
-g_node_data = {}
 g_current_file_path = None  # 現在開いているファイルのパスを保持
 
 @eel.expose
@@ -66,7 +65,7 @@ def save_json(data, json_path):
     for link in data["links"]:
         link_keys = list(link.keys())
         for key in link_keys:
-            if key not in ["source","target","__indexColor","index","__controlPoints"]:
+            if key not in ["source","target","index","name"]:
                 del link[key]
 
         #source,targetをidに変換
@@ -172,6 +171,10 @@ def generate_image(node):
 @eel.expose
 def save_data(data):
     global g_current_file_path
+
+    print(data)
+    print(g_current_file_path)
+    
     if g_current_file_path:
         save_json(data, g_current_file_path)
         return True
@@ -199,6 +202,14 @@ def expand_user(folder):
     """Return the full path to display in the UI."""
     return '{}/*'.format(os.path.expanduser(folder))
 
+
+@eel.expose
+def init():
+    print('Hello! Initalized')
+    global g_current_file_path
+    g_current_file_path = None
+
+    return True
 
 @eel.expose
 def pick_file(folder):
