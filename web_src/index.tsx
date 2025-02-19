@@ -68,6 +68,7 @@ const App = () => {
         deleteLink: (link: any) => void;
         searchNodes: (text: string) => any[];
         selectNode: (node: any) => void;
+        getSelectedNode: () => any;
     }
 
     interface ModalRef {
@@ -193,6 +194,14 @@ const App = () => {
             }
             else if(event.code === "KeyZ"){
 
+            }
+        }
+        else if(event.key === "Delete") {
+            if(mindMapGraphRef.current) {
+                const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                if (selectedNode) {
+                    mindMapGraphRef.current.deleteNode(selectedNode);
+                }
             }
         }
       }, [handleSave]);

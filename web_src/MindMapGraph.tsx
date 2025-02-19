@@ -146,6 +146,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         // ノード選択用のメソッドを追加
         selectNode: (node: any) => {
             handleClick(node, null as any);
+        },
+        // 選択中のノードを取得する関数を追加
+        getSelectedNode: () => {
+            return selectedNode;
         }
     }));
     // node.idと一致するnodeをgraphDataから削除する関数
@@ -544,9 +548,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     node.fx = node.x;
                     node.fy = node.y;
                     isDraggingNode.current = false;  
-                    
                     setInterimLinkState(null);
-                    
                 }}
             />
         </>
