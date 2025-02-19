@@ -190,8 +190,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     img: "new_node.png", 
                     group: groupId, 
                     style_id: 1, 
-                    x: node.fx + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
-                    y: node.fy + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                    fx: node.fx + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                    fy: node.fy + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
                     fz: node.fz,
                     isNew: true 
                 };
