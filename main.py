@@ -19,8 +19,12 @@ from py_src.contrib.replace_in_file import replaceInfile, findFileRe
 from py_src.contrib.port_check import find_unused_port
 import shutil
 import eel
-import imgkit
 import concurrent.futures
+from jinja2 import Template
+from weasyprint import HTML
+from pdf2image import convert_from_bytes
+from PIL import Image, ImageOps, ImageDraw
+import io
 
 g_current_file_path = None  # 現在開いているファイルのパスを保持
 
@@ -50,8 +54,8 @@ def read_json(json_path):
     with open(json_path, "r", encoding="utf-8") as f:
         node_data = json.load(f)
     return node_data
+
 def save_json(data, json_path):
-    
     print(json_path)
     # data["nodes"]の各要素のキーはid,name,group,x,y,color,index,fx,fyのみ、それ以外は削除
     for node in data["nodes"]:
@@ -59,7 +63,6 @@ def save_json(data, json_path):
         for key in node_keys:
             if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index"]:
                 del node[key]
-
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
     for link in data["links"]:
@@ -80,24 +83,19 @@ def save_json(data, json_path):
         json.dump(data, f, ensure_ascii=False, indent=2)
     return
 
-
-wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
-
 node_styles = [
-    "font-size: 32px; color: #000000; background: #ffffff; border: solid 6px #6091d3; border-radius: 7px;",
-    "font-size: 32px; color: #000000; background: #ffffff; border: solid 6px #ffc06e; border-radius: 7px;",
-    "font-size: 32px; color: #000000; background: #ffffff; border: solid 6px #1dc1d6; border-radius: 7px;",
-    "font-size: 32px; color: #000000; background: #ffffff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
-    "font-size: 32px; color: #000000; background: #ffffff; border: dashed 6px #ffc3c3; border-radius: 8px;",
-    "font-size: 32px; color: #000000; background: #ffffff; border: solid 6px #5bb7ae; border-radius: 7px;"
+    "color: #000000; background: #ffffff; border: solid 6px #6091d3; border-radius: 7px;",
+    "color: #000000; background: #ffffff; border: solid 6px #ffc06e; border-radius: 7px;",
+    "color: #000000; background: #ffffff; border: solid 6px #1dc1d6; border-radius: 7px;",
+    "color: #000000; background: #ffffff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
+    "color: #000000; background: #ffffff; border: dashed 6px #ffc3c3; border-radius: 8px;",
+    "color: #000000; background: #ffffff; border: solid 6px #5bb7ae; border-radius: 7px;"
 ]
-
 
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
     import pyi_splash
     pyi_splash.update_text('UI Loaded ...')
     pyi_splash.close()
-
 
 @eel.expose  # Expose function to JavaScript
 def say_hello_py(x):
@@ -126,55 +124,100 @@ def generate_images(node_data):
         executor.map(generate_image, node_data.get("nodes", []))
 
     return node_data
+
 @eel.expose
 def generate_image(node):
-        html = f"""
-                <!DOCTYPE html>
-                <html lang="ja">
-                <head>
-                    <meta charset="UTF-8">
-                </head>
-                <body style="margin: 0; padding: 0; background: black;"></body>
-                    <div style="
-                        min-height: 60px;
-                        min-width: 400px;
-                        text-align: center;
-                        {node_styles[node['style_id']-1]}
-                        ">
-                        <div style="
-                            margin: 30px;">
-                            {node['name']}
+    # HTMLテンプレート
+    html_template = Template("""
+    <!DOCTYPE html>
+    <html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            * {
+                margin: 0;
+                padding: 5px;
+                box-sizing: border-box;
+            }
+            .node-content {
+                display: inline-block;
+                min-height: 60px;
+                min-width: 60px;
+                font-size: 20px;
+                //text-align: center;
+                white-space: pre-wrap;
+                {{ node_style }}
+            }
+            .node-text {
+                white-space: pre-wrap; /* Preserve whitespace and handle newlines */
+            }
+        </style>
+    </head>
+    <body>
+        <div class="node-content">{{ node_name }}</div>
+    </body>
+    </html>
+    """)
 
-                        </div>
-                        
-                    </div>
-                </body>
-                </html>
-                """
-        options = {
-            'width': '400',
-            'height': '109'
-        }
-        #既存の画像がある場合は削除
-        if 'isNew' not in node or node['isNew'] == False:
-            if node['img'] != "logo.png":
-                if os.path.exists(f"./web_src/assets/{node['img']}"):
-                    os.remove(f"./web_src/assets/{node['img']}")
+    # HTMLを生成
+    html_content = html_template.render(
+        node_style=node_styles[node['style_id']-1],
+        node_name=node['name']
+    )
 
-        #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
-        now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-        imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", config=wkhtmltoimage_config, options=options)
-        node['img'] = f"node_img/{node['id']}_{now}.png"
+    # デバッグ用：HTMLファイルを出力
+    debug_dir = "debug_output"
+    #if not os.path.exists(debug_dir):
+    #    os.makedirs(debug_dir)
+    
+    now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    #html_debug_path = f"{debug_dir}/node_{node['id']}_{now}.html"
+    #with open(html_debug_path, 'w', encoding='utf-8') as f:
+    #    f.write(html_content)
 
-        return node['img']
+    #既存の画像がある場合は削除
+    if 'isNew' not in node or node['isNew'] == False:
+        if node['img'] != "logo.png":
+            if os.path.exists(f"./web_src/assets/{node['img']}"):
+                os.remove(f"./web_src/assets/{node['img']}")
+
+    #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
+    output_path = f"./web_src/assets/node_img/{node['id']}_{now}.png"
+    pdf_debug_path = f"{debug_dir}/node_{node['id']}_{now}.pdf"
+
+    # HTMLをPDFに変換
+    html = HTML(string=html_content)
+    pdf_bytes = html.write_pdf(presentational_hints=True)
+
+    # デバッグ用：PDFファイルを出力
+    #with open(pdf_debug_path, 'wb') as f:
+    #    f.write(pdf_bytes)
+
+    # PDFをPNGに変換
+    images = convert_from_bytes(pdf_bytes)
+    
+    # 最初のページを保存（通常は1ページのみ）
+    if images:
+        img = ImageOps.invert(images[0])
+        img = img.crop(img.getbbox())
+        img = ImageOps.invert(img)
+        mask = Image.new("L", img.size, 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.rounded_rectangle((0, 0, img.width, img.height), 17, fill=255)
+
+        img.putalpha(mask)
+        img.save(output_path, 'PNG')
+
+    node['img'] = f"node_img/{node['id']}_{now}.png"
+    node['size_x'] = img.size[0]
+    node['size_y'] = img.size[1]
+    print(node['img'])
+    return node['img'], img.size
 
 @eel.expose
 def save_data(data):
     global g_current_file_path
 
-    print(data)
-    print(g_current_file_path)
-    
     if g_current_file_path:
         save_json(data, g_current_file_path)
         return True
@@ -202,7 +245,6 @@ def expand_user(folder):
     """Return the full path to display in the UI."""
     return '{}/*'.format(os.path.expanduser(folder))
 
-
 @eel.expose
 def init():
     print('Hello! Initalized')
@@ -222,7 +264,6 @@ def pick_file(folder):
         return random.choice(listFiles)
     else:
         return '{} is not a valid folder'.format(folder)
-
 
 def start_eel(develop):
     """Start Eel with either production or development configuration."""
@@ -245,10 +286,6 @@ def start_eel(develop):
         replaceInfile(f"./dist_vite/assets/{replace_file}", 'ws://localhost:....', f"ws://localhost:{eel_port}")
         replaceInfile("./dist_vite/index.html", 'http://localhost:.....eel.js', f"http://localhost:{eel_port}/eel.js")
 
-    
-
-    
-
     eel.init(directory, ['.tsx', '.ts', '.jsx', '.js', '.html'])
 
     # These will be queued until the first connection is made, but won't be repeated on a page reload
@@ -257,11 +294,7 @@ def start_eel(develop):
 
     #eel.show_log('https://github.com/samuelhwilliams/Eel/issues/363 (show_log)')
 
-
     #create images
-
-
-    
 
     eel_kwargs = dict(
         host='localhost',
@@ -270,21 +303,12 @@ def start_eel(develop):
     )
     try:
         eel.start(page, mode=app, **eel_kwargs)
- 
     except EnvironmentError:
         # If Chrome isn't found, fallback to Microsoft Edge on Win10 or greater
         if sys.platform in ['win32', 'win64'] and int(platform.release()) >= 10:
             eel.start(page, mode='edge', **eel_kwargs)
         else:
             raise
-
-
-
-
-
-
-    
-
 
 if __name__ == '__main__':
     import sys

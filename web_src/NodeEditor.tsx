@@ -80,18 +80,18 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             afterOpenChange={(visible) => {
               if (visible) {
                 setTimeout(() => {
-                  const input = document.querySelector('.ant-modal input') as HTMLInputElement;
-                  if (input) input.focus();
+                  const textarea = document.querySelector('.ant-modal textarea') as HTMLTextAreaElement;
+                  if (textarea) textarea.focus();
                 }, 100);
               }
             }}
           >
           <Flex vertical gap="small">
-            <Input 
+            <Input.TextArea 
               placeholder="Contents" 
               value={contents} 
               onChange={(e) => setContents(e.target.value)}
-              onPressEnter={handleOk}
+              autoSize={{ minRows: 3, maxRows: 6 }}
             />
             <Select
               value={styleId}

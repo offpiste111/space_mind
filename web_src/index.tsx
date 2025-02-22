@@ -126,7 +126,10 @@ const App = () => {
         sayHelloJS( 'Javascript World!' )
         eel.say_hello_py( 'Javascript World!' )
         eel.generate_image(node)((generatedImage: any) => {
-            node.img = generatedImage;
+            let result = generatedImage;
+            node.img = result[0];
+            node.size_x = result[1][0];
+            node.size_y = result[1][1];
             if(mindMapGraphRef.current){
                 mindMapGraphRef.current.refreshNode(node);
             }

@@ -39,6 +39,7 @@ useImperativeHandle(ref, () => ({
 
   const handleFileSelect = () => {
     onFileSelect();
+    setOpenTreeDraw(false); // ファイル選択後にDrawerを閉じる
   };
 
   return (

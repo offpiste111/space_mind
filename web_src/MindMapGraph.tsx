@@ -77,7 +77,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             // nodesとlinksが空の場合、新規ノードを作成
             if (graphData.nodes.length === 0 && graphData.links.length === 0) {
                 let camera = fgRef.current.camera();
-                const distance = 500;
+                const distance = 700;
                 // 画面中央に新規ノードを配置
                 const coords = { x: 0, y: 0, z: -300 };
                 
@@ -89,6 +89,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     fx: coords.x, 
                     fy: coords.y, 
                     fz: coords.z, 
+                    size_x: 120,
+                    size_y: 40,
                     name: "SpaceMind",
                 };
                 
@@ -197,7 +199,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
             // 複数選択をクリア
             setSelectedNodeList([]);
-            const distance = 500;
+            const distance = 700;
             const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
 
             // 視点座標を保存
@@ -225,6 +227,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     fx: (node.fx || node.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
                     fy: (node.fy || node.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
                     fz: node.fz,
+                    size_x: 240,
+                    size_y: 80,
                     isNew: true 
                 };
                 console.log('New Node:', newNode);
@@ -299,7 +303,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         let camera = fgRef.current.camera();
         //クリック位置からnodeのx,y,z_layerを探索する処理
         //let distance = camera.position.distanceTo(new THREE.Vector3(0, 0, z_layer));
-        const distance = 500;
+        const distance = 700;
         let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance );
         /*
         let iterations = 0;
@@ -400,7 +404,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
       
     const nodeThreeObjectCustomMesh = (node: any) => {
         const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(50, 20, 1),
+            new THREE.BoxGeometry(500, 200, 1),
             new THREE.MeshLambertMaterial({
                 color: 'rgba(250,250,250,0.9)',
                 transparent: true,
@@ -408,8 +412,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             })
         );
 
-        const MultilineText = new SpriteText(node[label_key], 3);
-        MultilineText.color = node.color;
+        const MultilineText = new SpriteText(node["name"], 16);
+        MultilineText.color = 'rgba(8,250,9,0.9)';
         MultilineText.backgroundColor = 'rgba(250,250,250,0.9)';
         MultilineText.borderColor = "#0044ff";
         MultilineText.borderWidth = 0.2;
@@ -445,11 +449,25 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     };
 
     const nodeThreeObjectImageTexture = ( node:any ) => {
+
+        if (node.id < 0) {
+            return nodeThreeObjectCustomMesh(node);
+        }
         const imgTexture = new THREE.TextureLoader().load(`./assets/${node['img']}`);
         imgTexture.colorSpace = THREE.SRGBColorSpace;
         const material = new THREE.SpriteMaterial({ map: imgTexture });
         const sprite = new THREE.Sprite(material);
-        sprite.scale.set(200, 60, 1);
+        const aspectRatio = node.size_x / node.size_y;
+        sprite.scale.set(node.size_x, node.size_x / aspectRatio, 1);
+
+        const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(50, 20, 1),
+            new THREE.MeshLambertMaterial({
+                color: 'rgba(250,250,250,0.9)',
+                transparent: true,
+                opacity: 0.75
+            })
+        );
 
         return sprite;
     };
@@ -507,7 +525,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             // リンクの距離を設定
             fgRef.current.d3Force('link').distance(200);
 
-            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.17, 0.2, 0.95);
+            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.2, 0.9);
             fgRef.current.postProcessingComposer().addPass(bloomPass);
         }
     }, [fgRef]);
@@ -523,7 +541,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                         const material = sprite.material as THREE.SpriteMaterial;
                     if (selectedNode && node.id === selectedNode.id) {
                         // 通常選択されたノードは明るく黄色く
-                        material.color = new THREE.Color(0xe0e0e0);
+                        material.color = new THREE.Color(0xffffff);
                         material.opacity = 1;
                     } else if (selectedNodeList.some(n => n.id === node.id)) {
                         // 複数選択されたノードは青く
