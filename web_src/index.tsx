@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client'
 import { css } from "@emotion/react";
 
 
-import { Input , Button, Popover, message} from 'antd';  
+import { Input , Button, Popover, message, Spin} from 'antd';  
 
 import MindMapGraph from './MindMapGraph'
 import NodeEditor from './NodeEditor'
@@ -28,8 +28,10 @@ const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
     const [currentFileName, setCurrentFileName] = useState<string>('');
+    const [loading, setLoading] = useState(false);
 
     const handleFileSelect = async () => {
+        setLoading(true);
         try {
             const node_data = await eel.select_file_dialog()();
             if (node_data) {
@@ -49,6 +51,8 @@ const App = () => {
         } catch (error) {
             console.error('Error loading file:', error);
             message.error('ファイルの読み込みに失敗しました');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -243,7 +247,7 @@ const App = () => {
       );
 
     return (
-        <>
+        <Spin spinning={loading} tip="ファイルを読み込み中...">
         <MindMapGraph 
             ref={mindMapGraphRef}
             onHover={handleHover}
@@ -274,7 +278,7 @@ const App = () => {
 
         <FloatButton onClick={() => showDrawer()} />
 
-        </>
+        </Spin>
     );
 
 }
