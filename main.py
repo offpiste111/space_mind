@@ -20,9 +20,6 @@ from py_src.contrib.port_check import find_unused_port
 import shutil
 import eel
 import concurrent.futures
-from jinja2 import Template
-from weasyprint import HTML
-from pdf2image import convert_from_bytes
 from PIL import Image, ImageOps, ImageDraw
 import io
 
@@ -83,12 +80,15 @@ def save_json(data, json_path):
         json.dump(data, f, ensure_ascii=False, indent=2)
     return
 
+
+wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
+
 node_styles = [
     "color: #000000; background: #ffffff; border: solid 6px #6091d3; border-radius: 7px;",
     "color: #000000; background: #ffffff; border: solid 6px #ffc06e; border-radius: 7px;",
     "color: #000000; background: #ffffff; border: solid 6px #1dc1d6; border-radius: 7px;",
     "color: #000000; background: #ffffff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
-    "color: #000000; background: #ffffff; border: dashed 6px #ffc3c3; border-radius: 8px;",
+    "color: #000000; background: #ffffff; border: dashed 6px #ffc3c3; border-radius: 7px;",
     "color: #000000; background: #ffffff; border: solid 6px #5bb7ae; border-radius: 7px;"
 ]
 
@@ -127,91 +127,148 @@ def generate_images(node_data):
 
 @eel.expose
 def generate_image(node):
-    # HTMLテンプレート
-    html_template = Template("""
-    <!DOCTYPE html>
-    <html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            * {
-                margin: 0;
-                padding: 5px;
-                box-sizing: border-box;
-            }
-            .node-content {
-                display: inline-block;
-                min-height: 60px;
-                min-width: 60px;
-                font-size: 20px;
-                //text-align: center;
-                white-space: pre-wrap;
-                {{ node_style }}
-            }
-            .node-text {
-                white-space: pre-wrap; /* Preserve whitespace and handle newlines */
-            }
-        </style>
-    </head>
-    <body>
-        <div class="node-content">{{ node_name }}</div>
-    </body>
-    </html>
-    """)
+    if os.name == 'nt':  # Execute only on Windows
+        import imgkit
+        html = f"""
+                <!DOCTYPE html>
+                <html lang="ja">
+                <head>
+                    <meta charset="UTF-8">
+                </head>
+                <body style="margin: 0; padding: 0; background: white;"></body>
+                    <div style="
+                        display: inline-block;
+                        padding: 10px;
+                        font-size: 20px;
+                        white-space: pre-wrap;
+                        //text-align: center;
+                        {node_styles[node['style_id']-1]}
+                        ">{node['name']}</div>
+                </body>
+                </html>
+                """
+        options = {
+            'width': '1200',
+            'height': '1200'
+        }
+        #既存の画像がある場合は削除
+        if 'isNew' not in node or node['isNew'] == False:
+            if node['img'] != "logo.png":
+                if os.path.exists(f"./web_src/assets/{node['img']}"):
+                    os.remove(f"./web_src/assets/{node['img']}")
 
-    # HTMLを生成
-    html_content = html_template.render(
-        node_style=node_styles[node['style_id']-1],
-        node_name=node['name']
-    )
+        #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
+        now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", config=wkhtmltoimage_config, options=options)
+        node['img'] = f"node_img/{node['id']}_{now}.png"
 
-    # デバッグ用：HTMLファイルを出力
-    debug_dir = "debug_output"
-    #if not os.path.exists(debug_dir):
-    #    os.makedirs(debug_dir)
-    
-    now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    #html_debug_path = f"{debug_dir}/node_{node['id']}_{now}.html"
-    #with open(html_debug_path, 'w', encoding='utf-8') as f:
-    #    f.write(html_content)
+        img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
+        img = ImageOps.invert(img)
 
-    #既存の画像がある場合は削除
-    if 'isNew' not in node or node['isNew'] == False:
-        if node['img'] != "logo.png":
-            if os.path.exists(f"./web_src/assets/{node['img']}"):
-                os.remove(f"./web_src/assets/{node['img']}")
-
-    #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
-    output_path = f"./web_src/assets/node_img/{node['id']}_{now}.png"
-    pdf_debug_path = f"{debug_dir}/node_{node['id']}_{now}.pdf"
-
-    # HTMLをPDFに変換
-    html = HTML(string=html_content)
-    pdf_bytes = html.write_pdf(presentational_hints=True)
-
-    # デバッグ用：PDFファイルを出力
-    #with open(pdf_debug_path, 'wb') as f:
-    #    f.write(pdf_bytes)
-
-    # PDFをPNGに変換
-    images = convert_from_bytes(pdf_bytes)
-    
-    # 最初のページを保存（通常は1ページのみ）
-    if images:
-        img = ImageOps.invert(images[0])
+        print(node['img'])
+        
         img = img.crop(img.getbbox())
         img = ImageOps.invert(img)
         mask = Image.new("L", img.size, 0)
         mask_draw = ImageDraw.Draw(mask)
-        mask_draw.rounded_rectangle((0, 0, img.width, img.height), 17, fill=255)
-
+        mask_draw.rounded_rectangle((0, 0, img.width, img.height), 8, fill=255)
         img.putalpha(mask)
-        img.save(output_path, 'PNG')
+        img.save(f"./web_src/assets/{node['img']}", 'PNG')
 
-    node['img'] = f"node_img/{node['id']}_{now}.png"
-    node['size_x'] = img.size[0]
-    node['size_y'] = img.size[1]
-    print(node['img'])
+        node['size_x'] = img.size[0]
+        node['size_y'] = img.size[1]
+
+    else:
+        from jinja2 import Template
+        from weasyprint import HTML
+        from pdf2image import convert_from_bytes
+
+        # HTMLテンプレート
+        html_template = Template("""
+        <!DOCTYPE html>
+        <html lang="ja">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                * {
+                    margin: 0;
+                    padding: 5px;
+                    box-sizing: border-box;
+                }
+                .node-content {
+                    display: inline-block;
+                    min-height: 60px;
+                    min-width: 60px;
+                    font-size: 20px;
+                    //text-align: center;
+                    white-space: pre-wrap;
+                    {{ node_style }}
+                }
+                .node-text {
+                    white-space: pre-wrap; /* Preserve whitespace and handle newlines */
+                }
+            </style>
+        </head>
+        <body>
+            <div class="node-content">{{ node_name }}</div>
+        </body>
+        </html>
+        """)
+
+        # HTMLを生成
+        html_content = html_template.render(
+            node_style=node_styles[node['style_id']-1],
+            node_name=node['name']
+        )
+
+        # デバッグ用：HTMLファイルを出力
+        debug_dir = "debug_output"
+        #if not os.path.exists(debug_dir):
+        #    os.makedirs(debug_dir)
+        
+        now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        #html_debug_path = f"{debug_dir}/node_{node['id']}_{now}.html"
+        #with open(html_debug_path, 'w', encoding='utf-8') as f:
+        #    f.write(html_content)
+
+        #既存の画像がある場合は削除
+        if 'isNew' not in node or node['isNew'] == False:
+            if node['img'] != "logo.png":
+                if os.path.exists(f"./web_src/assets/{node['img']}"):
+                    os.remove(f"./web_src/assets/{node['img']}")
+
+        #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
+        output_path = f"./web_src/assets/node_img/{node['id']}_{now}.png"
+        pdf_debug_path = f"{debug_dir}/node_{node['id']}_{now}.pdf"
+
+        # HTMLをPDFに変換
+        html = HTML(string=html_content)
+        pdf_bytes = html.write_pdf(presentational_hints=True)
+
+        # デバッグ用：PDFファイルを出力
+        #with open(pdf_debug_path, 'wb') as f:
+        #    f.write(pdf_bytes)
+
+        # PDFをPNGに変換
+        images = convert_from_bytes(pdf_bytes)
+        
+        # 最初のページを保存（通常は1ページのみ）
+        if images:
+            img = ImageOps.invert(images[0])
+            img = img.crop(img.getbbox())
+            img = ImageOps.invert(img)
+            mask = Image.new("L", img.size, 0)
+            mask_draw = ImageDraw.Draw(mask)
+            mask_draw.rounded_rectangle((0, 0, img.width, img.height), 17, fill=255)
+
+            img.putalpha(mask)
+            img.save(output_path, 'PNG')
+
+        node['img'] = f"node_img/{node['id']}_{now}.png"
+        node['size_x'] = img.size[0]
+        node['size_y'] = img.size[1]
+        print(node['img'])
+        
     return node['img'], img.size
 
 @eel.expose
