@@ -1,5 +1,5 @@
 import React,{useState, forwardRef, useImperativeHandle } from 'react'
-import { Modal, Input, Button, Flex } from 'antd';  
+import { Modal, Input, Button, Flex, Typography } from 'antd';  
 import _ from 'lodash';
 
 interface ModalRef {
@@ -9,6 +9,7 @@ interface ModalRef {
 interface LinkEditorProps {
     onRefreshLink: (link: any) => void;
     onDeleteLink: (link: any) => void;
+    onSelectNode: (node: any) => void;
 }
 
 const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
@@ -83,12 +84,45 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
               }
             }}
           >
-          <Input 
-            placeholder="Link Name" 
-            value={contents} 
-            onChange={(e)=>setContents(e.target.value)}
-            onPressEnter={handleOk}
-          />
+          <div>
+            <Input 
+              placeholder="Link Name" 
+              value={contents} 
+              onChange={(e)=>setContents(e.target.value)}
+              onPressEnter={handleOk}
+            />
+            {editLink && (
+              <Flex justify="space-between" align="center" style={{ marginTop: '16px', width: '100%' }}>
+                <div style={{ width: '45%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <Typography.Link 
+                    onClick={() => {
+                      props.onSelectNode(editLink.source);
+                      setIsLinkEditorOpen(false);
+                    }}
+                    style={{ width: '100%', display: 'block', textOverflow: 'ellipsis', overflow: 'hidden' }}
+                  >
+                    {(editLink.source.name || '名称未設定').length > 20 
+                      ? `${(editLink.source.name || '名称未設定').slice(0, 20)}...` 
+                      : (editLink.source.name || '名称未設定')}
+                  </Typography.Link>
+                </div>
+                <span style={{ margin: '0 10px' }}>→</span>
+                <div style={{ width: '45%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <Typography.Link
+                    onClick={() => {
+                      props.onSelectNode(editLink.target);
+                      setIsLinkEditorOpen(false);
+                    }}
+                    style={{ width: '100%', display: 'block', textOverflow: 'ellipsis', overflow: 'hidden' }}
+                  >
+                    {(editLink.target.name || '名称未設定').length > 20 
+                      ? `${(editLink.target.name || '名称未設定').slice(0, 20)}...` 
+                      : (editLink.target.name || '名称未設定')}
+                  </Typography.Link>
+                </div>
+              </Flex>
+            )}
+          </div>
           </Modal>
         </>
     );

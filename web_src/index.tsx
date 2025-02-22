@@ -266,7 +266,8 @@ const App = () => {
         <LinkEditor
             ref={linkAddModalRef}
             onRefreshLink={handleRefreshLink}
-            onDeleteLink={handleDeleteLink} />
+            onDeleteLink={handleDeleteLink}
+            onSelectNode={handleNodeSelect} />
 
         <TreeDrawer
             ref={treeDrawerRef}
