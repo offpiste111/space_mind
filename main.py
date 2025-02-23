@@ -58,7 +58,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index","deadline","priority","urgency"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index","deadline","priority","urgency","disabled"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換

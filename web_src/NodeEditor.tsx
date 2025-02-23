@@ -26,6 +26,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         deadline?: string;
         priority?: number | null;
         urgency?: number | null;
+        disabled?: boolean;
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
@@ -35,8 +36,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setContents(node.name);
             setStyleId(node.style_id || 1);
             setDeadline(node.deadline || "");
-            setPriority(node.priority !== undefined ? node.priority : null); // デフォルト: 未選択
-            setUrgency(node.urgency !== undefined ? node.urgency : null); // デフォルト: 未選択
+            setPriority(node.priority !== undefined ? node.priority : null);
+            setUrgency(node.urgency !== undefined ? node.urgency : null);
             setEditNode(node);
         }
     }));
@@ -78,14 +79,25 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             footer={
               <Flex justify="space-between" align="center">
                 {editNode && !editNode.isNew && (
-                  <Button danger onClick={() => {
-                    if (editNode) {
-                      props.onDeleteNode(editNode);
-                      props.onClose();
-                    }
-                  }}>
-                    削除
-                  </Button>
+                  <Flex gap="small">
+                    <Button danger onClick={() => {
+                      if (editNode) {
+                        props.onDeleteNode(editNode);
+                        props.onClose();
+                      }
+                    }}>
+                      削除
+                    </Button>
+                    <Button onClick={() => {
+                      if (editNode) {
+                        editNode.disabled = !editNode.disabled;
+                        props.onRefreshNode(editNode);
+                        props.onClose();
+                      }
+                    }}>
+                      {editNode.disabled ? '有効化' : '無効化'}
+                    </Button>
+                  </Flex>
                 )}
                 <Flex gap="small" style={{ marginLeft: editNode?.isNew ? 'auto' : 0 }}>
                   <Button onClick={handleCancel}>

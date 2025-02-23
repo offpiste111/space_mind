@@ -52,6 +52,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         deadline?: string;
         createdAt?: string;
         updatedAt?: string;
+        disabled?: boolean;
     }
 
     interface GraphData {
@@ -484,8 +485,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         return MultilineText;
     };
 
-    const nodeThreeObjectImageTexture = ( node:any ) => {
-
+    const nodeThreeObjectImageTexture = (node: any) => {
         if (node.id < 0) {
             return nodeThreeObjectCustomMesh(node);
         }
@@ -575,25 +575,32 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     const sprite = nodeThreeObjectImageTexture(node);
                     if (sprite instanceof THREE.Sprite) {
                         const material = sprite.material as THREE.SpriteMaterial;
-                    if (selectedNode && node.id === selectedNode.id) {
-                        // 通常選択されたノードは明るく黄色く
-                        material.color = new THREE.Color(0xffffff);
-                        material.opacity = 1;
-                    } else if (selectedNodeList.some(n => n.id === node.id)) {
-                        // 複数選択されたノードは青く
-                        material.color = new THREE.Color(0x4169e1);
-                        material.opacity = 1;
-                    } else {
-                        // 選択されていないノードは通常表示
-                        material.color = new THREE.Color(0xe0e0e0);
-                        material.opacity = 1;
-                    }
+                        if (selectedNode && node.id === selectedNode.id) {
+                            material.color = new THREE.Color(0xffffff);
+                            material.opacity = (node.disabled) ? 0.05 : 1;
+                        } else if (selectedNodeList.some(n => n.id === node.id)) {
+                            material.color = new THREE.Color(0x4169e1);
+                            material.opacity = (node.disabled) ? 0.05 : 1;
+                        } else {
+                            material.color = new THREE.Color(0xe0e0e0);
+                            material.opacity = (node.disabled) ? 0.05 : 1;
+                        }
                     }
                     return sprite;
                 }}
                 enableNavigationControls={true}
                 backgroundColor="#010101"
-                linkColor={(link) => link === interimLink ? 'rgb(246, 147, 177)' : 'rgba(255,255,255,1)'}
+                linkColor={(link) => {
+                    let opacity = 1;
+                    if (link.source.disabled || link.target.disabled) {
+                        opacity = 0.1;
+                    } 
+                    let color = `rgba(255,255,255,${opacity})`;
+                    if (link === interimLink) {
+                        color = `rgb(246, 147, 177,${opacity})`;
+                    }
+                    return color
+                }}
                 linkWidth={(link) => link === interimLink ? 4 : 2}
                 nodeId="id"
                 //linkDirectionalArrowLength={6}
@@ -607,6 +614,11 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     const sprite = new SpriteText(`${link.name}`);
                     sprite.color = 'lightgrey';
                     sprite.textHeight = 10.5;
+
+                    if (link.source.disabled || link.target.disabled) {
+                        sprite.material.opacity = 0.1;
+                        sprite.material.transparent = true;
+                    } 
                     return sprite;
                 }}
                 linkPositionUpdate={(sprite, { start, end }) => {
