@@ -58,7 +58,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index","deadline"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index","deadline","priority"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -139,12 +139,12 @@ def generate_image(node):
                     <div style="
                         display: inline-block;
                         padding: 10px;
-                        font-size: 20px;
-                        white-space: pre-wrap;
-                        //text-align: center;
-                        {node_styles[node['style_id']-1]}
-                        ">{node['name']}
-{f'<div style="font-size: 14px; color: #ff4d4f; margin-top: 5px;">期限: {node["deadline"]}</div>' if 'deadline' in node and node['deadline'] and node['deadline'].strip() else ''}</div>
+                        {node_styles[node['style_id']-1]}">                        
+                            <div style="
+                                font-size: 20px;
+                                white-space: pre-wrap;">{node['name']}</div>
+                            {f'<div style="font-size: 14px; color: #ff4d4f; margin-top: 5px;">期限: {node["deadline"]}</div>' if 'deadline' in node and node['deadline'] and node['deadline'].strip() else ''}
+                            {f'<div style="font-size: 14px; color: #1890ff; margin-top: 5px;">重要度: {"★" * node["priority"]}</div>' if 'priority' in node and node["priority"] is not None else ''}</div>
                 </body>
                 </html>
                 """
@@ -210,6 +210,11 @@ def generate_image(node):
                     color: #ff4d4f;
                     margin-top: 5px;
                 }
+                .priority {
+                    font-size: 14px;
+                    color: #1890ff;
+                    margin-top: 5px;
+                }
                 .node-text {
                     white-space: pre-wrap; /* Preserve whitespace and handle newlines */
                 }
@@ -221,6 +226,9 @@ def generate_image(node):
                 {% if node_deadline %}
                 <div class="deadline">期限: {{ node_deadline }}</div>
                 {% endif %}
+                {% if node_priority is not none %}
+                <div class="priority">重要度: {{ "★" * node_priority }}</div>
+                {% endif %}
             </div>
         </body>
         </html>
@@ -230,7 +238,8 @@ def generate_image(node):
         html_content = html_template.render(
             node_style=node_styles[node['style_id']-1],
             node_name=node['name'],
-            node_deadline=node['deadline'] if 'deadline' in node and node['deadline'] and node['deadline'].strip() else None
+            node_deadline=node['deadline'] if 'deadline' in node and node['deadline'] and node['deadline'].strip() else None,
+            node_priority=node['priority'] if 'priority' in node else None
         )
 
         # デバッグ用：HTMLファイルを出力
