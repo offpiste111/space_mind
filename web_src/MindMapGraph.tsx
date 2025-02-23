@@ -50,6 +50,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         fz?: number;
         isNew?: boolean;
         deadline?: string;
+        createdAt?: string;
+        updatedAt?: string;
     }
 
     interface GraphData {
@@ -82,6 +84,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 // 画面中央に新規ノードを配置
                 const coords = { x: 0, y: 0, z: -300 };
                 
+                const now = new Date().toISOString();
                 let new_node = { 
                     id: 1, 
                     img: "logo.png", 
@@ -93,6 +96,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     size_x: 120,
                     size_y: 40,
                     name: "SpaceMind",
+                    createdAt: now,
+                    updatedAt: now
                 };
                 
                 setGraphData({
@@ -122,6 +127,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     }
                 });
             }
+            // 更新日時を設定
+            node.updatedAt = new Date().toISOString();
             fgRef.current.refresh();
         },
         deleteNode: (node: any) => {
@@ -220,6 +227,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 // 新規ノードを作成
                 const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
                 const groupId = node.group || 1;
+                const now = new Date().toISOString();
                 const newNode = { 
                     id: nodeId, 
                     img: "new_node.png", 
@@ -230,7 +238,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     fz: node.fz,
                     size_x: 240,
                     size_y: 80,
-                    isNew: true 
+                    isNew: true,
+                    createdAt: now,
+                    updatedAt: now
                 };
                 console.log('New Node:', newNode);
 
@@ -329,7 +339,19 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         if (nodeId === -Infinity) {
             return;
         }
-        let new_node = { id: nodeId, img: "new_node.png", group: groupId, style_id: 1, fx: coords.x, fy: coords.y, fz: /*z_layer*/coords.z, isNew: true };
+        const now = new Date().toISOString();
+        let new_node = { 
+            id: nodeId, 
+            img: "new_node.png", 
+            group: groupId, 
+            style_id: 1, 
+            fx: coords.x, 
+            fy: coords.y, 
+            fz: /*z_layer*/coords.z, 
+            isNew: true,
+            createdAt: now,
+            updatedAt: now
+        };
         graphData.nodes.push(new_node);
         fgRef.current.refresh();
         props.onNodeEdit(new_node);

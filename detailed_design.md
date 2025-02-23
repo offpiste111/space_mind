@@ -148,6 +148,8 @@ interface NodeData {
     size_y: number;
     deadline?: string;  // 期限（YYYY-MM-DDTHH:mm形式）
     priority?: number | null;  // 重要度（未選択、または1:最低～5:最高）
+    createdAt: string;  // 作成日時（ISO 8601形式）
+    updatedAt: string;  // 更新日時（ISO 8601形式）
 }
 ```
 
