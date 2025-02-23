@@ -22,6 +22,7 @@ import eel
 import concurrent.futures
 from PIL import Image, ImageOps, ImageDraw
 import io
+import base64
 
 g_current_file_path = None  # 現在開いているファイルのパスを保持
 
@@ -58,7 +59,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index","deadline","priority","urgency","disabled"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -123,8 +124,44 @@ def generate_images(node_data):
 
     return node_data
 
+def process_base64_image(base64_str, max_size=150):
+    """Base64形式の画像を処理してサイズを調整する"""
+    # Base64ヘッダーを削除
+    if ',' in base64_str:
+        base64_str = base64_str.split(',')[1]
+    
+    # Base64をデコードして画像を開く
+    img_data = base64.b64decode(base64_str)
+    img = Image.open(io.BytesIO(img_data))
+    
+    # アスペクト比を保持しながらリサイズ
+    width, height = img.size
+    if width > height:
+        if width > max_size:
+            ratio = max_size / width
+            new_width = max_size
+            new_height = int(height * ratio)
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    else:
+        if height > max_size:
+            ratio = max_size / height
+            new_height = max_size
+            new_width = int(width * ratio)
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    
+    return img
+
 @eel.expose
 def generate_image(node):
+    # icon_imgがある場合は、それを処理
+    icon_base64 = None
+    if 'icon_img' in node and node['icon_img']:
+        img = process_base64_image(node['icon_img'])
+        # 処理した画像をbase64に変換
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        icon_base64 = base64.b64encode(buffered.getvalue()).decode()
+
     if os.name == 'nt':  # Execute only on Windows
         import imgkit
         wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
@@ -136,19 +173,24 @@ def generate_image(node):
                     <meta charset="UTF-8">
                 </head>
                 <body style="margin: 0; padding: 0; background: white;"></body>
-                    <div style="
-                        display: inline-block;
-                        padding: 10px;
-                        {node_styles[node['style_id']-1]}">                        
-                            <div style="
-                                font-size: 20px;
-                                white-space: pre-wrap;">{node['name']}</div>
+                <div style="
+                    display: inline-block;
+                    padding: 10px;
+                    {node_styles[node['style_id']-1]}">
+                        {f'<img src="data:image/png;base64,{icon_base64}" style="max-width: 100%; margin-bottom: 10px; display: block;">' if icon_base64 else ''}
+                        <div style="
+                            font-size: 20px;
+                            white-space: pre-wrap;">{node['name']}</div>
                             {f'<div style="font-size: 14px; color: #ff4d4f; margin-top: 5px;">期限: {node["deadline"]}</div>' if 'deadline' in node and node['deadline'] and node['deadline'].strip() else ''}
                             {f'<div style="font-size: 14px; color: #1890ff; margin-top: 5px;">重要度: {"★" * node["priority"]}</div>' if 'priority' in node and node["priority"] is not None else ''}
                             {f'<div style="font-size: 14px; color: #52c41a; margin-top: 5px;">緊急度: {"★" * node["urgency"]}</div>' if 'urgency' in node and node["urgency"] is not None else ''}</div>
                 </body>
                 </html>
                 """
+        # now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        # html_debug_path = f"./node_{node['id']}_{now}.html"
+        # with open(html_debug_path, 'w', encoding='utf-8') as f:
+        #     f.write(html)
         options = {
             'width': '1200',
             'height': '1200'
@@ -206,6 +248,11 @@ def generate_image(node):
                     white-space: pre-wrap;
                     {{ node_style }}
                 }
+                .node-icon {
+                    max-width: 100%;
+                    margin-bottom: 10px;
+                    display: block;
+                }
                 .deadline {
                     font-size: 14px;
                     color: #ff4d4f;
@@ -228,6 +275,9 @@ def generate_image(node):
         </head>
         <body>
             <div class="node-content">
+                {% if node_icon_base64 %}
+                <img src="data:image/png;base64,{{ node_icon_base64 }}" class="node-icon">
+                {% endif %}
                 <div>{{ node_name }}</div>
                 {% if node_deadline %}
                 <div class="deadline">期限: {{ node_deadline }}</div>
@@ -247,6 +297,7 @@ def generate_image(node):
         html_content = html_template.render(
             node_style=node_styles[node['style_id']-1],
             node_name=node['name'],
+            node_icon_base64=icon_base64,
             node_deadline=node['deadline'] if 'deadline' in node and node['deadline'] and node['deadline'].strip() else None,
             node_priority=node['priority'] if 'priority' in node else None,
             node_urgency=node['urgency'] if 'urgency' in node else None

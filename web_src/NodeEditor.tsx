@@ -1,6 +1,8 @@
 import React,{useState, forwardRef, useImperativeHandle, useEffect } from 'react'
-import { Modal, Input, Button, Flex, Select } from 'antd';
+import { Modal, Input, Button, Flex, Select, Upload } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
 import _ from 'lodash';
+import type { UploadProps } from 'antd';
 
 interface ModalRef {
     showModal: (data: any) => void;
@@ -27,9 +29,35 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         priority?: number | null;
         urgency?: number | null;
         disabled?: boolean;
+        icon_img?: string;
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
+    const [iconImg, setIconImg] = useState<string>("");
+
+    const getBase64 = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = error => reject(error);
+        });
+    };
+
+    const uploadProps: UploadProps = {
+        name: 'file',
+        multiple: false,
+        showUploadList: false,
+        beforeUpload: async (file) => {
+            if (!file.type.startsWith('image/')) {
+                return false;
+            }
+            const base64 = await getBase64(file);
+            setIconImg(base64);
+            return false;
+        },
+        customRequest: () => {},
+    };
 
     useImperativeHandle(ref, () => ({
         showModal: (node: any) => {
@@ -38,6 +66,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setDeadline(node.deadline || "");
             setPriority(node.priority !== undefined ? node.priority : null);
             setUrgency(node.urgency !== undefined ? node.urgency : null);
+            setIconImg(node.icon_img || "");
             setEditNode(node);
         }
     }));
@@ -47,6 +76,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             editNode.name = contents;
             editNode.style_id = styleId;
             editNode.deadline = deadline;
+            editNode.icon_img = iconImg;
             if (priority === null) {
                 delete editNode.priority;
             } else {
@@ -133,49 +163,77 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 }
               }}
             />
-            <Select
-              value={styleId}
-              onChange={(value) => setStyleId(value)}
-              options={[
-                { value: 1, label: 'スタイル1' },
-                { value: 2, label: 'スタイル2' },
-                { value: 3, label: 'スタイル3' },
-                { value: 4, label: 'スタイル4' },
-                { value: 5, label: 'スタイル5' },
-                { value: 6, label: 'スタイル6' },
-              ]}
-            />
-            <Input
-              type="datetime-local"
-              placeholder="期限"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-            />
-            <Select
-              value={priority}
-              onChange={(value) => setPriority(value)}
-              options={[
-                { value: null, label: '未選択' },
-                { value: 1, label: '最低' },
-                { value: 2, label: '低' },
-                { value: 3, label: '中' },
-                { value: 4, label: '高' },
-                { value: 5, label: '最高' },
-              ]}
-            />
-            <Select
-              value={urgency}
-              onChange={(value) => setUrgency(value)}
-              options={[
-                { value: null, label: '未選択' },
-                { value: 1, label: '最低' },
-                { value: 2, label: '低' },
-                { value: 3, label: '中' },
-                { value: 4, label: '高' },
-                { value: 5, label: '最高' },
-              ]}
-              placeholder="緊急度"
-            />
+            <Flex gap="middle" align="center">
+              <div style={{ width: '80px' }}>スタイル</div>
+              <Select
+                style={{ flex: 1 }}
+                value={styleId}
+                onChange={(value) => setStyleId(value)}
+                options={[
+                  { value: 1, label: 'スタイル1' },
+                  { value: 2, label: 'スタイル2' },
+                  { value: 3, label: 'スタイル3' },
+                  { value: 4, label: 'スタイル4' },
+                  { value: 5, label: 'スタイル5' },
+                  { value: 6, label: 'スタイル6' },
+                ]}
+              />
+            </Flex>
+            <Flex gap="middle" align="start">
+              <div style={{ width: '80px' }}>アイコン</div>
+              <Flex vertical style={{ flex: 1 }}>
+                <Upload.Dragger {...uploadProps}>
+                    <p className="ant-upload-drag-icon">
+                        <InboxOutlined rev={undefined} />
+                    </p>
+                    <p className="ant-upload-text">クリックまたはドラッグで画像をアップロード</p>
+                </Upload.Dragger>
+                {iconImg && (
+                    <img src={iconImg} alt="Node icon" style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', marginTop: '8px' }} />
+                )}
+              </Flex>
+            </Flex>
+            <Flex gap="middle" align="center">
+              <div style={{ width: '80px' }}>期限</div>
+              <Input
+                style={{ flex: 1 }}
+                type="datetime-local"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+              />
+            </Flex>
+            <Flex gap="middle" align="center">
+              <div style={{ width: '80px' }}>重要度</div>
+              <Select
+                style={{ flex: 1 }}
+                value={priority}
+                onChange={(value) => setPriority(value)}
+                options={[
+                  { value: null, label: '未選択' },
+                  { value: 1, label: '最低' },
+                  { value: 2, label: '低' },
+                  { value: 3, label: '中' },
+                  { value: 4, label: '高' },
+                  { value: 5, label: '最高' },
+                ]}
+              />
+            </Flex>
+            <Flex gap="middle" align="center">
+              <div style={{ width: '80px' }}>緊急度</div>
+              <Select
+                style={{ flex: 1 }}
+                value={urgency}
+                onChange={(value) => setUrgency(value)}
+                options={[
+                  { value: null, label: '未選択' },
+                  { value: 1, label: '最低' },
+                  { value: 2, label: '低' },
+                  { value: 3, label: '中' },
+                  { value: 4, label: '高' },
+                  { value: 5, label: '最高' },
+                ]}
+              />
+            </Flex>
           </Flex>
           </Modal>
         </>
