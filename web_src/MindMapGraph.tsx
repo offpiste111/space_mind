@@ -170,6 +170,41 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         // 複数選択をクリアする関数を追加
         clearSelectedNodeList: () => {
             setSelectedNodeList([]);
+        },
+        // 新規ノード追加用のインターフェース
+        addNode: () => {
+            if (!selectedNode) return;
+            
+            const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
+            const groupId = selectedNode.group || 1;
+            const now = new Date().toISOString();
+            const newNode = { 
+                id: nodeId, 
+                img: "new_node.png", 
+                group: groupId, 
+                style_id: 1, 
+                fx: (selectedNode.fx || selectedNode.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                fy: (selectedNode.fy || selectedNode.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                fz: selectedNode.fz,
+                size_x: 240,
+                size_y: 80,
+                name: "新規ノード",
+                isNew: true,
+                createdAt: now,
+                updatedAt: now
+            };
+
+            // 新規ノードを追加
+            graphData.nodes.push(newNode);
+            graphData.links.push({
+                index: graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1,
+                source: selectedNode,
+                target: newNode,
+                isNew: true,
+            });
+
+            // 編集モーダルを表示
+            props.onNodeEdit(newNode);
         }
     }));
     // node.idと一致するnodeをgraphDataから削除する関数
@@ -222,40 +257,6 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             }
             console.log('Node clicked:', node);
 
-            // 選択中のノードをクリックした場合のみ新規ノードを追加
-            if (selectedNode && selectedNode.id === node.id) {
-                // 新規ノードを作成
-                const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
-                const groupId = node.group || 1;
-                const now = new Date().toISOString();
-                const newNode = { 
-                    id: nodeId, 
-                    img: "new_node.png", 
-                    group: groupId, 
-                    style_id: 1, 
-                    fx: (node.fx || node.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
-                    fy: (node.fy || node.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
-                    fz: node.fz,
-                    size_x: 240,
-                    size_y: 80,
-                    isNew: true,
-                    createdAt: now,
-                    updatedAt: now
-                };
-                console.log('New Node:', newNode);
-
-                // 新規ノードを追加
-                graphData.nodes.push(newNode);
-                graphData.links.push({
-                    index: graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1,
-                    source: node,
-                    target: newNode,
-                    isNew: true,
-                });
-
-                // 編集モーダルを表示
-                props.onNodeEdit(newNode);
-            }
         }
         // 選択されたノードを更新（これは常に行う）
         setSelectedNode(node);
@@ -348,12 +349,15 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             fx: coords.x, 
             fy: coords.y, 
             fz: /*z_layer*/coords.z, 
+            name: "新規ノード",
             isNew: true,
             createdAt: now,
             updatedAt: now
         };
-        graphData.nodes.push(new_node);
-        fgRef.current.refresh();
+        setGraphData(prevData => ({
+            ...prevData,
+            nodes: [...prevData.nodes, new_node]
+        }));
         props.onNodeEdit(new_node);
     };
        

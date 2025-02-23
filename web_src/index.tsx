@@ -29,6 +29,9 @@ const App = () => {
     const [y, setY] = useState(0);
     const [currentFileName, setCurrentFileName] = useState<string>('');
     const [loading, setLoading] = useState(false);
+    const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
+    const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+    const [isTreeDrawerOpen, setIsTreeDrawerOpen] = useState(false);
 
     const handleFileSelect = async () => {
         setLoading(true);
@@ -75,6 +78,7 @@ const App = () => {
         selectNode: (node: any) => void;
         getSelectedNode: () => any;
         getSelectedNodeList: () => any[];
+        addNode: () => void;
     }
 
     interface ModalRef {
@@ -93,8 +97,8 @@ const App = () => {
 
   
     const handleNodeEdit = (node:any) => {
-
         if(nodeEditorRef.current){
+            setIsNodeEditorOpen(true);
             nodeEditorRef.current.showModal(node);
         }
         //setIsNodeEditorOpen(true);
@@ -110,6 +114,7 @@ const App = () => {
 
     const handleLinkEdit = (link:any) => {
         if(linkAddModalRef.current){
+            setIsLinkEditorOpen(true);
             linkAddModalRef.current.showModal(link);
         }
     }
@@ -157,6 +162,7 @@ const App = () => {
 
     const showDrawer = () => {
         if (treeDrawerRef.current){
+            setIsTreeDrawerOpen(true);
             treeDrawerRef.current.showDrawer();
         }
 
@@ -166,12 +172,14 @@ const App = () => {
         if(mindMapGraphRef.current){
             let data = mindMapGraphRef.current.getGraphData();
             try {
-                const success = await eel.save_data(data)();
-                if (success) {
+                const result = await eel.save_data(data)();
+                if (result && result[0]) {
+                    const filename = result[1];
                     message.success({
-                        content: '保存しました',
+                        content: `${filename}に保存しました`,
                         duration: 3,
                     });
+                    setCurrentFileName(filename);
                 } else {
                     message.error('保存に失敗しました');
                 }
@@ -193,6 +201,8 @@ const App = () => {
     }, []);
 
     const keyFunction = useCallback((event:any) => {
+        // いずれかのエディターが開いているときはキー受付を無効化
+        if (isNodeEditorOpen || isLinkEditorOpen || isTreeDrawerOpen) return;
         if(event.ctrlKey) {
             if(event.code === "KeyS"){
                 event.preventDefault();
@@ -203,6 +213,11 @@ const App = () => {
             }
             else if(event.code === "KeyZ"){
 
+            }
+        }
+        else if(event.key === "Enter" && !event.shiftKey) {
+            if(mindMapGraphRef.current) {
+                mindMapGraphRef.current.addNode();
             }
         }
         else if(event.key === "Delete") {
@@ -222,11 +237,14 @@ const App = () => {
                 }
             }
         }
-      }, [handleSave]);
+      }, [handleSave, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
     
       useEffect(() => {
         document.addEventListener("keydown", keyFunction, false);
-      }, []);
+        return () => {
+          document.removeEventListener("keydown", keyFunction, false);
+        };
+      }, [keyFunction, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
 
 
 
@@ -261,13 +279,17 @@ const App = () => {
         <NodeEditor
             ref={nodeEditorRef}
             onRefreshNode={handleRefreshNode}
-            onDeleteNode={handleDeleteNode} />
+            onDeleteNode={handleDeleteNode}
+            onClose={() => setIsNodeEditorOpen(false)}
+            open={isNodeEditorOpen} />
 
         <LinkEditor
             ref={linkAddModalRef}
             onRefreshLink={handleRefreshLink}
             onDeleteLink={handleDeleteLink}
-            onSelectNode={handleNodeSelect} />
+            onSelectNode={handleNodeSelect}
+            onClose={() => setIsLinkEditorOpen(false)}
+            open={isLinkEditorOpen} />
 
         <TreeDrawer
             ref={treeDrawerRef}
@@ -275,7 +297,9 @@ const App = () => {
             onSearch={handleSearch}
             onNodeSelect={handleNodeSelect}
             onFileSelect={handleFileSelect}
-            currentFileName={currentFileName}/>
+            currentFileName={currentFileName}
+            onClose={() => setIsTreeDrawerOpen(false)}
+            open={isTreeDrawerOpen} />
 
         <FloatButton onClick={() => showDrawer()} />
 

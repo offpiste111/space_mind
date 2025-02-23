@@ -2,16 +2,16 @@ import React,{useState, forwardRef, useImperativeHandle, useEffect } from 'react
 import { Drawer, Button, Input, List } from 'antd';
 
 interface TreeDrawerProps {
-  onSave: () => void;
+  onSave: () => Promise<void>;
   onSearch: (text: string) => any[];
   onNodeSelect: (node: any) => void;
   onFileSelect: () => void;
   currentFileName: string;
+  onClose: () => void;
+  open: boolean;
 }
 
-const TreeDrawer = forwardRef(({onSave, onSearch, onNodeSelect, onFileSelect}: TreeDrawerProps, ref:any) => {
-
-const [openTreeDraw, setOpenTreeDraw] = useState(false);
+const TreeDrawer = forwardRef(({onSave, onSearch, onNodeSelect, onFileSelect, onClose, open}: TreeDrawerProps, ref:any) => {
 const [searchText, setSearchText] = useState('');
 const [searchResults, setSearchResults] = useState<Array<any>>([]);
 
@@ -24,27 +24,23 @@ useEffect(() => {
 // 検索結果のアイテムがクリックされたときの処理
 const handleResultClick = (node: any) => {
   onNodeSelect(node);
-  setOpenTreeDraw(false); // 検索結果クリック後にDrawerを閉じる
+  onClose();
 };
 
 useImperativeHandle(ref, () => ({
     showDrawer : () => {
-        setOpenTreeDraw(true);
-      }
+        // 表示状態はindex.tsxで管理
+    }
 }));
-
-  const onClose = () => {
-    setOpenTreeDraw(false);
-  };
 
   const handleFileSelect = () => {
     onFileSelect();
-    setOpenTreeDraw(false); // ファイル選択後にDrawerを閉じる
+    onClose();
   };
 
   return (
     <>
-      <Drawer title="ノード検索" onClose={onClose} open={openTreeDraw}>
+      <Drawer title="ノード検索" onClose={onClose} open={open}>
         <div style={{ marginBottom: 16 }}>
           <Button 
             onClick={handleFileSelect}
@@ -80,7 +76,10 @@ useImperativeHandle(ref, () => ({
         />
         <Button 
           type="primary" 
-          onClick={onSave}
+          onClick={async () => {
+            await onSave();
+            onClose();
+          }}
           style={{ marginTop: 16 }}
         >
           保存

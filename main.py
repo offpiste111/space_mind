@@ -58,7 +58,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index","deadline","priority"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index","deadline","priority","urgency"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -144,7 +144,8 @@ def generate_image(node):
                                 font-size: 20px;
                                 white-space: pre-wrap;">{node['name']}</div>
                             {f'<div style="font-size: 14px; color: #ff4d4f; margin-top: 5px;">期限: {node["deadline"]}</div>' if 'deadline' in node and node['deadline'] and node['deadline'].strip() else ''}
-                            {f'<div style="font-size: 14px; color: #1890ff; margin-top: 5px;">重要度: {"★" * node["priority"]}</div>' if 'priority' in node and node["priority"] is not None else ''}</div>
+                            {f'<div style="font-size: 14px; color: #1890ff; margin-top: 5px;">重要度: {"★" * node["priority"]}</div>' if 'priority' in node and node["priority"] is not None else ''}
+                            {f'<div style="font-size: 14px; color: #52c41a; margin-top: 5px;">緊急度: {"★" * node["urgency"]}</div>' if 'urgency' in node and node["urgency"] is not None else ''}</div>
                 </body>
                 </html>
                 """
@@ -215,6 +216,11 @@ def generate_image(node):
                     color: #1890ff;
                     margin-top: 5px;
                 }
+                .urgency {
+                    font-size: 14px;
+                    color: #52c41a;
+                    margin-top: 5px;
+                }
                 .node-text {
                     white-space: pre-wrap; /* Preserve whitespace and handle newlines */
                 }
@@ -229,6 +235,9 @@ def generate_image(node):
                 {% if node_priority is not none %}
                 <div class="priority">重要度: {{ "★" * node_priority }}</div>
                 {% endif %}
+                {% if node_urgency is not none %}
+                <div class="urgency">緊急度: {{ "★" * node_urgency }}</div>
+                {% endif %}
             </div>
         </body>
         </html>
@@ -239,7 +248,8 @@ def generate_image(node):
             node_style=node_styles[node['style_id']-1],
             node_name=node['name'],
             node_deadline=node['deadline'] if 'deadline' in node and node['deadline'] and node['deadline'].strip() else None,
-            node_priority=node['priority'] if 'priority' in node else None
+            node_priority=node['priority'] if 'priority' in node else None,
+            node_urgency=node['urgency'] if 'urgency' in node else None
         )
 
         # デバッグ用：HTMLファイルを出力
@@ -298,7 +308,7 @@ def save_data(data):
 
     if g_current_file_path:
         save_json(data, g_current_file_path)
-        return True
+        return [True, g_current_file_path]
     else:
         # ファイルが選択されていない場合は保存ダイアログを表示
         root = tk.Tk()
@@ -315,8 +325,8 @@ def save_data(data):
         if file_path:
             g_current_file_path = file_path
             save_json(data, file_path)
-            return True
-    return False
+            return [True, file_path]
+    return [False, None]
 
 @eel.expose
 def expand_user(folder):

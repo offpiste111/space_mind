@@ -236,3 +236,135 @@ sequenceDiagram
 - 期限が設定されている場合、ノード名の下部に赤字で表示
 - 重要度が設定されている場合（未選択以外）、期限の下に青字で★マークを表示（1～5個）
 - スタイルに応じた枠線とカラーリングを適用
+
+## 8. キー操作イベントハンドラ
+
+### 8.1 イベントハンドラの設計
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Index as index.tsx
+    participant MindMap as MindMapGraph
+    participant Python as PythonBackend
+    
+    User->>Index: キー入力
+    Index->>Index: keyFunction実行
+    alt Ctrl + S
+        Index->>Index: handleSave呼び出し
+        Index->>MindMap: getGraphData
+        MindMap-->>Index: グラフデータ
+        Index->>Python: save_data
+        Python-->>Index: 保存結果
+    else Delete
+        Index->>MindMap: getSelectedNode/getSelectedNodeList
+        MindMap-->>Index: 選択中ノード
+        Index->>MindMap: deleteNode実行
+    end
+```
+
+### 8.2 キー操作一覧
+
+#### グローバルキー操作
+- **Ctrl + S**: 現在のマインドマップを保存
+  - index.tsxでキャッチし、handleSave関数を実行
+  - MindMapGraphからデータを取得しPythonバックエンドで保存
+  - 保存結果をメッセージで表示
+
+#### ノード操作
+- **Delete**: 選択中のノードを削除
+  - index.tsxでキャッチし、選択中のノードを取得
+  - 単一選択の場合はgetSelectedNodeで取得
+  - 複数選択の場合はgetSelectedNodeListで取得
+  - 取得したノードをMindMapGraphのdeleteNode関数で削除
+
+### 8.3 エディター表示中のキー操作制御
+
+#### 設計方針
+- エディター（モーダル・ドロワー）表示中はグローバルキー操作を無効化
+- 各エディターの状態をindex.tsxで管理
+- キー操作前にエディターの表示状態をチェック
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Index as index.tsx
+    participant Editor as エディター
+    participant MindMap as MindMapGraph
+
+    User->>Index: キー入力
+    Index->>Index: エディター表示状態チェック
+    alt エディター表示中
+        Index-->>User: キー操作を無効化
+    else エディター非表示
+        Index->>MindMap: キー操作に応じた処理実行
+        MindMap-->>Index: 処理結果
+    end
+```
+
+#### 実装ポイント
+1. エディター状態管理
+```typescript
+// index.tsxでの状態管理
+const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
+const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+const [isTreeDrawerOpen, setIsTreeDrawerOpen] = useState(false);
+```
+
+2. エディターコンポーネントの実装
+```typescript
+interface EditorProps {
+    onClose: () => void;  // エディターを閉じる際の状態更新用
+    // その他のProps
+}
+```
+
+3. キー操作制御
+```typescript
+const keyFunction = useCallback((event: any) => {
+    // エディター表示中はキー操作を無効化
+    if (isNodeEditorOpen || isLinkEditorOpen || isTreeDrawerOpen) return;
+    
+    // 以降、通常のキー操作処理
+}, [isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
+```
+
+### 8.4 実装方針
+- キー操作のイベントハンドラはindex.tsxで一元管理
+- useEffectでコンポーネントマウント時にイベントリスナーを登録
+- キー操作に応じて適切なコンポーネントのメソッドを呼び出し
+- 各機能の実装は対応するコンポーネントに委譲
+
+## 9. 設計注意事項
+
+### 9.1 モーダル・ドロワー実装時の注意点
+
+1. 状態管理
+- モーダルやドロワーの表示状態は必ずindex.tsxで管理する
+- 各コンポーネントの内部状態（isOpen等）は使用しない
+- 表示状態の変更は必ずonCloseプロパティ経由で行う
+
+2. キー操作の制御
+- モーダルやドロワーを実装する際は、必ずindex.tsxの状態管理に組み込む
+- グローバルキー操作との競合を防ぐため、表示状態をkeyFunctionで考慮する
+- テキスト入力フィールドでのキー操作（Enter等）は、エディター表示中でも有効とする
+
+3. コンポーネント設計
+```typescript
+// 推奨実装パターン
+interface EditorComponentProps {
+    onClose: () => void;  // 必須
+    // その他の必要なProps
+}
+
+const EditorComponent = ({ onClose, ...props }) => {
+    // 内部でのモーダル状態管理は行わない
+    // すべての閉じる操作でonCloseを呼び出す
+};
+```
+
+4. 実装チェックリスト
+- [ ] index.tsxで表示状態を管理するstateを追加
+- [ ] コンポーネントにonCloseプロパティを追加
+- [ ] すべての閉じる操作（OK、キャンセル、×ボタン等）でonCloseを呼び出す
+- [ ] keyFunctionで表示状態をチェックする条件に追加
