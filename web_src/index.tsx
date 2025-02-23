@@ -78,6 +78,8 @@ const App = () => {
         selectNode: (node: any) => void;
         getSelectedNode: () => any;
         getSelectedNodeList: () => any[];
+        clearSelectedNode: () => void;
+        clearSelectedNodeList: () => void;
         addNode: () => void;
     }
 
@@ -218,6 +220,12 @@ const App = () => {
         else if(event.key === "Enter" && !event.shiftKey) {
             if(mindMapGraphRef.current) {
                 mindMapGraphRef.current.addNode();
+            }
+        }
+        else if(event.key === "Escape") {
+            if(mindMapGraphRef.current) {
+                mindMapGraphRef.current.clearSelectedNode();
+                mindMapGraphRef.current.clearSelectedNodeList();
             }
         }
         else if(event.key === "Delete") {

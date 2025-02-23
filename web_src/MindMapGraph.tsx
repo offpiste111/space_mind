@@ -171,6 +171,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         clearSelectedNodeList: () => {
             setSelectedNodeList([]);
         },
+        // 選択中のノードをクリアする関数を追加
+        clearSelectedNode: () => {
+            setSelectedNode(null);
+        },
         // 新規ノード追加用のインターフェース
         addNode: () => {
             if (!selectedNode) return;
@@ -549,15 +553,6 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     };
 
 
-    // エスケープキーのイベントハンドラ
-    const handleKeyDown = useCallback((event: KeyboardEvent) => {
-        if (event.key === 'Escape') {
-            // 選択中のノードとノードリストをクリア
-            setSelectedNode(null);
-            setSelectedNodeList([]);
-        }
-    }, []);
-
     useEffect(() => {
         if (fgRef.current) {
             // ノード間の反発力を設定
@@ -569,15 +564,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.2, 0.9);
             fgRef.current.postProcessingComposer().addPass(bloomPass);
         }
-
-        // キーボードイベントリスナーを追加
-        window.addEventListener('keydown', handleKeyDown);
-
-        // クリーンアップ関数
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [fgRef, handleKeyDown]);
+    }, [fgRef]);
 
     return (
         <>
