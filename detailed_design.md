@@ -58,15 +58,17 @@ graph TB
 
 #### ノード画像生成プロセス
 1. ノードの内容とスタイルをHTML+CSSで定義
-2. HTMLをPNG画像に変換（Windows: wkhtmltoimage, その他: WeasyPrint）
-3. 画像の透明度とラウンド処理
-4. 生成した画像をノードの表示用アセットとして保存
+2. アイコン画像がある場合、base64形式で直接HTMLに埋め込み
+3. HTMLをPNG画像に変換（Windows: wkhtmltoimage, その他: WeasyPrint）
+4. 画像の透明度とラウンド処理
+5. 生成した画像をノードの表示用アセットとして保存
 
 #### 重要なメソッド
 - `select_file_dialog()`: ファイル選択ダイアログの表示
 - `load_json(path)`: JSONファイルの読み込み
 - `save_json(data, path)`: JSONファイルの保存
 - `generate_images(node_data)`: ノード画像の生成
+- `process_base64_image(base64_str, max_size)`: アイコン画像のリサイズ処理
 
 ### 3.2 マインドマップグラフ (MindMapGraph.tsx)
 
@@ -92,16 +94,37 @@ graph TB
 #### 主要機能
 - ノード内容の編集
 - ノードスタイルの設定
+- アイコン画像の設定（ドラッグ&ドロップ対応）
 - ノードの削除
 - 期限の設定
 - 重要度の設定
+- 緊急度の設定
 
 #### UI要素
 - テキスト入力エリア
 - スタイル選択ドロップダウン
+- アイコン画像アップロードエリア（プレビュー表示付き）
 - 期限入力フィールド（datetime-local形式）
 - 重要度選択ドロップダウン（未選択、1:最低～5:最高）
+- 緊急度選択ドロップダウン（未選択、1:最低～5:最高）
 - 操作ボタン（OK、キャンセル、削除）
+
+#### アイコン画像処理フロー
+```mermaid
+sequenceDiagram
+    participant User
+    participant NodeEditor
+    participant Python
+    
+    User->>NodeEditor: 画像ドラッグ&ドロップ
+    NodeEditor->>NodeEditor: FileReader処理
+    NodeEditor->>NodeEditor: base64変換
+    NodeEditor->>NodeEditor: プレビュー表示
+    NodeEditor->>Python: ノード保存（base64データ含む）
+    Python->>Python: 画像リサイズ処理
+    Python->>Python: ノード画像生成（アイコン埋め込み）
+    Python-->>NodeEditor: 処理完了
+```
 
 ### 3.4 リンクエディタ (LinkEditor.tsx)
 
@@ -148,6 +171,8 @@ interface NodeData {
     size_y: number;
     deadline?: string;  // 期限（YYYY-MM-DDTHH:mm形式）
     priority?: number | null;  // 重要度（未選択、または1:最低～5:最高）
+    urgency?: number | null;  // 緊急度（未選択、または1:最低～5:最高）
+    icon_img?: string;  // アイコン画像（base64形式）
     createdAt: string;  // 作成日時（ISO 8601形式）
     updatedAt: string;  // 更新日時（ISO 8601形式）
 }
@@ -232,9 +257,11 @@ sequenceDiagram
 - 画像生成処理はOSによって異なる実装が必要
 
 ### 7.3 ノード表示仕様
+- アイコン画像がある場合、ノード名の上部に表示（最大幅500px、アスペクト比保持）
 - ノード名は中央に表示（改行・空白を保持）
 - 期限が設定されている場合、ノード名の下部に赤字で表示
 - 重要度が設定されている場合（未選択以外）、期限の下に青字で★マークを表示（1～5個）
+- 緊急度が設定されている場合（未選択以外）、重要度の下に緑字で★マークを表示（1～5個）
 - スタイルに応じた枠線とカラーリングを適用
 
 ## 8. キー操作イベントハンドラ
