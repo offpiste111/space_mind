@@ -77,7 +77,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             return graphData;
         },
         setGraphData: (graphData:any) => {
-            // nodesとlinksが空の場合、新規ノードを作成
+            // nodesとlinksが空の場合、を作成
             if (graphData.nodes.length === 0 && graphData.links.length === 0) {
                 let camera = fgRef.current.camera();
                 const distance = 700;
@@ -188,7 +188,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 fz: selectedNode.fz,
                 size_x: 240,
                 size_y: 80,
-                name: "新規ノード",
+                name: "",
                 isNew: true,
                 createdAt: now,
                 updatedAt: now
@@ -349,7 +349,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             fx: coords.x, 
             fy: coords.y, 
             fz: /*z_layer*/coords.z, 
-            name: "新規ノード",
+            name: "",
             isNew: true,
             createdAt: now,
             updatedAt: now
