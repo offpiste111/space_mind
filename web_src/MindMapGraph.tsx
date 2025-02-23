@@ -49,6 +49,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         fy?: number;
         fz?: number;
         isNew?: boolean;
+        deadline?: string;
     }
 
     interface GraphData {

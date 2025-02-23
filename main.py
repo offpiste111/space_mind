@@ -58,7 +58,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","style_id","color","index","deadline"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -80,8 +80,6 @@ def save_json(data, json_path):
         json.dump(data, f, ensure_ascii=False, indent=2)
     return
 
-
-wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
 
 node_styles = [
     "color: #000000; background: #ffffff; border: solid 6px #6091d3; border-radius: 7px;",
@@ -129,6 +127,8 @@ def generate_images(node_data):
 def generate_image(node):
     if os.name == 'nt':  # Execute only on Windows
         import imgkit
+        wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
+
         html = f"""
                 <!DOCTYPE html>
                 <html lang="ja">
@@ -143,7 +143,8 @@ def generate_image(node):
                         white-space: pre-wrap;
                         //text-align: center;
                         {node_styles[node['style_id']-1]}
-                        ">{node['name']}</div>
+                        ">{node['name']}
+{f'<div style="font-size: 14px; color: #ff4d4f; margin-top: 5px;">期限: {node["deadline"]}</div>' if 'deadline' in node and node['deadline'] and node['deadline'].strip() else ''}</div>
                 </body>
                 </html>
                 """
@@ -204,13 +205,23 @@ def generate_image(node):
                     white-space: pre-wrap;
                     {{ node_style }}
                 }
+                .deadline {
+                    font-size: 14px;
+                    color: #ff4d4f;
+                    margin-top: 5px;
+                }
                 .node-text {
                     white-space: pre-wrap; /* Preserve whitespace and handle newlines */
                 }
             </style>
         </head>
         <body>
-            <div class="node-content">{{ node_name }}</div>
+            <div class="node-content">
+                <div>{{ node_name }}</div>
+                {% if node_deadline %}
+                <div class="deadline">期限: {{ node_deadline }}</div>
+                {% endif %}
+            </div>
         </body>
         </html>
         """)
@@ -218,7 +229,8 @@ def generate_image(node):
         # HTMLを生成
         html_content = html_template.render(
             node_style=node_styles[node['style_id']-1],
-            node_name=node['name']
+            node_name=node['name'],
+            node_deadline=node['deadline'] if 'deadline' in node and node['deadline'] and node['deadline'].strip() else None
         )
 
         # デバッグ用：HTMLファイルを出力

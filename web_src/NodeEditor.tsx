@@ -15,10 +15,12 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
     const [contents, setContents] = useState("");
     const [styleId, setStyleId] = useState<number>(1);
+    const [deadline, setDeadline] = useState<string>("");
     interface Node {
         name: string;
         isNew?: boolean;
         style_id?: number;
+        deadline?: string;
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
@@ -27,6 +29,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         showModal: (node: any) => {
             setContents(node.name);
             setStyleId(node.style_id || 1);
+            setDeadline(node.deadline || "");
             setIsNodeEditorOpen(true);
             setEditNode(node);
         }
@@ -37,6 +40,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         if (editNode){
             editNode.name = contents;
             editNode.style_id = styleId;
+            editNode.deadline = deadline;
         }
         props.onRefreshNode(editNode);
     };
@@ -104,6 +108,12 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 { value: 5, label: 'スタイル5' },
                 { value: 6, label: 'スタイル6' },
               ]}
+            />
+            <Input
+              type="datetime-local"
+              placeholder="期限"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
             />
           </Flex>
           </Modal>
