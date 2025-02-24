@@ -35,6 +35,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
     // 複数選択されたノードを追跡するstate
     const [selectedNodeList, setSelectedNodeList] = useState<NodeData[]>([]);
+    const copiedNodeRef = useRef<any>(null);
 
 
     interface NodeData {
@@ -164,6 +165,13 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         getSelectedNode: () => {
             return selectedNode;
         },
+        copyNode: () => {
+            if (!selectedNode) return;
+            copiedNodeRef.current = selectedNode;
+        },
+        getCopiedNode: () => {
+            return _.cloneDeep(copiedNodeRef.current);
+        },
         // 複数選択中のノードリストを取得する関数を追加
         getSelectedNodeList: () => {
             return selectedNodeList;
@@ -188,7 +196,22 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             }
         },
         // 新規ノード追加用のインターフェース
-        addNode: () => {
+        addNode: (newNode:any) => {
+            if (!selectedNode) return;
+            
+            const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
+            newNode.id = nodeId;
+            newNode.fx = newNode.fx + (10 + Math.floor(Math.random() * 21));
+            newNode.fy = newNode.fy + (10 + Math.floor(Math.random() * 21));
+            newNode.fz = newNode.fz + (10 + Math.floor(Math.random() * 21));
+            
+            // 新規ノードを追加
+            props.onRefreshNode(newNode);
+            graphData.nodes.push(newNode);
+            fgRef.current.refresh();
+        },
+        // 新規ノード追加用のインターフェース
+        addNewNode: () => {
             if (!selectedNode) return;
             
             const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
@@ -515,14 +538,14 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         const aspectRatio = node.size_x / node.size_y;
         sprite.scale.set(node.size_x, node.size_x / aspectRatio, 1);
 
-        const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(50, 20, 1),
-            new THREE.MeshLambertMaterial({
-                color: 'rgba(250,250,250,0.9)',
-                transparent: true,
-                opacity: 0.75
-            })
-        );
+        // const mesh = new THREE.Mesh(
+        //     new THREE.BoxGeometry(50, 20, 1),
+        //     new THREE.MeshLambertMaterial({
+        //         color: 'rgba(250,250,250,0.9)',
+        //         transparent: true,
+        //         opacity: 0.75
+        //     })
+        // );
 
         return sprite;
     };

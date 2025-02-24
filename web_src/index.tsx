@@ -68,7 +68,7 @@ const App = () => {
     }, []);
 
     interface MindMapGraphRef {
-        getGraphData: () => void;
+        getGraphData: () => any;
         setGraphData: (data: any) => void;
         refreshNode: (node: any) => void;
         deleteNode: (node: any) => void;
@@ -76,11 +76,14 @@ const App = () => {
         deleteLink: (link: any) => void;
         searchNodes: (text: string) => any[];
         selectNode: (node: any) => void;
+        copyNode: () => void;
+        getCopiedNode: () => any;
         getSelectedNode: () => any;
         getSelectedNodeList: () => any[];
         clearSelectedNode: () => void;
         clearSelectedNodeList: () => void;
-        addNode: () => void;
+        addNode: (node: any) => void;
+        addNewNode: () => void;
         addLink: (source: any, target: any) => void;
     }
 
@@ -174,6 +177,13 @@ const App = () => {
     const handleSave = useCallback(async () => {
         if(mindMapGraphRef.current){
             let data = mindMapGraphRef.current.getGraphData();
+
+            //data.nodes.__threeObjを削除する
+            data.nodes = data.nodes.map((node: any) => {
+                delete node.__threeObj;
+                return node;
+            });
+            console.log(data)
             try {
                 const result = await eel.save_data(data)();
                 if (result && result[0]) {
@@ -212,15 +222,39 @@ const App = () => {
                 handleSave();
             }
             else if(event.code === "KeyC"){
+                if(mindMapGraphRef.current) {
+                    (mindMapGraphRef.current as any).copyNode();
+                    console.log("Node copied via Ctrl+C");
+                }
+            }
+            else if(event.code === "KeyV"){
+                if(mindMapGraphRef.current) {
+                    const copied = (mindMapGraphRef.current as any).getCopiedNode();
+                    
+                    if(copied) {
 
+                        //必要なキーのリスト
+                        const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img"];
+                        //必要なキーだけを残し他は削除する
+                        Object.keys(copied).forEach(key => {
+                            if(!keys.includes(key)){
+                                delete copied[key];
+                            }
+                        });
+                        mindMapGraphRef.current.addNode(copied);
+                        console.log("Add Node:",copied);
+                    } else {
+                        console.log("No node to paste");
+                    }
+                }
             }
             else if(event.code === "KeyZ"){
-
+                
             }
         }
         else if(event.key === "Enter" && !event.shiftKey) {
             if(mindMapGraphRef.current) {
-                mindMapGraphRef.current.addNode();
+                mindMapGraphRef.current.addNewNode();
             }
         }
         else if(event.key === "Escape") {
@@ -290,6 +324,7 @@ const App = () => {
         <MindMapGraph 
             ref={mindMapGraphRef}
             onHover={handleHover}
+            onRefreshNode={handleRefreshNode}
             onNodeEdit={handleNodeEdit}
             onLinkEdit={handleLinkEdit} />
 
