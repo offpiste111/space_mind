@@ -77,11 +77,21 @@ graph TB
 - ノード・リンクデータの保持と管理
 - インタラクティブな編集機能
 - 複数ノード選択機能
+- ノードのコピー&ペースト機能
 
 #### データ管理
 - `graphData`: ノードとリンクのデータを保持する状態
 - `selectedNode`: 現在選択中のノードを管理
 - `selectedNodeList`: 複数選択されたノードを管理
+- `copiedNodeRef`: コピーされたノードの参照を保持（useRefで管理）
+
+#### 重要なメソッド
+- `copyNode`: 選択中のノードをコピーしてバッファに保存
+- `getCopiedNode`: コピーされたノードのディープコピーを取得
+- `addNode`: 新規ノードを追加（ペースト操作で使用）
+  - コピー元の位置から少しずらして配置
+  - 新規IDを割り当て
+  - スタイル、アイコン、期限などの属性を保持
 
 #### 重要なコンポーネント
 - `ForceGraph3D`: 3Dグラフの描画エンジン
@@ -231,6 +241,26 @@ sequenceDiagram
     Index->>TreeDrawer: 完了通知
 ```
 
+### 5.3 ノードコピー&ペーストフロー
+```mermaid
+sequenceDiagram
+    participant User
+    participant Index as index.tsx
+    participant MindMap as MindMapGraph
+    
+    User->>Index: Ctrl + C
+    Index->>MindMap: copyNode実行
+    MindMap->>MindMap: 選択中ノードをバッファに保存
+    
+    User->>Index: Ctrl + V
+    Index->>MindMap: getCopiedNode実行
+    MindMap->>MindMap: ノードのディープコピー作成
+    MindMap->>MindMap: 新規ID割り当て
+    MindMap->>MindMap: 位置をずらして配置
+    MindMap->>MindMap: グラフデータに追加
+    MindMap-->>Index: 完了通知
+```
+
 ## 6. 技術スタック
 
 ### 6.1 フロントエンド
@@ -297,6 +327,13 @@ sequenceDiagram
   - index.tsxでキャッチし、handleSave関数を実行
   - MindMapGraphからデータを取得しPythonバックエンドで保存
   - 保存結果をメッセージで表示
+- **Ctrl + C**: 選択中のノードをコピー
+  - MindMapGraphのcopyNode関数を実行
+  - 選択中のノードの情報を内部バッファに保存
+- **Ctrl + V**: コピーしたノードをペースト
+  - MindMapGraphのgetCopiedNode関数でコピーされたノードを取得
+  - 新規ノードとして追加（位置はコピー元からずらして配置）
+  - コピー時の属性（スタイル、アイコン、期限など）を保持
 
 #### ノード操作
 - **Delete**: 選択中のノードを削除
