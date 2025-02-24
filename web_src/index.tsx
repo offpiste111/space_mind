@@ -39,12 +39,12 @@ const App = () => {
             const node_data = await eel.select_file_dialog()();
             if (node_data) {
                 node_data.nodes = node_data.nodes.map((node: any) => {
-                    node['fx'] = node['x']
-                    node['fy'] = node['y']
-                    node['fz'] = node['z']
-                    delete node['vx']; 
-                    delete node['vy']; 
-                    delete node['vz']; 
+                    //node['fx'] = node['x']
+                    //node['fy'] = node['y']
+                    //node['fz'] = node['z']
+                    //delete node['fx']; 
+                    //delete node['fy']; 
+                    //delete node['fz']; 
                     return node;
                 });
                 if (mindMapGraphRef.current) {

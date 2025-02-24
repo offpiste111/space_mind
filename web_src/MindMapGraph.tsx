@@ -4,6 +4,7 @@ import _ from 'lodash'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import * as d3force from 'd3-force'
+import * as forceCollide from 'd3-force'
 import * as THREE from 'three'
 import SVGNodeData from './SvgNodeData'
 import satori from 'satori'
@@ -341,6 +342,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
           if (dragNode.id === node.id) {
             continue;
           }
+          console.log("onNodeDrag",distance(dragNode, node))
           // 十分に近い：推奨リンクのターゲットとしてノードにスナップする
           if (!interimLink && distance(dragNode, node) < snapInDistance) {
             setInterimLink(-1, dragNode, node);
@@ -611,17 +613,24 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     //     }, 100);
     //   }, []);
 
-
     useEffect(() => {
         if (fgRef.current) {
             // ノード間の反発力を設定
-            fgRef.current.d3Force('charge').strength(-50);
+            //fgRef.current.d3Force('charge').strength(-50);
         
             // リンクの距離を設定
-            fgRef.current.d3Force('link').distance(200);
-
+            fgRef.current.d3Force('link').distance(20).strength(1);
+            
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.2, 0.9);
             fgRef.current.postProcessingComposer().addPass(bloomPass);
+            
+            fgRef.current.d3Force('collision', d3force.forceCollide(150));
+            //fgRef.current.d3Force('center', d3force.forceCenter(0, 0));
+
+
+            //fgRef.current.d3Force("link", d3force.forceLink(graphData.links).distance(function(){ return 10;}).strength(function(){ return 2; }))
+            //fgRef.current.d3Force("center", d3force.forceY(height/2))
+            fgRef.current.d3Force('charge', d3force.forceManyBody().strength(-10))
         }
     }, [fgRef]);
 
@@ -700,11 +709,25 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                 onNodeDrag={handleNodeDrag}
                 onNodeHover={handleHover}
                 d3AlphaDecay={0.2}
+                //dagMode={"radialin"}
                 //nodeThreeObjectExtend={true}
                 onBackgroundClick={handleBackgroundClick}
                 onNodeDragEnd={(node:any) => {
-                    node.fx = node.x;
-                    node.fy = node.y;
+
+                    // // ノードにfx,fy,fzのキーがあれば、そのキーを消す
+                    // if (node.fx || node.fy || node.fz) {
+                    //     delete node.fx;
+                    //     delete node.fy;
+                    //     delete node.fz;
+                    // }
+                    // else{
+                    //     // ノードにfx,fy,fzのキーがなければ、現在のx,y,zを保存する
+                    //     node.fx = node.x;
+                    //     node.fy = node.y;
+                    //     node.fz = node.z;
+                    // }
+
+
                     isDraggingNode.current = false;  
                     setInterimLinkState(null);
                 }}
