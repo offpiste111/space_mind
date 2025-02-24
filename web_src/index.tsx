@@ -81,6 +81,7 @@ const App = () => {
         clearSelectedNode: () => void;
         clearSelectedNodeList: () => void;
         addNode: () => void;
+        addLink: (source: any, target: any) => void;
     }
 
     interface ModalRef {
@@ -228,19 +229,31 @@ const App = () => {
                 mindMapGraphRef.current.clearSelectedNodeList();
             }
         }
+        else if(event.key === "L" || event.key === "l") {
+            const mindMap = mindMapGraphRef.current;
+            if(mindMap) {
+                const selectedNode = mindMap.getSelectedNode();
+                const selectedNodeList = mindMap.getSelectedNodeList();
+                if(selectedNode && selectedNodeList && selectedNodeList.length > 0) {
+                    selectedNodeList.forEach((target: any) => {
+                        mindMap.addLink(selectedNode, target);
+                    });
+                }
+            }
+        }
         else if(event.key === "Delete") {
             if(mindMapGraphRef.current) {
                 // 通常選択されたノードを削除
-                const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                const selectedNode = mindMapGraphRef.current!.getSelectedNode();
                 if (selectedNode) {
-                    mindMapGraphRef.current.deleteNode(selectedNode);
+                    mindMapGraphRef.current!.deleteNode(selectedNode);
                 }
                 
                 // 複数選択されたノードを削除
-                const selectedNodes = mindMapGraphRef.current.getSelectedNodeList();
+                const selectedNodes = mindMapGraphRef.current!.getSelectedNodeList();
                 if (selectedNodes && selectedNodes.length > 0) {
                     selectedNodes.forEach(node => {
-                        mindMapGraphRef.current?.deleteNode(node);
+                        mindMapGraphRef.current!.deleteNode(node);
                     });
                 }
             }

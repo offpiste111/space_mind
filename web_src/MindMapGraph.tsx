@@ -170,11 +170,22 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         },
         // 複数選択をクリアする関数を追加
         clearSelectedNodeList: () => {
+            console.log('clearSelectedNodeList');
             setSelectedNodeList([]);
         },
         // 選択中のノードをクリアする関数を追加
         clearSelectedNode: () => {
             setSelectedNode(null);
+        },
+        addLink: (source: any, target: any) => {
+            const existingLink = graphData.links.find((link: any) => link.source.id === source.id && link.target.id === target.id);
+            if (!existingLink) {
+                const newIndex = graphData.links.length > 0 ? Math.max(...graphData.links.map((l: any) => l.index)) + 1 : 1;
+                const newLink = { index: newIndex, source: source, target: target, isNew: true };
+                graphData.links.push(newLink);
+                refreshLink(newLink)
+                fgRef.current.refresh();
+            }
         },
         // 新規ノード追加用のインターフェース
         addNode: () => {
@@ -230,14 +241,18 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
         // Ctrlキーが押されている場合は複数選択モード
         if (event && (event.ctrlKey ||event.shiftKey)  && node) {
-            // 通常選択を解除
-            setSelectedNode(null);
+            // ノードが通常選択されている場合無視する
+            if (selectedNode && node.id == selectedNode.id) {
+                return;
+            }
             
             // 既に選択されているノードをクリックした場合は選択解除
             if (selectedNodeList.some(n => n.id === node.id)) {
+                console.log('Node unselected:', node);
                 setSelectedNodeList(prev => prev.filter(n => n.id !== node.id));
             } else {
                 // 新しいノードを選択リストに追加
+                console.log('Node selected:', node);
                 setSelectedNodeList(prev => [...prev, node]);
             }
             return;
@@ -245,8 +260,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
         // 通常の選択モード
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
-            // 複数選択をクリア
-            setSelectedNodeList([]);
+            // クリックしたノードが複数選択ノード配列に含まれていた場合、複数選択をクリア
+            if (selectedNodeList.some(n => n.id === node.id)) {
+                setSelectedNodeList([]);
+            }
             const distance = 700;
             const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
 
@@ -265,9 +282,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         }
         // 選択されたノードを更新（これは常に行う）
         setSelectedNode(node);
-    }, [fgRef, selectedNode, graphData]);
+    }, [fgRef, selectedNode,selectedNodeList, graphData]);
     
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
+        setSelectedNodeList([]);
         props.onNodeEdit(node)
         //deleteNode(node.id);
     };
@@ -368,6 +386,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             ...prevData,
             nodes: [...prevData.nodes, new_node]
         }));
+        setSelectedNodeList([]);
         props.onNodeEdit(new_node);
     };
        
@@ -579,6 +598,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                             material.color = new THREE.Color(0xffffff);
                             material.opacity = (node.disabled) ? 0.05 : 1;
                         } else if (selectedNodeList.some(n => n.id === node.id)) {
+                            console.log('selectedNodeList:', selectedNodeList);
                             material.color = new THREE.Color(0x4169e1);
                             material.opacity = (node.disabled) ? 0.05 : 1;
                         } else {
