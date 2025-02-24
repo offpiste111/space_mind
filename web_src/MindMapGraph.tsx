@@ -475,10 +475,11 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const [interimLink, setInterimLinkState] = useState<any>(null);
 
     const distance = (node1: any, node2: any) => {
+        const { x: x1, y: y1 } = fgRef.current.graph2ScreenCoords(node1.x, node1.y, node1.z);
+        const { x: x2, y: y2 } = fgRef.current.graph2ScreenCoords(node2.x, node2.y, node2.z);
         return Math.sqrt(
-            Math.pow(node1.x - node2.x, 2) +
-            Math.pow(node1.y - node2.y, 2) +
-            Math.pow(node1.z - node2.z, 2)
+            Math.pow(x1 - x2, 2) +
+            Math.pow(y1 - y2, 2)
         );
     };
 
