@@ -595,6 +595,22 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     };
 
 
+    // const distancea = 5600;
+    // useEffect(() => {
+    //     fgRef.current.cameraPosition({ z: distance });
+
+    //     // camera orbit
+    //     let angle = 0;
+    //     setInterval(() => {
+    //       fgRef.current.cameraPosition({
+    //         x: distancea * Math.sin(angle),
+    //         z: distancea * Math.cos(angle)
+    //       });
+    //       angle += Math.PI / 300;
+    //     }, 100);
+    //   }, []);
+
+
     useEffect(() => {
         if (fgRef.current) {
             // ノード間の反発力を設定
