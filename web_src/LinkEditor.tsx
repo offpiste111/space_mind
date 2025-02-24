@@ -10,10 +10,11 @@ interface LinkEditorProps {
     onRefreshLink: (link: any) => void;
     onDeleteLink: (link: any) => void;
     onSelectNode: (node: any) => void;
+    onClose: () => void;
+    open: boolean;
 }
 
 const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
-    const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
     const [contents, setContents] = useState("");
     
     interface Link {
@@ -29,13 +30,12 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
     useImperativeHandle(ref, () => ({
         showModal: (link:any) => {
             setContents(link.name);
-            setIsLinkEditorOpen(true);
             setEditLink(link);
         }
     }));
 
     const handleOk = () => {
-        setIsLinkEditorOpen(false);
+        props.onClose();
         if (editLink){
             editLink.name = contents;
         }
@@ -43,14 +43,14 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
     };
   
     const handleCancel = () => {
-        setIsLinkEditorOpen(false);
+        props.onClose();
     };
 
     return (
         <>
           <Modal 
             title="Edit Link" 
-            open={isLinkEditorOpen} 
+            open={props.open} 
             onOk={handleOk} 
             onCancel={handleCancel}
             footer={
@@ -59,7 +59,7 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
                   <Button danger onClick={() => {
                     if (editLink) {
                       props.onDeleteLink(editLink);
-                      setIsLinkEditorOpen(false);
+                      props.onClose();
                     }
                   }}>
                     削除
@@ -97,7 +97,7 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
                   <Typography.Link 
                     onClick={() => {
                       props.onSelectNode(editLink.source);
-                      setIsLinkEditorOpen(false);
+                      props.onClose();
                     }}
                     style={{ width: '100%', display: 'block', textOverflow: 'ellipsis', overflow: 'hidden' }}
                   >
@@ -111,7 +111,7 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
                   <Typography.Link
                     onClick={() => {
                       props.onSelectNode(editLink.target);
-                      setIsLinkEditorOpen(false);
+                      props.onClose();
                     }}
                     style={{ width: '100%', display: 'block', textOverflow: 'ellipsis', overflow: 'hidden' }}
                   >

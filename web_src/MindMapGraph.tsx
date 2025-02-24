@@ -35,6 +35,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
     // 複数選択されたノードを追跡するstate
     const [selectedNodeList, setSelectedNodeList] = useState<NodeData[]>([]);
+    const copiedNodeRef = useRef<any>(null);
 
 
     interface NodeData {
@@ -49,6 +50,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         fy?: number;
         fz?: number;
         isNew?: boolean;
+        deadline?: string;
+        createdAt?: string;
+        updatedAt?: string;
+        disabled?: boolean;
     }
 
     interface GraphData {
@@ -74,13 +79,14 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             return graphData;
         },
         setGraphData: (graphData:any) => {
-            // nodesとlinksが空の場合、新規ノードを作成
+            // nodesとlinksが空の場合、を作成
             if (graphData.nodes.length === 0 && graphData.links.length === 0) {
                 let camera = fgRef.current.camera();
                 const distance = 700;
                 // 画面中央に新規ノードを配置
                 const coords = { x: 0, y: 0, z: -300 };
                 
+                const now = new Date().toISOString();
                 let new_node = { 
                     id: 1, 
                     img: "logo.png", 
@@ -92,6 +98,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     size_x: 120,
                     size_y: 40,
                     name: "SpaceMind",
+                    createdAt: now,
+                    updatedAt: now
                 };
                 
                 setGraphData({
@@ -121,6 +129,8 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     }
                 });
             }
+            // 更新日時を設定
+            node.updatedAt = new Date().toISOString();
             fgRef.current.refresh();
         },
         deleteNode: (node: any) => {
@@ -155,13 +165,85 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         getSelectedNode: () => {
             return selectedNode;
         },
+        copyNode: () => {
+            if (!selectedNode) return;
+            copiedNodeRef.current = selectedNode;
+        },
+        getCopiedNode: () => {
+            return _.cloneDeep(copiedNodeRef.current);
+        },
         // 複数選択中のノードリストを取得する関数を追加
         getSelectedNodeList: () => {
             return selectedNodeList;
         },
         // 複数選択をクリアする関数を追加
         clearSelectedNodeList: () => {
+            console.log('clearSelectedNodeList');
             setSelectedNodeList([]);
+        },
+        // 選択中のノードをクリアする関数を追加
+        clearSelectedNode: () => {
+            setSelectedNode(null);
+        },
+        addLink: (source: any, target: any) => {
+            const existingLink = graphData.links.find((link: any) => link.source.id === source.id && link.target.id === target.id);
+            if (!existingLink) {
+                const newIndex = graphData.links.length > 0 ? Math.max(...graphData.links.map((l: any) => l.index)) + 1 : 1;
+                const newLink = { index: newIndex, source: source, target: target, isNew: true };
+                graphData.links.push(newLink);
+                refreshLink(newLink)
+                fgRef.current.refresh();
+            }
+        },
+        // 新規ノード追加用のインターフェース
+        addNode: (newNode:any) => {
+            if (!selectedNode) return;
+            
+            const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
+            newNode.id = nodeId;
+            newNode.fx = newNode.fx + (10 + Math.floor(Math.random() * 21));
+            newNode.fy = newNode.fy + (10 + Math.floor(Math.random() * 21));
+            newNode.fz = newNode.fz + (10 + Math.floor(Math.random() * 21));
+            
+            // 新規ノードを追加
+            props.onRefreshNode(newNode);
+            graphData.nodes.push(newNode);
+            fgRef.current.refresh();
+        },
+        // 新規ノード追加用のインターフェース
+        addNewNode: () => {
+            if (!selectedNode) return;
+            
+            const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
+            const groupId = selectedNode.group || 1;
+            const now = new Date().toISOString();
+            const newNode = { 
+                id: nodeId, 
+                img: "new_node.png", 
+                group: groupId, 
+                style_id: 1, 
+                fx: (selectedNode.fx || selectedNode.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                fy: (selectedNode.fy || selectedNode.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
+                fz: selectedNode.fz,
+                size_x: 240,
+                size_y: 80,
+                name: "",
+                isNew: true,
+                createdAt: now,
+                updatedAt: now
+            };
+
+            // 新規ノードを追加
+            graphData.nodes.push(newNode);
+            graphData.links.push({
+                index: graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1,
+                source: selectedNode,
+                target: newNode,
+                isNew: true,
+            });
+
+            // 編集モーダルを表示
+            props.onNodeEdit(newNode);
         }
     }));
     // node.idと一致するnodeをgraphDataから削除する関数
@@ -181,15 +263,19 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
         // Ctrlキーが押されている場合は複数選択モード
-        if (event && event.ctrlKey && node) {
-            // 通常選択を解除
-            setSelectedNode(null);
+        if (event && (event.ctrlKey ||event.shiftKey)  && node) {
+            // ノードが通常選択されている場合無視する
+            if (selectedNode && node.id == selectedNode.id) {
+                return;
+            }
             
             // 既に選択されているノードをクリックした場合は選択解除
             if (selectedNodeList.some(n => n.id === node.id)) {
+                console.log('Node unselected:', node);
                 setSelectedNodeList(prev => prev.filter(n => n.id !== node.id));
             } else {
                 // 新しいノードを選択リストに追加
+                console.log('Node selected:', node);
                 setSelectedNodeList(prev => [...prev, node]);
             }
             return;
@@ -197,8 +283,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
         // 通常の選択モード
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
-            // 複数選択をクリア
-            setSelectedNodeList([]);
+            // クリックしたノードが複数選択ノード配列に含まれていた場合、複数選択をクリア
+            if (selectedNodeList.some(n => n.id === node.id)) {
+                setSelectedNodeList([]);
+            }
             const distance = 700;
             const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
 
@@ -214,43 +302,13 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
             }
             console.log('Node clicked:', node);
 
-            // 選択中のノードをクリックした場合のみ新規ノードを追加
-            if (selectedNode && selectedNode.id === node.id) {
-                // 新規ノードを作成
-                const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
-                const groupId = node.group || 1;
-                const newNode = { 
-                    id: nodeId, 
-                    img: "new_node.png", 
-                    group: groupId, 
-                    style_id: 1, 
-                    fx: (node.fx || node.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
-                    fy: (node.fy || node.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
-                    fz: node.fz,
-                    size_x: 240,
-                    size_y: 80,
-                    isNew: true 
-                };
-                console.log('New Node:', newNode);
-
-                // 新規ノードを追加
-                graphData.nodes.push(newNode);
-                graphData.links.push({
-                    index: graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1,
-                    source: node,
-                    target: newNode,
-                    isNew: true,
-                });
-
-                // 編集モーダルを表示
-                props.onNodeEdit(newNode);
-            }
         }
         // 選択されたノードを更新（これは常に行う）
         setSelectedNode(node);
-    }, [fgRef, selectedNode, graphData]);
+    }, [fgRef, selectedNode,selectedNodeList, graphData]);
     
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
+        setSelectedNodeList([]);
         props.onNodeEdit(node)
         //deleteNode(node.id);
     };
@@ -266,6 +324,11 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     };
 
     const handleNodeDrag = (dragNode:any) => {
+        // Ctrlキーが押されていない場合は何もしない
+        if (!(window.event as KeyboardEvent)?.ctrlKey) {
+            return;
+        }
+
         isDraggingNode.current = true;
     
         //onNodeDragが実行される回数をカウントしておき、100回に1回しか実行しない
@@ -328,9 +391,25 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         if (nodeId === -Infinity) {
             return;
         }
-        let new_node = { id: nodeId, img: "new_node.png", group: groupId, style_id: 1, fx: coords.x, fy: coords.y, fz: /*z_layer*/coords.z, isNew: true };
-        graphData.nodes.push(new_node);
-        fgRef.current.refresh();
+        const now = new Date().toISOString();
+        let new_node = { 
+            id: nodeId, 
+            img: "new_node.png", 
+            group: groupId, 
+            style_id: 1, 
+            fx: coords.x, 
+            fy: coords.y, 
+            fz: /*z_layer*/coords.z, 
+            name: "",
+            isNew: true,
+            createdAt: now,
+            updatedAt: now
+        };
+        setGraphData(prevData => ({
+            ...prevData,
+            nodes: [...prevData.nodes, new_node]
+        }));
+        setSelectedNodeList([]);
         props.onNodeEdit(new_node);
     };
        
@@ -448,8 +527,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         return MultilineText;
     };
 
-    const nodeThreeObjectImageTexture = ( node:any ) => {
-
+    const nodeThreeObjectImageTexture = (node: any) => {
         if (node.id < 0) {
             return nodeThreeObjectCustomMesh(node);
         }
@@ -460,14 +538,14 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         const aspectRatio = node.size_x / node.size_y;
         sprite.scale.set(node.size_x, node.size_x / aspectRatio, 1);
 
-        const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(50, 20, 1),
-            new THREE.MeshLambertMaterial({
-                color: 'rgba(250,250,250,0.9)',
-                transparent: true,
-                opacity: 0.75
-            })
-        );
+        // const mesh = new THREE.Mesh(
+        //     new THREE.BoxGeometry(50, 20, 1),
+        //     new THREE.MeshLambertMaterial({
+        //         color: 'rgba(250,250,250,0.9)',
+        //         transparent: true,
+        //         opacity: 0.75
+        //     })
+        // );
 
         return sprite;
     };
@@ -540,25 +618,33 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     const sprite = nodeThreeObjectImageTexture(node);
                     if (sprite instanceof THREE.Sprite) {
                         const material = sprite.material as THREE.SpriteMaterial;
-                    if (selectedNode && node.id === selectedNode.id) {
-                        // 通常選択されたノードは明るく黄色く
-                        material.color = new THREE.Color(0xffffff);
-                        material.opacity = 1;
-                    } else if (selectedNodeList.some(n => n.id === node.id)) {
-                        // 複数選択されたノードは青く
-                        material.color = new THREE.Color(0x4169e1);
-                        material.opacity = 1;
-                    } else {
-                        // 選択されていないノードは通常表示
-                        material.color = new THREE.Color(0xe0e0e0);
-                        material.opacity = 1;
-                    }
+                        if (selectedNode && node.id === selectedNode.id) {
+                            material.color = new THREE.Color(0xffffff);
+                            material.opacity = (node.disabled) ? 0.05 : 1;
+                        } else if (selectedNodeList.some(n => n.id === node.id)) {
+                            console.log('selectedNodeList:', selectedNodeList);
+                            material.color = new THREE.Color(0x4169e1);
+                            material.opacity = (node.disabled) ? 0.05 : 1;
+                        } else {
+                            material.color = new THREE.Color(0xe0e0e0);
+                            material.opacity = (node.disabled) ? 0.05 : 1;
+                        }
                     }
                     return sprite;
                 }}
                 enableNavigationControls={true}
                 backgroundColor="#010101"
-                linkColor={(link) => link === interimLink ? 'rgb(246, 147, 177)' : 'rgba(255,255,255,1)'}
+                linkColor={(link) => {
+                    let opacity = 1;
+                    if (link.source.disabled || link.target.disabled) {
+                        opacity = 0.1;
+                    } 
+                    let color = `rgba(255,255,255,${opacity})`;
+                    if (link === interimLink) {
+                        color = `rgb(246, 147, 177,${opacity})`;
+                    }
+                    return color
+                }}
                 linkWidth={(link) => link === interimLink ? 4 : 2}
                 nodeId="id"
                 //linkDirectionalArrowLength={6}
@@ -572,6 +658,11 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     const sprite = new SpriteText(`${link.name}`);
                     sprite.color = 'lightgrey';
                     sprite.textHeight = 10.5;
+
+                    if (link.source.disabled || link.target.disabled) {
+                        sprite.material.opacity = 0.1;
+                        sprite.material.transparent = true;
+                    } 
                     return sprite;
                 }}
                 linkPositionUpdate={(sprite, { start, end }) => {
