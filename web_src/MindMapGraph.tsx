@@ -186,6 +186,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         clearSelectedNode: () => {
             setSelectedNode(null);
         },
+        setSelectedNodeList: (nodes: any[]) => {
+            setSelectedNodeList(nodes);
+        },
         addLink: (source: any, target: any) => {
             const existingLink = graphData.links.find((link: any) => link.source.id === source.id && link.target.id === target.id);
             if (!existingLink) {

@@ -82,6 +82,7 @@ const App = () => {
         getSelectedNodeList: () => any[];
         clearSelectedNode: () => void;
         clearSelectedNodeList: () => void;
+        setSelectedNodeList: (nodes: any[]) => void;
         addNode: (node: any) => void;
         addNewNode: () => void;
         addLink: (source: any, target: any) => void;
@@ -250,6 +251,15 @@ const App = () => {
             }
             else if(event.code === "KeyZ"){
                 
+            }
+            // Ctrl+A で全ノード選択
+            else if(event.code === "KeyA"){
+                event.preventDefault(); // デフォルトの全選択を防ぐ
+                if(mindMapGraphRef.current) {
+                    const data = mindMapGraphRef.current.getGraphData();
+                    mindMapGraphRef.current.clearSelectedNode();
+                    mindMapGraphRef.current.setSelectedNodeList(data.nodes);
+                }
             }
         }
         else if(event.key === "Enter" && !event.shiftKey) {
