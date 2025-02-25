@@ -326,12 +326,6 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
 
     const handleNodeDrag = (dragNode:any) => {
 
-        // 選択されたノードを更新（これは常に行う）
-        setSelectedNode(dragNode);
-        if (selectedNodeList.length > 0) {
-            setSelectedNodeList([]);
-        }
-
         // Ctrlキーが押されていない場合は何もしない
         if (!(window.event as KeyboardEvent)?.ctrlKey) {
             return;
@@ -733,7 +727,11 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     //     node.fy = node.y;
                     //     node.fz = node.z;
                     // }
-
+                    // 選択されたノードを更新（これは常に行う）
+                    setSelectedNode(node);
+                    if (selectedNodeList.length > 0) {
+                        setSelectedNodeList([]);
+                    }
 
                     isDraggingNode.current = false;  
                     setInterimLinkState(null);
