@@ -265,9 +265,9 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
         // Ctrlキーが押されている場合は複数選択モード
         if (event && (event.ctrlKey ||event.shiftKey)  && node) {
-            // ノードが通常選択されている場合無視する
+            // ノードが通常選択されている場合、選択を解除
             if (selectedNode && node.id == selectedNode.id) {
-                return;
+                setSelectedNode(null);
             }
             
             // 既に選択されているノードをクリックした場合は選択解除
@@ -325,14 +325,39 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
     };
 
     const handleNodeDrag = (dragNode:any) => {
+        isDraggingNode.current = true;
+    
+        // ドラッグ中のノードが複数選択リストに含まれている場合、他の選択ノードも同じ移動量で移動させる
+        if (selectedNodeList.some(node => node.id === dragNode.id)) {
+            if (dragNode.px !== undefined) {
+                dragNode.dx = dragNode.x - dragNode.px;
+                dragNode.dy = dragNode.y - dragNode.py;
+                dragNode.dz = dragNode.z - dragNode.pz;
+                selectedNodeList.forEach(node => {
+                    if (node.id !== dragNode.id) {
+                        node.x = node.x + dragNode.dx;
+                        node.y = node.y + dragNode.dy;
+                        node.z = node.z + dragNode.dz;
+                        node.fx = node.fx + dragNode.dx;
+                        node.fy = node.fy + dragNode.dy;
+                        node.fz = node.fz + dragNode.dz;
+                    }
+                });
+            }
+            dragNode.px = dragNode.x;
+            dragNode.py = dragNode.y;
+            dragNode.pz = dragNode.z;
 
-        // Ctrlキーが押されていない場合は何もしない
+            console.log('dragNode:', dragNode.dx, dragNode.dy, dragNode.dz);
+
+
+        }
+
+        // Ctrlキーが押されていない場合は以降の処理をスキップ
         if (!(window.event as KeyboardEvent)?.ctrlKey) {
             return;
         }
 
-        isDraggingNode.current = true;
-    
         //onNodeDragが実行される回数をカウントしておき、100回に1回しか実行しない
         dragCounter.current += 1;
         if (dragCounter.current < 100) return;
@@ -727,14 +752,31 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     //     node.fy = node.y;
                     //     node.fz = node.z;
                     // }
-                    // 選択されたノードを更新（これは常に行う）
-                    setSelectedNode(node);
-                    if (selectedNodeList.length > 0) {
+                    // ドラッグ終了時の処理
+                    isDraggingNode.current = false;
+                    setInterimLinkState(null);
+
+                    // ドラッグ中のノードの位置を更新
+                    node.fx = node.x;
+                    node.fy = node.y;
+                    node.fz = node.z;
+
+                    // px, py, pzを削除 
+                    delete node.px;
+                    delete node.py;
+                    delete node.pz;
+
+                    // dx, dy, dzを削除
+                    delete node.dx;
+                    delete node.dy;
+                    delete node.dz;
+
+
+                    // ドラッグしたノードが複数選択の一部でない場合のみ、通常の選択処理を行う
+                    if (!selectedNodeList.some(n => n.id === node.id)) {
+                        setSelectedNode(node);
                         setSelectedNodeList([]);
                     }
-
-                    isDraggingNode.current = false;  
-                    setInterimLinkState(null);
                 }}
             />
         </>
