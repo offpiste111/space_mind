@@ -60,6 +60,44 @@ const App = () => {
         }
     };
 
+    // ファイルを開く関数
+    const handleOpenFile = async (node: any) => {
+        if (!node || !node.file_path) return;
+        
+        try {
+            const result = await eel.open_file(node.file_path)();
+            if (result) {
+                console.log(`File opened: ${node.file_path}`);
+                message.success(`ファイルを開きました: ${node.file_path}`);
+            } else {
+                console.error(`Failed to open file: ${node.file_path}`);
+                message.error(`ファイルを開けませんでした: ${node.file_path}`);
+            }
+        } catch (error) {
+            console.error('Error opening file:', error);
+            message.error('ファイルを開く際にエラーが発生しました');
+        }
+    };
+
+    // フォルダを開く関数
+    const handleOpenFolder = async (node: any) => {
+        if (!node || !node.folder_path) return;
+        
+        try {
+            const result = await eel.open_folder(node.folder_path)();
+            if (result) {
+                console.log(`Folder opened: ${node.folder_path}`);
+                message.success(`フォルダを開きました: ${node.folder_path}`);
+            } else {
+                console.error(`Failed to open folder: ${node.folder_path}`);
+                message.error(`フォルダを開けませんでした: ${node.folder_path}`);
+            }
+        } catch (error) {
+            console.error('Error opening folder:', error);
+            message.error('フォルダを開く際にエラーが発生しました');
+        }
+    };
+
     // 初期データの読み込み
     useEffect(() => {
         if (mindMapGraphRef.current) {
@@ -365,7 +403,9 @@ const App = () => {
             onHover={handleHover}
             onRefreshNode={handleRefreshNode}
             onNodeEdit={handleNodeEdit}
-            onLinkEdit={handleLinkEdit} />
+            onLinkEdit={handleLinkEdit}
+            onOpenFile={handleOpenFile}
+            onOpenFolder={handleOpenFolder} />
 
         <Popover content={content} title="Node Edit" trigger="click" >
             <Button id="add_popup" css={setCss(x,y)}></Button>

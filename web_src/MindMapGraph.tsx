@@ -39,6 +39,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     // 機能モードを管理するstate
     const [funcMode, setFuncMode] = useState<boolean>(false);
     const copiedNodeRef = useRef<any>(null);
+    // ダブルクリック検出用の変数
+    const lastClickTime = useRef<number>(0);
+    const lastClickedNode = useRef<any>(null);
 
 
     interface NodeData {
@@ -57,6 +60,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         createdAt?: string;
         updatedAt?: string;
         disabled?: boolean;
+        type?: string;      // "folder" | "file" | "link" などのタイプを指定
+        folder_path?: string;  // フォルダパスを保存
     }
 
     interface GraphData {
@@ -272,7 +277,26 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
+        if (!node) {
+            setSelectedNode(null);
+            return;
+        }
 
+        const now = Date.now();
+        const timeSinceLastClick = now - lastClickTime.current;
+        
+        // ダブルクリック検出（300ms以内に同じノードをクリック）
+        if (timeSinceLastClick < 300 && lastClickedNode.current && node.id === lastClickedNode.current.id) {
+            // ダブルクリック処理
+            handleDoubleClick(node);
+            lastClickTime.current = 0; // ダブルクリック後にリセット
+            lastClickedNode.current = null;
+            return;
+        }
+        
+        // シングルクリックの時刻とノードを記録
+        lastClickTime.current = now;
+        lastClickedNode.current = node;
 
         // 通常の選択モード
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
@@ -300,6 +324,33 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         setSelectedNode(node);
     }, [fgRef,selectedNodeList, graphData]);
     
+    // ノードのダブルクリックを処理する関数
+    const handleDoubleClick = (node: any) => {
+        console.log('Node double clicked:', node);
+        
+        // リンクタイプのノードの場合、URLを開く
+        if (node.type === "link" && node.url) {
+            console.log('Opening URL:', node.url);
+            // URLの形式を確認し、必要に応じてhttps://を追加
+            let url = node.url;
+            if (!/^https?:\/\//i.test(url)) {
+                url = 'https://' + url;
+            }
+            // 新しいタブでURLを開く
+            window.open(url, '_blank');
+        }
+        // ファイルタイプのノードの場合、親コンポーネントにファイルを開く要求を委譲
+        else if (node.type === "file" && node.file_path) {
+            console.log('Opening file:', node.file_path);
+            props.onOpenFile && props.onOpenFile(node);
+        }
+        // フォルダタイプのノードの場合、親コンポーネントにフォルダを開く要求を委譲
+        else if (node.type === "folder" && node.folder_path) {
+            console.log('Opening folder:', node.folder_path);
+            props.onOpenFolder && props.onOpenFolder(node);
+        }
+    };
+
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
         setSelectedNodeList([]);
         props.onNodeEdit(node)

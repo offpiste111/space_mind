@@ -23,8 +23,59 @@ import concurrent.futures
 from PIL import Image, ImageOps, ImageDraw
 import io
 import base64
+import subprocess
 
 g_current_file_path = None  # 現在開いているファイルのパスを保持
+
+@eel.expose
+def select_folder():
+    """
+    フォルダを選択するダイアログを表示する
+    
+    Returns:
+        str: 選択されたフォルダのパス。キャンセルされた場合は空文字列
+    """
+    # Create and configure main Tkinter window
+    root = tk.Tk()
+    root.withdraw()
+    
+    # Make it appear on top of other windows
+    root.attributes('-topmost', True)
+    root.lift()
+    
+    # Show folder selection dialog
+    folder_path = filedialog.askdirectory(
+        parent=root,
+        title='フォルダを選択',
+        mustexist=True
+    )
+    
+    return folder_path if folder_path else ""
+
+@eel.expose
+def select_any_file():
+    """
+    任意のファイルを選択するダイアログを表示する
+    
+    Returns:
+        str: 選択されたファイルのパス。キャンセルされた場合は空文字列
+    """
+    # Create and configure main Tkinter window
+    root = tk.Tk()
+    root.withdraw()
+    
+    # Make it appear on top of other windows
+    root.attributes('-topmost', True)
+    root.lift()
+    
+    # Show file dialog and get selected file path
+    file_path = filedialog.askopenfilename(
+        parent=root,
+        title='ファイルを選択',
+        filetypes=[('All files', '*.*')]
+    )
+    
+    return file_path if file_path else ""
 
 @eel.expose
 def select_file_dialog():
@@ -47,6 +98,62 @@ def select_file_dialog():
         g_current_file_path = file_path
         return load_json(file_path)
     return None
+
+@eel.expose
+def open_file(file_path):
+    """
+    システムの既定のアプリケーションでファイルを開く
+    
+    Args:
+        file_path: 開くファイルのパス
+        
+    Returns:
+        bool: ファイルを開くことができたかどうか
+    """
+    try:
+        if os.path.exists(file_path.replace('/', os.sep).replace('\\', os.sep)):
+            # OSに応じて適切なコマンドを使用
+            if platform.system() == 'Windows':
+                os.startfile(file_path)
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.call(['open', file_path])
+            else:  # Linux
+                subprocess.call(['xdg-open', file_path])
+            return True
+        else:
+            print(f"File not found: {file_path}")
+            return False
+    except Exception as e:
+        print(f"Error opening file: {e}")
+        return False
+
+@eel.expose
+def open_folder(folder_path):
+    """
+    システムの既定のファイルエクスプローラーでフォルダを開く
+    
+    Args:
+        folder_path: 開くフォルダのパス
+        
+    Returns:
+        bool: フォルダを開くことができたかどうか
+    """
+    try:
+        if os.path.exists(folder_path.replace('/', os.sep).replace('\\', os.sep)):
+            # OSに応じて適切なコマンドを使用
+            if platform.system() == 'Windows':
+                os.startfile(folder_path)
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.call(['open', folder_path])
+            else:  # Linux
+                subprocess.call(['xdg-open', folder_path])
+            return True
+        else:
+            print(f"Folder not found: {folder_path}")
+            return False
+    except Exception as e:
+        print(f"Error opening folder: {e}")
+        return False
 
 def read_json(json_path):
     with open(json_path, "r", encoding="utf-8") as f:
