@@ -88,7 +88,7 @@ node_styles = [
     "color: #000000; background: #ffffff; border: solid 6px #1dc1d6; border-radius: 7px;",
     "color: #000000; background: #ffffff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
     "color: #000000; background: #ffffff; border: dashed 6px #ffc3c3; border-radius: 7px;",
-    "color: #000000; background: #ffffff; border: solid 6px #5bb7ae; border-radius: 7px;"
+    "color: #000000; background: #ffffff; border: solid 6px #a55bb7; border-radius: 7px;"
 ]
 
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):

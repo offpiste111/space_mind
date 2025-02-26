@@ -27,6 +27,7 @@ window.eel.expose( sayHelloJS, 'say_hello_js' )
 const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
+    const [isCtrlPressed, setIsCtrlPressed] = useState(false);
     const [currentFileName, setCurrentFileName] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
@@ -86,6 +87,7 @@ const App = () => {
         addNode: (node: any) => void;
         addNewNode: () => void;
         addLink: (source: any, target: any) => void;
+        setFuncMode: (mode: boolean) => void;
     }
 
     interface ModalRef {
@@ -305,11 +307,35 @@ const App = () => {
       }, [handleSave, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
     
       useEffect(() => {
-        document.addEventListener("keydown", keyFunction, false);
-        return () => {
-          document.removeEventListener("keydown", keyFunction, false);
+        // キーボードイベントのリスナーを追加
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Control') {
+                if(!isCtrlPressed){
+                    mindMapGraphRef.current!.setFuncMode(true);
+                }
+                setIsCtrlPressed(true);
+            }
         };
-      }, [keyFunction, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
+
+        const handleKeyUp = (event: KeyboardEvent) => {
+            if (event.key === 'Control') {
+                if(isCtrlPressed){
+                    mindMapGraphRef.current!.setFuncMode(false);
+                }
+                setIsCtrlPressed(false);
+            }
+        };
+
+        document.addEventListener("keydown", keyFunction, false);
+        document.addEventListener("keydown", handleKeyDown, false);
+        document.addEventListener("keyup", handleKeyUp, false);
+
+        return () => {
+            document.removeEventListener("keydown", keyFunction, false);
+            document.removeEventListener("keydown", handleKeyDown, false);
+            document.removeEventListener("keyup", handleKeyUp, false);
+        };
+      }, [keyFunction, isCtrlPressed, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
 
 
 

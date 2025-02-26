@@ -29,13 +29,15 @@ import './index.css'
 
 const { useRef, useCallback, useEffect } = React;
 
-const MindMapGraph = forwardRef((props:any, ref:any) => {
+const MindMapGraph = forwardRef((props: any, ref:any) => {
     const fgRef = useRef<any>();
 
     // 選択されたノードを追跡するstate
     const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
     // 複数選択されたノードを追跡するstate
     const [selectedNodeList, setSelectedNodeList] = useState<NodeData[]>([]);
+    // 機能モードを管理するstate
+    const [funcMode, setFuncMode] = useState<boolean>(false);
     const copiedNodeRef = useRef<any>(null);
 
 
@@ -78,6 +80,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         getGraphData: () => {
             //const jsonData = JSON.stringify(graphData, null, 2);
             return graphData;
+        },
+        setFuncMode: (mode: boolean) => {
+            console.log('setFuncMode', mode);
+            setFuncMode(mode);
         },
         setGraphData: (graphData:any) => {
             // nodesとlinksが空の場合、を作成
@@ -266,24 +272,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
-        // Ctrlキーが押されている場合は複数選択モード
-        if (event && (event.ctrlKey ||event.shiftKey)  && node) {
-            // ノードが通常選択されている場合、選択を解除
-            if (selectedNode && node.id == selectedNode.id) {
-                setSelectedNode(null);
-            }
-            
-            // 既に選択されているノードをクリックした場合は選択解除
-            if (selectedNodeList.some(n => n.id === node.id)) {
-                console.log('Node unselected:', node);
-                setSelectedNodeList(prev => prev.filter(n => n.id !== node.id));
-            } else {
-                // 新しいノードを選択リストに追加
-                console.log('Node selected:', node);
-                setSelectedNodeList(prev => [...prev, node]);
-            }
-            return;
-        }
+
 
         // 通常の選択モード
         if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
@@ -309,7 +298,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         }
         // 選択されたノードを更新（これは常に行う）
         setSelectedNode(node);
-    }, [fgRef, selectedNode,selectedNodeList, graphData]);
+    }, [fgRef,selectedNodeList, graphData]);
     
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
         setSelectedNodeList([]);
@@ -324,7 +313,28 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         console.log('handleLinkClick', link);
     };
     const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
+        // Ctrlキーが押されている場合は複数選択モード
+        if ( !isHovering.current && funcMode  && node) {
+
+            // ノードが通常選択されている場合、選択を解除
+            if (selectedNode && node.id == selectedNode.id) {
+                setSelectedNode(null);
+            }
+            
+            // 既に選択されているノードをクリックした場合は選択解除
+            if (selectedNodeList.some(n => n.id === node.id)) {
+                console.log('Node unselected:', node);
+                setSelectedNodeList(prev => prev.filter(n => n.id !== node.id));
+            } else {
+                // 新しいノードを選択リストに追加
+                console.log('Node selected:', node);
+                setSelectedNodeList(prev => [...prev, node]);
+            }
+            
+        }
+
         isHovering.current = !!node;
+
     };
 
     const handleNodeDrag = (dragNode:any) => {
@@ -357,7 +367,7 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
         }
 
         // Ctrlキーが押されていない場合は以降の処理をスキップ
-        if (!(window.event as KeyboardEvent)?.ctrlKey) {
+        if (!funcMode) {
             return;
         }
 
@@ -778,7 +788,10 @@ const MindMapGraph = forwardRef((props:any, ref:any) => {
                     // ドラッグしたノードが複数選択の一部でない場合のみ、通常の選択処理を行う
                     if (!selectedNodeList.some(n => n.id === node.id)) {
                         setSelectedNode(node);
-                        setSelectedNodeList([]);
+                        if (selectedNodeList.length > 0) {
+                            console.log('clearSelectedNodeList');
+                            setSelectedNodeList([]);
+                        }
                     }
                 }}
             />
