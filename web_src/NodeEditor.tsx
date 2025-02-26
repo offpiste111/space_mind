@@ -1,5 +1,5 @@
 import React,{useState, forwardRef, useImperativeHandle, useEffect } from 'react'
-import { Modal, Input, Button, Flex, Select, Upload } from 'antd';
+import { Modal, Input, Button, Flex, Select, Upload, Slider } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import type { UploadProps } from 'antd';
@@ -21,6 +21,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [deadline, setDeadline] = useState<string>("");
     const [priority, setPriority] = useState<number | null>(null); // デフォルト: 未選択
     const [urgency, setUrgency] = useState<number | null>(null); // デフォルト: 未選択
+    const [imageSize, setImageSize] = useState<number>(300); // デフォルト画像サイズ: 300px
     interface Node {
         name: string;
         isNew?: boolean;
@@ -30,6 +31,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         urgency?: number | null;
         disabled?: boolean;
         icon_img?: string;
+        icon_size?: number;
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
@@ -67,6 +69,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setPriority(node.priority !== undefined ? node.priority : null);
             setUrgency(node.urgency !== undefined ? node.urgency : null);
             setIconImg(node.icon_img || "");
+            setImageSize(node.icon_size || 300); // 保存されていたサイズがあれば取得、なければデフォルト値
             setEditNode(node);
         }
     }));
@@ -77,6 +80,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             editNode.style_id = styleId;
             editNode.deadline = deadline;
             editNode.icon_img = iconImg;
+            editNode.icon_size = imageSize; // 画像サイズの保存
             if (priority === null) {
                 delete editNode.priority;
             } else {
@@ -182,14 +186,30 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             <Flex gap="middle" align="start">
               <div style={{ width: '80px' }}>アイコン</div>
               <Flex vertical style={{ flex: 1 }}>
-                <Upload.Dragger {...uploadProps}>
-                    <p className="ant-upload-drag-icon">
-                        <InboxOutlined rev={undefined} />
+                <Upload.Dragger {...uploadProps} style={{ padding: '6px', height: '70px', minHeight: 'auto' }}>
+                    <p className="ant-upload-drag-icon" style={{ marginTop: '2px', marginBottom: '2px' }}>
+                        <InboxOutlined rev={undefined} style={{ fontSize: '16px' }} />
                     </p>
-                    <p className="ant-upload-text">クリックまたはドラッグで画像をアップロード</p>
+                    <p className="ant-upload-text" style={{ fontSize: '11px', marginBottom: '2px', lineHeight: '1.2' }}>クリックまたはドラッグで画像をアップロード</p>
                 </Upload.Dragger>
+                
+                {(iconImg || imageSize !== 300) && (
+                  <Flex vertical style={{ marginTop: '8px' }}>
+                    <Flex align="center" style={{ marginBottom: '4px' }}>
+                      <div style={{ width: '360px', fontSize: '12px' }}>画像サイズ:</div>
+                      <div style={{ marginLeft: '8px', fontSize: '12px' }}>{imageSize}px</div>
+                    </Flex>
+                    <Slider
+                      min={150}
+                      max={1000}
+                      value={imageSize}
+                      onChange={(value) => setImageSize(value)}
+                    />
+                  </Flex>
+                )}
+                
                 {iconImg && (
-                    <img src={iconImg} alt="Node icon" style={{ maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', marginTop: '8px' }} />
+                    <img src={iconImg} alt="Node icon" style={{ maxWidth: '100%', maxHeight: '120px', objectFit: 'contain', marginTop: '8px' }} />
                 )}
               </Flex>
             </Flex>

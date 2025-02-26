@@ -143,6 +143,10 @@ const App = () => {
     const handleRefreshNode = (node:any) => {
         sayHelloJS( 'Javascript World!' )
         eel.say_hello_py( 'Javascript World!' )
+        
+        // icon_sizeがある場合はそれを渡し、なければデフォルト値(300)を使用
+        const maxSize = node.icon_size || 300;
+        
         eel.generate_image(node)((generatedImage: any) => {
             let result = generatedImage;
             node.img = result[0];
@@ -152,9 +156,8 @@ const App = () => {
                 mindMapGraphRef.current.refreshNode(node);
             }
         })
-       
-        //setEditNode(contents);
     }
+
     const handleDeleteNode = (node:any) => {
         if (mindMapGraphRef.current) {
             mindMapGraphRef.current.deleteNode(node);

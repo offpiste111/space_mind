@@ -156,7 +156,9 @@ def generate_image(node):
     # icon_imgがある場合は、それを処理
     icon_base64 = None
     if 'icon_img' in node and node['icon_img']:
-        img = process_base64_image(node['icon_img'])
+        # icon_sizeの値があれば取得し、なければデフォルト値の300を使用
+        icon_size = node.get('icon_size', 300)
+        img = process_base64_image(node['icon_img'], max_size=icon_size)
         # 処理した画像をbase64に変換
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
