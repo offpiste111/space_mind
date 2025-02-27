@@ -166,7 +166,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -196,6 +196,10 @@ node_styles = [
     "color: #000000; background: #ffffff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
     "color: #000000; background: #ffffff; border: dashed 6px #ffc3c3; border-radius: 7px;",
     "color: #000000; background: #ffffff; border: solid 6px #a55bb7; border-radius: 7px;"
+]
+
+node_link_styles = [
+    "color: #0000ff; background: #010101; text-decoration: underline;"
 ]
 
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
@@ -271,6 +275,10 @@ def generate_image(node):
         img.save(buffered, format="PNG")
         icon_base64 = base64.b64encode(buffered.getvalue()).decode()
 
+    styles = node_styles
+    if "type" in node and node["type"] == "link":
+        styles = node_link_styles
+
     if os.name == 'nt':  # Execute only on Windows
         import imgkit
         wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
@@ -285,7 +293,7 @@ def generate_image(node):
                 <div style="
                     display: inline-block;
                     padding: 10px;
-                    {node_styles[node['style_id']-1]}">
+                    {styles[node['style_id']-1]}">
                         {f'<img src="data:image/png;base64,{icon_base64}" style="max-width: 100%; margin-bottom: 10px; display: block;">' if icon_base64 else ''}
                         <div style="
                             font-size: 20px;
@@ -315,21 +323,24 @@ def generate_image(node):
         imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", config=wkhtmltoimage_config, options=options)
         node['img'] = f"node_img/{node['id']}_{now}.png"
 
-        img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
-        img = ImageOps.invert(img)
-
-        print(node['img'])
-        
-        img = img.crop(img.getbbox())
-        img = ImageOps.invert(img)
-        mask = Image.new("L", img.size, 0)
-        mask_draw = ImageDraw.Draw(mask)
-        mask_draw.rounded_rectangle((0, 0, img.width, img.height), 8, fill=255)
-        img.putalpha(mask)
-        img.save(f"./web_src/assets/{node['img']}", 'PNG')
+        if "type" in node and node['type'] == "link":
+            img = Image.open(f"./web_src/assets/{node['img']}").convert("RGBA")
+            img.save(f"./web_src/assets/{node['img']}", 'PNG')
+        else:
+            img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
+            img = ImageOps.invert(img)
+            img = img.crop(img.getbbox())
+            img = ImageOps.invert(img)
+            mask = Image.new("L", img.size, 0)
+            mask_draw = ImageDraw.Draw(mask)
+            mask_draw.rounded_rectangle((0, 0, img.width, img.height), 8, fill=255)
+            img.putalpha(mask)
+            img.save(f"./web_src/assets/{node['img']}", 'PNG')
 
         node['size_x'] = img.size[0]
         node['size_y'] = img.size[1]
+
+        print(node['img'])
 
     else:
         from jinja2 import Template

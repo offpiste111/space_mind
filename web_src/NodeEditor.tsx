@@ -335,6 +335,22 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             }}
           >
           <Flex vertical gap="small">
+            
+            <Flex gap="middle" align="center">
+              <div style={{ width: '80px' }}>タイプ</div>
+              <Select
+                style={{ flex: 1 }}
+                value={nodeType}
+                onChange={(value) => setNodeType(value)}
+                options={[
+                  { value: "normal", label: 'ノーマル' },
+                  { value: "task", label: 'タスク' },
+                  { value: "link", label: 'リンク' },
+                  { value: "file", label: 'ファイル' },
+                  { value: "folder", label: 'フォルダ' },
+                ]}
+              />
+            </Flex>
             <Input.TextArea 
               placeholder="Contents" 
               value={contents} 
@@ -392,21 +408,6 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     <img src={iconImg} alt="Node icon" style={{ maxWidth: '100%', maxHeight: '120px', objectFit: 'contain', marginTop: '8px' }} />
                 )}
               </Flex>
-            </Flex>
-            <Flex gap="middle" align="center">
-              <div style={{ width: '80px' }}>タイプ</div>
-              <Select
-                style={{ flex: 1 }}
-                value={nodeType}
-                onChange={(value) => setNodeType(value)}
-                options={[
-                  { value: "normal", label: 'ノーマル' },
-                  { value: "task", label: 'タスク' },
-                  { value: "link", label: 'リンク' },
-                  { value: "file", label: 'ファイル' },
-                  { value: "folder", label: 'フォルダ' },
-                ]}
-              />
             </Flex>
             
             {renderTypeSpecificFields()}
