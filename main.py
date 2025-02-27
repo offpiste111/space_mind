@@ -324,7 +324,14 @@ def generate_image(node):
         node['img'] = f"node_img/{node['id']}_{now}.png"
 
         if "type" in node and node['type'] == "link":
-            img = Image.open(f"./web_src/assets/{node['img']}").convert("RGBA")
+            img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
+            img = ImageOps.invert(img)
+            img = img.crop(img.getbbox())
+            img = ImageOps.invert(img)
+            mask = Image.new("L", img.size, 0)
+            mask_draw = ImageDraw.Draw(mask)
+            mask_draw.rounded_rectangle((0, 0, img.width, img.height), 8, fill=255)
+            img.putalpha(mask)
             img.save(f"./web_src/assets/{node['img']}", 'PNG')
         else:
             img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
