@@ -190,16 +190,20 @@ def save_json(data, json_path):
 
 
 node_styles = [
-    "color: #000000; background: #ffffff; border: solid 6px #6091d3; border-radius: 7px;",
-    "color: #000000; background: #ffffff; border: solid 6px #ffc06e; border-radius: 7px;",
-    "color: #000000; background: #ffffff; border: solid 6px #1dc1d6; border-radius: 7px;",
-    "color: #000000; background: #ffffff; border-top: solid 6px #5989cf; border-bottom: solid 6px #5989cf;",
-    "color: #000000; background: #ffffff; border: dashed 6px #ffc3c3; border-radius: 7px;",
-    "color: #000000; background: #ffffff; border: solid 6px #a55bb7; border-radius: 7px;"
+    "normal_1", 
+    "normal_2", 
+    "normal_3",
+    "normal_4",
+    "normal_5", 
+    "normal_6",
 ]
 
 node_link_styles = [
-    "color: #0000ff; background: #010101; text-decoration: underline;"
+    "link_1",
+]
+
+node_task_styles = [
+    "task_1", #task 
 ]
 
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
@@ -279,7 +283,7 @@ def generate_image(node):
     if "type" in node and node["type"] == "link":
         styles = node_link_styles
 
-    if os.name == 'nt':  # Execute only on Windows
+    if True:  # Execute only on Windows
         import imgkit
         wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
 
@@ -288,12 +292,85 @@ def generate_image(node):
                 <html lang="ja">
                 <head>
                     <meta charset="UTF-8">
+
+                    <style>
+                    .node-content {{
+                        display: inline-block;
+                        padding: 10px;
+                    }}
+
+
+
+                    .normal_1 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        background-color: #e1eef5;
+                    }}
+
+                    .normal_2 {{
+                        color: #000000; 
+                        background: #ffffff; 
+                        border: solid 6px #ffc06e; 
+                        border-radius: 4px;
+                    }}
+
+                    .normal_3 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        background-color: #e1eef5;
+                        position: relative;
+                    }}
+                    .normal_3::after {{
+                        content: '';
+                        position: absolute;
+                        right: 0;
+                        top: 0;
+                        border-width: 0 20px 20px 0;
+                        border-style: solid;
+                        border-color: #4c9ac0 #fff #4c9ac0;
+                        box-shadow: -1px 1px 1px rgba(0, 0, 0, 0.15)
+                    }}
+
+                    .normal_4 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        background-color: #fff;
+                        background: repeating-linear-gradient( -45deg, #eaf3f8, #eaf3f8 5px, #fff 5px, #fff 13px );
+                    }}
+
+                    .normal_5 {{
+                        margin: 20px auto; 
+                        padding: 20px; 
+                        background-color: #fff; 
+                        background-image: linear-gradient(#e1eef5 1px, transparent 1px), linear-gradient(to right, #e1eef5 1px, #fff 1px);
+                        background-size: 20px 20px;
+                    }}
+
+                    .normal_6 {{
+                        color: #000000; 
+                        background: #ffffff; 
+                        border: dashed 6px #ffc3c3; 
+                        border-radius: 4px;
+                    }}
+
+                    .link_1 {{
+                        color: #000000; 
+                        background: #ffffff; 
+                        border-top: solid 6px #5989cf; 
+                        border-bottom: solid 6px #5989cf;
+                    }}
+
+                    .task_1 {{
+                        margin: 20px auto;padding: 20px;background-color: #f3f2f3;border-left: 10px solid #4c9ac0;
+                    }}
+
+
+                    </style>
+
+
                 </head>
                 <body style="margin: 0; padding: 0; background: white;"></body>
-                <div style="
-                    display: inline-block;
-                    padding: 10px;
-                    {styles[node['style_id']-1]}">
+                <div class="node-content {styles[node['style_id']-1]}">
                         {f'<img src="data:image/png;base64,{icon_base64}" style="max-width: 100%; margin-bottom: 10px; display: block;">' if icon_base64 else ''}
                         <div style="
                             font-size: 20px;
