@@ -74,6 +74,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     useImperativeHandle(ref, () => ({
         showModal: (node: any) => {
             setContents(node.name);
+            // style_idはnodeからそのまま取得する
             setStyleId(node.style_id || 1);
             setDeadline(node.deadline || "");
             setPriority(node.priority !== undefined ? node.priority : null);
@@ -91,7 +92,9 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const handleOk = () => {
         if (editNode){
             editNode.name = contents;
-            editNode.style_id = styleId;
+            
+            // ノードタイプがnormal以外の場合はスタイルIDを1に固定
+            editNode.style_id = nodeType === "normal" ? styleId : 1;
             editNode.icon_img = iconImg;
             editNode.icon_size = imageSize; // 画像サイズの保存
             editNode.type = nodeType; // ノードタイプの保存
@@ -363,22 +366,29 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 }
               }}
             />
-            <Flex gap="middle" align="center">
-              <div style={{ width: '80px' }}>スタイル</div>
-              <Select
-                style={{ flex: 1 }}
-                value={styleId}
-                onChange={(value) => setStyleId(value)}
-                options={[
-                  { value: 1, label: 'スタイル1' },
-                  { value: 2, label: 'スタイル2' },
-                  { value: 3, label: 'スタイル3' },
-                  { value: 4, label: 'スタイル4' },
-                  { value: 5, label: 'スタイル5' },
-                  { value: 6, label: 'スタイル6' },
-                ]}
-              />
-            </Flex>
+            {nodeType === "normal" ? (
+              <Flex gap="middle" align="center">
+                <div style={{ width: '80px' }}>スタイル</div>
+                <Select
+                  style={{ flex: 1 }}
+                  value={styleId}
+                  onChange={(value) => setStyleId(value)}
+                  options={[
+                    { value: 1, label: 'スタイル1' },
+                    { value: 2, label: 'スタイル2' },
+                    { value: 3, label: 'スタイル3' },
+                    { value: 4, label: 'スタイル4' },
+                    { value: 5, label: 'スタイル5' },
+                    { value: 6, label: 'スタイル6' },
+                  ]}
+                />
+              </Flex>
+            ) : (
+              <Flex gap="middle" align="center">
+                <div style={{ width: '80px' }}>スタイル</div>
+                <div style={{ flex: 1 }}>スタイル1 (固定)</div>
+              </Flex>
+            )}
             <Flex gap="middle" align="start">
               <div style={{ width: '80px' }}>アイコン</div>
               <Flex vertical style={{ flex: 1 }}>

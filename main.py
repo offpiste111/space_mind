@@ -21,6 +21,7 @@ import shutil
 import eel
 import concurrent.futures
 from PIL import Image, ImageOps, ImageDraw
+import numpy as np
 import io
 import base64
 import subprocess
@@ -190,20 +191,28 @@ def save_json(data, json_path):
 
 
 node_styles = [
-    "normal_1", 
-    "normal_2", 
-    "normal_3",
-    "normal_4",
-    "normal_5", 
-    "normal_6",
+    {"class": "normal_1", "rounded_rectangle_radius": 8, "background_trasparent": False}, 
+    {"class": "normal_2", "rounded_rectangle_radius": 8, "background_trasparent": False}, 
+    {"class": "normal_3", "rounded_rectangle_radius": 0, "background_trasparent": True},
+    {"class": "normal_4", "rounded_rectangle_radius": 8, "background_trasparent": False},
+    {"class": "normal_5", "rounded_rectangle_radius": 0, "background_trasparent": True}, 
+    {"class": "normal_6", "rounded_rectangle_radius": 8, "background_trasparent": False},
 ]
 
 node_link_styles = [
-    "link_1",
+    {"class": "link_1", "rounded_rectangle_radius": 8, "background_trasparent": False},
 ]
 
 node_task_styles = [
-    "task_1", #task 
+    {"class": "task_1", "rounded_rectangle_radius": 8, "background_trasparent": False}, 
+]
+
+node_file_styles = [
+    {"class": "file_1", "rounded_rectangle_radius": 8, "background_trasparent": False},
+]
+
+node_folder_styles = [
+    {"class": "folder_1", "rounded_rectangle_radius": 8, "background_trasparent": False},
 ]
 
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
@@ -282,11 +291,75 @@ def generate_image(node):
     styles = node_styles
     if "type" in node and node["type"] == "link":
         styles = node_link_styles
+    elif "type" in node and node["type"] == "task":
+        styles = node_task_styles
+    elif "type" in node and node["type"] == "file":
+        styles = node_file_styles
+    elif "type" in node and node["type"] == "folder":
+        styles = node_folder_styles
 
     if True:  # Execute only on Windows
         import imgkit
         wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
+                    # .normal_5 {{
+                    #     margin: 20px auto; 
+                    #     padding: 20px; 
+                    #     background-color: #fff; 
+                    #     background-image: linear-gradient(#e1eef5 1px, transparent 1px), linear-gradient(to right, #e1eef5 1px, #fff 1px);
+                    #     background-size: 20px 20px;
+                    # }}
 
+                    # .normal_4 {{
+                    #     margin: 20px auto;
+                    #     padding: 20px;
+                    #     background-color: #fff;
+                    #     background: repeating-linear-gradient( -45deg, #eaf3f8, #eaf3f8 5px, #fff 5px, #fff 13px );
+                    # }}
+
+                    # .normal_5 {{
+                    #     padding: 1em 1.5em;
+                    #     margin: 2em 0;
+                    #     background: #ffebf0;/*背景色*/
+                    #     background-image: radial-gradient(#fad6de 10%, transparent 25%), radial-gradient(#fad6de 10%, transparent 25%);
+                    #     background-position: 0 0, 10px 10px;
+                    #     background-size: 20px 20px;
+                    #     color:#333;/*文字色*/
+                    # }}
+
+
+
+                    # .normal_5 {{
+                    #     position: relative;
+                    #     width: fit-content;
+                    #     padding: 12px 16px;
+                    #     border: 2px solid #333333;
+                    #     border-radius: 4px;
+                    # }}
+                    # .normal_5::before {{
+                    #     content: "";
+                    #     position: absolute;
+                    #     bottom: -5px;
+                    #     left: 50%;
+                    #     width: 15px;
+                    #     height: 15px;
+                    #     box-sizing: border-box;
+                    #     background-color: #ffffff; /* 背景色と同じ色を指定 */
+                    #     rotate: 135deg;
+                    #     translate: -50%;
+                    # }}
+                    # .normal_5::after {{
+                    #     content: "";
+                    #     position: absolute;
+                    #     bottom: -8px;
+                    #     left: 50%;
+                    #     width: 15px;
+                    #     height: 15px;
+                    #     box-sizing: border-box;
+                    #     border: 2px solid;
+                    #     border-color: #333333 #333333 transparent transparent;
+                    #     rotate: 135deg;
+                    #     translate: -50%;
+                    # }}
         html = f"""
                 <!DOCTYPE html>
                 <html lang="ja">
@@ -299,8 +372,6 @@ def generate_image(node):
                         padding: 10px;
                     }}
 
-
-
                     .normal_1 {{
                         margin: 20px auto;
                         padding: 20px;
@@ -310,7 +381,7 @@ def generate_image(node):
                     .normal_2 {{
                         color: #000000; 
                         background: #ffffff; 
-                        border: solid 6px #ffc06e; 
+                        border: solid 3px #ffc06e; 
                         border-radius: 4px;
                     }}
 
@@ -331,46 +402,78 @@ def generate_image(node):
                         box-shadow: -1px 1px 1px rgba(0, 0, 0, 0.15)
                     }}
 
+
                     .normal_4 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        background-color: #fff;
-                        background: repeating-linear-gradient( -45deg, #eaf3f8, #eaf3f8 5px, #fff 5px, #fff 13px );
+                        padding: 1em 1.5em;
+                        margin: 2em 0;
+                        background-color:#b22222;/*背景色*/
+                        color:#ffffff;/*文字色*/
+                        font-weight:bold;
                     }}
 
                     .normal_5 {{
-                        margin: 20px auto; 
-                        padding: 20px; 
-                        background-color: #fff; 
-                        background-image: linear-gradient(#e1eef5 1px, transparent 1px), linear-gradient(to right, #e1eef5 1px, #fff 1px);
-                        background-size: 20px 20px;
+                        position: relative;
+                        padding: 0.5em 0.7em;
+                        margin: 2em 0;
+                        background: #e6f4ff;
+                        color: #5c98d4;
+                        font-weight: bold;
+                    }}
+                    .normal_5:after {{
+                        position: absolute;
+                        content: '';
+                        top: 100%;
+                        left: 30px;
+                        border: 15px solid transparent;
+                        border-top: 15px solid #e6f4ff;
+                        width: 0;
+                        height: 0;
                     }}
 
                     .normal_6 {{
                         color: #000000; 
                         background: #ffffff; 
-                        border: dashed 6px #ffc3c3; 
+                        border: dashed 3px #ffc3c3; 
                         border-radius: 4px;
                     }}
 
                     .link_1 {{
-                        color: #000000; 
-                        background: #ffffff; 
-                        border-top: solid 6px #5989cf; 
-                        border-bottom: solid 6px #5989cf;
+                        margin: 20px auto;
+                        padding: 20px 20px 20px 55px;
+                        background-color: #f3f2f3;
+                        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="%234c9ac0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>');
+                        background-position: 10px center;
+                        background-repeat: no-repeat;
+                        border-left: 10px solid #4c9ac0;
                     }}
 
                     .task_1 {{
                         margin: 20px auto;padding: 20px;background-color: #f3f2f3;border-left: 10px solid #4c9ac0;
                     }}
-
+                    .file_1 {{
+                        margin: 20px auto;
+                        padding: 20px 20px 20px 55px;
+                        background-color: #f3f2f3;
+                        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="%234c9ac0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>');
+                        background-position: 10px center;
+                        background-repeat: no-repeat;
+                        border-left: 10px solid #4c9ac0;
+                    }}
+                    .folder_1 {{
+                        margin: 20px auto;
+                        padding: 20px 20px 20px 55px;
+                        background-color: #f3f2f3;
+                        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="%234c9ac0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>');
+                        background-position: 10px center;
+                        background-repeat: no-repeat;
+                        border-left: 10px solid #4c9ac0;
+                    }}
 
                     </style>
 
-
                 </head>
                 <body style="margin: 0; padding: 0; background: white;"></body>
-                <div class="node-content {styles[node['style_id']-1]}">
+                <div class="node-content {styles[node['style_id']-1]['class']}">
                         {f'<img src="data:image/png;base64,{icon_base64}" style="max-width: 100%; margin-bottom: 10px; display: block;">' if icon_base64 else ''}
                         <div style="
                             font-size: 20px;
@@ -400,26 +503,34 @@ def generate_image(node):
         imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", config=wkhtmltoimage_config, options=options)
         node['img'] = f"node_img/{node['id']}_{now}.png"
 
-        if "type" in node and node['type'] == "link":
-            img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
-            img = ImageOps.invert(img)
-            img = img.crop(img.getbbox())
-            img = ImageOps.invert(img)
+        # 余分な領域を削除
+        img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
+        img = ImageOps.invert(img)
+        img = img.crop(img.getbbox())
+        img = ImageOps.invert(img)
+
+
+        # 白(255)を透明に変更
+        if styles[node['style_id']-1]['background_trasparent']:
+            img = img.convert("RGBA")
+
+            # Convert image to numpy array for faster processing
+            np_img = np.array(img)
+            # Create alpha mask - where all channels are 255 (white), set alpha to 0 (transparent), else keep original alpha
+            alpha_mask = np.all(np_img[:, :, :3] == 255, axis=-1)
+            np_img[:, :, 3] = np.where(alpha_mask, 0, np_img[:, :, 3])
+            # Convert back to PIL image
+            img = Image.fromarray(np_img)
+
+        # 丸角を適用
+        if styles[node['style_id']-1]['rounded_rectangle_radius'] > 0:
             mask = Image.new("L", img.size, 0)
             mask_draw = ImageDraw.Draw(mask)
-            mask_draw.rounded_rectangle((0, 0, img.width, img.height), 8, fill=255)
+            mask_draw.rounded_rectangle((0, 0, img.width, img.height), styles[node['style_id']-1]['rounded_rectangle_radius'], fill=255)
             img.putalpha(mask)
-            img.save(f"./web_src/assets/{node['img']}", 'PNG')
-        else:
-            img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
-            img = ImageOps.invert(img)
-            img = img.crop(img.getbbox())
-            img = ImageOps.invert(img)
-            mask = Image.new("L", img.size, 0)
-            mask_draw = ImageDraw.Draw(mask)
-            mask_draw.rounded_rectangle((0, 0, img.width, img.height), 8, fill=255)
-            img.putalpha(mask)
-            img.save(f"./web_src/assets/{node['img']}", 'PNG')
+            
+        img.save(f"./web_src/assets/{node['img']}", 'PNG')
+       
 
         node['size_x'] = img.size[0]
         node['size_y'] = img.size[1]
