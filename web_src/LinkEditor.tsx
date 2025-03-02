@@ -36,10 +36,12 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
 
     const handleOk = () => {
         props.onClose();
-        if (editLink){
-            editLink.name = contents;
+        if (editLink) {
+            // 元のリンクをディープコピーして、そのコピーに変更を適用する
+            const linkToUpdate = _.cloneDeep(editLink);
+            linkToUpdate.name = contents;
+            props.onRefreshLink(linkToUpdate);
         }
-        props.onRefreshLink(editLink);
     };
   
     const handleCancel = () => {

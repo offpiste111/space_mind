@@ -91,68 +91,72 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
 
     const handleOk = () => {
         if (editNode){
-            editNode.name = contents;
+            // 元のノードをディープコピーして、そのコピーに変更を適用する
+            const nodeToUpdate = _.cloneDeep(editNode);
+            
+            nodeToUpdate.name = contents;
             
             // ノードタイプがnormal以外の場合はスタイルIDを1に固定
-            editNode.style_id = nodeType === "normal" ? styleId : 1;
-            editNode.icon_img = iconImg;
-            editNode.icon_size = imageSize; // 画像サイズの保存
-            editNode.type = nodeType; // ノードタイプの保存
+            nodeToUpdate.style_id = nodeType === "normal" ? styleId : 1;
+            nodeToUpdate.icon_img = iconImg;
+            nodeToUpdate.icon_size = imageSize; // 画像サイズの保存
+            nodeToUpdate.type = nodeType; // ノードタイプの保存
             
             // タイプ固有の属性を保存
             switch (nodeType) {
                 case "normal":
                     // ノーマルタイプでは不要な属性を削除
-                    delete editNode.deadline;
-                    delete editNode.priority;
-                    delete editNode.urgency;
-                    delete editNode.url;
-                    delete editNode.file_path;
-                    delete editNode.folder_path;
+                    delete nodeToUpdate.deadline;
+                    delete nodeToUpdate.priority;
+                    delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.url;
+                    delete nodeToUpdate.file_path;
+                    delete nodeToUpdate.folder_path;
                     break;
                 case "task":
-                    editNode.deadline = deadline;
+                    nodeToUpdate.deadline = deadline;
                     if (priority === null) {
-                        delete editNode.priority;
+                        delete nodeToUpdate.priority;
                     } else {
-                        editNode.priority = priority;
+                        nodeToUpdate.priority = priority;
                     }
                     if (urgency === null) {
-                        delete editNode.urgency;
+                        delete nodeToUpdate.urgency;
                     } else {
-                        editNode.urgency = urgency;
+                        nodeToUpdate.urgency = urgency;
                     }
-                    delete editNode.url;
-                    delete editNode.file_path;
-                    delete editNode.folder_path;
+                    delete nodeToUpdate.url;
+                    delete nodeToUpdate.file_path;
+                    delete nodeToUpdate.folder_path;
                     break;
                 case "link":
-                    editNode.url = url;
-                    delete editNode.deadline;
-                    delete editNode.priority;
-                    delete editNode.urgency;
-                    delete editNode.file_path;
-                    delete editNode.folder_path;
+                    nodeToUpdate.url = url;
+                    delete nodeToUpdate.deadline;
+                    delete nodeToUpdate.priority;
+                    delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.file_path;
+                    delete nodeToUpdate.folder_path;
                     break;
                 case "file":
-                    editNode.file_path = filePath;
-                    delete editNode.deadline;
-                    delete editNode.priority;
-                    delete editNode.urgency;
-                    delete editNode.url;
-                    delete editNode.folder_path;
+                    nodeToUpdate.file_path = filePath;
+                    delete nodeToUpdate.deadline;
+                    delete nodeToUpdate.priority;
+                    delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.url;
+                    delete nodeToUpdate.folder_path;
                     break;
                 case "folder":
-                    editNode.folder_path = folderPath;
-                    delete editNode.deadline;
-                    delete editNode.priority;
-                    delete editNode.urgency;
-                    delete editNode.url;
-                    delete editNode.file_path;
+                    nodeToUpdate.folder_path = folderPath;
+                    delete nodeToUpdate.deadline;
+                    delete nodeToUpdate.priority;
+                    delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.url;
+                    delete nodeToUpdate.file_path;
                     break;
             }
             
-            props.onRefreshNode(editNode);
+            // 変更を適用したコピーを渡す
+            props.onRefreshNode(nodeToUpdate);
         }
         props.onClose();
     };
@@ -307,8 +311,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     </Button>
                     <Button onClick={() => {
                       if (editNode) {
-                        editNode.disabled = !editNode.disabled;
-                        props.onRefreshNode(editNode);
+                        // 元のノードをディープコピーして、そのコピーに変更を適用する
+                        const nodeToUpdate = _.cloneDeep(editNode);
+                        nodeToUpdate.disabled = !nodeToUpdate.disabled;
+                        props.onRefreshNode(nodeToUpdate);
                         props.onClose();
                       }
                     }}>

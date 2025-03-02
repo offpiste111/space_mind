@@ -126,6 +126,10 @@ const App = () => {
         addNewNode: () => void;
         addLink: (source: any, target: any) => void;
         setFuncMode: (mode: boolean) => void;
+        canUndo: () => boolean;
+        undo: () => void;
+        canRedo: () => boolean;
+        redo: () => void;
     }
 
     interface ModalRef {
@@ -265,6 +269,28 @@ const App = () => {
                 event.preventDefault();
                 handleSave();
             }
+            else if(event.code === "KeyZ"){
+                event.preventDefault();
+                if(mindMapGraphRef.current) {
+                    if(mindMapGraphRef.current.canUndo()) {
+                        mindMapGraphRef.current.undo();
+                        console.log("Undo operation via Ctrl+Z");
+                    } else {
+                        message.info('元に戻せる操作がありません');
+                    }
+                }
+            }
+            else if(event.code === "KeyY"){
+                event.preventDefault();
+                if(mindMapGraphRef.current) {
+                    if(mindMapGraphRef.current.canRedo()) {
+                        mindMapGraphRef.current.redo();
+                        console.log("Redo operation via Ctrl+Y");
+                    } else {
+                        message.info('やり直せる操作がありません');
+                    }
+                }
+            }
             else if(event.code === "KeyC"){
                 if(mindMapGraphRef.current) {
                     (mindMapGraphRef.current as any).copyNode();
@@ -291,9 +317,6 @@ const App = () => {
                         console.log("No node to paste");
                     }
                 }
-            }
-            else if(event.code === "KeyZ"){
-                
             }
             // Ctrl+A で全ノード選択
             else if(event.code === "KeyA"){

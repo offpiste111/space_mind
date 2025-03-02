@@ -300,7 +300,9 @@ def generate_image(node):
 
     if True:  # Execute only on Windows
         import imgkit
-        wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
+
+        if os.name == 'nt':
+            wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
                     # .normal_5 {{
                     #     margin: 20px auto; 
                     #     padding: 20px; 
@@ -410,24 +412,14 @@ def generate_image(node):
                         color:#ffffff;/*文字色*/
                         font-weight:bold;
                     }}
-
                     .normal_5 {{
-                        position: relative;
-                        padding: 0.5em 0.7em;
+                        padding: 1em 1.5em;
                         margin: 2em 0;
-                        background: #e6f4ff;
-                        color: #5c98d4;
-                        font-weight: bold;
-                    }}
-                    .normal_5:after {{
-                        position: absolute;
-                        content: '';
-                        top: 100%;
-                        left: 30px;
-                        border: 15px solid transparent;
-                        border-top: 15px solid #e6f4ff;
-                        width: 0;
-                        height: 0;
+                        background: #ffebf0;/*背景色*/
+                        background-image: radial-gradient(#fad6de 10%, transparent 25%), radial-gradient(#fad6de 10%, transparent 25%);
+                        background-position: 0 0, 10px 10px;
+                        background-size: 20px 20px;
+                        color:#333;/*文字色*/
                     }}
 
                     .normal_6 {{
@@ -500,7 +492,10 @@ def generate_image(node):
 
         #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
         now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-        imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", config=wkhtmltoimage_config, options=options)
+        if os.name == 'nt':
+            imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", config=wkhtmltoimage_config, options=options)
+        else:
+            imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", options=options)
         node['img'] = f"node_img/{node['id']}_{now}.png"
 
         # 余分な領域を削除
