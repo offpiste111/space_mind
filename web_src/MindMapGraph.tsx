@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import _ from 'lodash'
+import _, { cloneDeep, has } from 'lodash';
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import * as d3force from 'd3-force'
@@ -14,7 +14,7 @@ import {CSS2DObject, CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRend
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 
 
-import { useState, forwardRef, useImperativeHandle, useMemo} from 'react'
+import { useState, forwardRef, useImperativeHandle, useMemo, useCallback} from 'react'
 
 
 import { Canvas } from '@react-three/fiber'
@@ -27,7 +27,27 @@ import ThreeForceGraph from 'three-forcegraph'
 import './index.css'
 
 
-const { useRef, useCallback, useEffect } = React;
+const { useRef, useEffect } = React;
+
+// バッチ更新用のカスタムフック
+const useBatchUpdate = () => {
+    const [isPending, startTransition] = React.useTransition();
+    const batchedUpdates = React.useRef<Function[]>([]);
+    
+    const scheduleBatchedUpdate = React.useCallback((update: Function) => {
+        batchedUpdates.current.push(update);
+        
+        if (batchedUpdates.current.length === 1) {
+            startTransition(() => {
+                const updates = [...batchedUpdates.current];
+                batchedUpdates.current = [];
+                updates.forEach(u => u());
+            });
+        }
+    }, []);
+    
+    return { scheduleBatchedUpdate, isPending };
+};
 
 const MindMapGraph = forwardRef((props: any, ref:any) => {
     const fgRef = useRef<any>();
@@ -43,9 +63,196 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const lastClickTime = useRef<number>(0);
     const lastClickedNode = useRef<any>(null);
 
-    // 履歴を管理するstate
-    const [history, setHistory] = useState<HistoryItem[]>([]);
-    const [historyIndex, setHistoryIndex] = useState<number>(-1);
+    const { scheduleBatchedUpdate, isPending } = useBatchUpdate();
+
+    // 履歴管理のステート
+    interface HistoryItem {
+        action: 'add_node' | 'delete_node' | 'edit_node' | 'move_node' | 'add_link' | 'delete_link' | 'edit_link';
+        data: any;
+        timestamp: number;
+    }
+
+    const historyRef = useRef<HistoryItem[]>([]);
+    const historyIndexRef = useRef<number>(-1);
+    const [_, forceUpdate] = useState({});
+
+    // 履歴に追加する関数
+    const addToHistory = useCallback((action: HistoryItem['action'], data: any) => {
+        // 必要な部分のみをクローン
+        const clonedData = action === 'move_node' ? 
+            { id: data.id, fx: data.fx, fy: data.fy, fz: data.fz } : 
+            cloneDeep(data);
+
+        // Refを直接更新
+        historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+        historyRef.current.push({
+            action,
+            data: clonedData,
+            timestamp: Date.now()
+        });
+        historyIndexRef.current = historyRef.current.length - 1;
+
+        // UIの再描画が必要な場合のみforceUpdate
+        if (['add_node', 'delete_node', 'edit_node'].includes(action)) {
+            forceUpdate({});
+        }
+    }, []);
+
+    // Undo操作
+    const undo = useCallback(() => {
+        if (historyIndexRef.current >= 0) {
+            const item = historyRef.current[historyIndexRef.current];
+            // アクションの種類に応じて元に戻す処理
+            switch (item.action) {
+                case 'add_node':
+                    // ノード追加を元に戻す（削除）
+                    deleteNode(item.data.node.id);
+                    item.data.links.forEach((link: any) => {
+                        setGraphData(prevData => ({
+                            ...prevData,
+                            links: prevData.links.filter(l => l.index !== link.index)
+                        }));
+                    });
+                    break;
+                case 'delete_node':
+                    // ノード削除を元に戻す（追加）
+                    graphData.nodes.push(item.data.node);
+                    // 関連するリンクも復元
+                    item.data.links.forEach((link: any) => {
+                        graphData.links.push(link);
+                        link.source = graphData.nodes.find(n => n.id === link.source.id);
+                        link.target = graphData.nodes.find(n => n.id === link.target.id);
+                    });
+                    break;
+                case 'edit_node':
+                    // ノード編集を元に戻す
+                    const nodeToRestore = graphData.nodes.find(n => n.id === item.data.before.id);
+                    if (nodeToRestore) {
+                        // 元のノードをオブジェクトごと置き換える
+                        const nodeIndex = graphData.nodes.findIndex(n => n.id === item.data.before.id);
+                        if (nodeIndex !== -1) {
+                            graphData.nodes[nodeIndex] = item.data.before;
+                        }
+                        graphData.links.forEach((link: any) => {
+                            if (link.source.id === item.data.before.id) {
+                                link.source = item.data.before;
+                            }
+                            if (link.target.id === item.data.before.id) {
+                                link.target = item.data.before;
+                            }
+                        });
+
+                    }
+                    break;
+                case 'move_node':
+                    // ノード移動を元に戻す
+                    const nodeToMove = graphData.nodes.find(n => n.id === item.data.id);
+                    if (nodeToMove) {
+                        const nodeIndex = graphData.nodes.findIndex(n => n.id === item.data.id);
+                        if (nodeIndex !== -1) {
+
+                            item.data.px = graphData.nodes[nodeIndex].fx
+                            item.data.py = graphData.nodes[nodeIndex].fy
+                            item.data.pz = graphData.nodes[nodeIndex].fz
+
+                            graphData.nodes[nodeIndex].fx = item.data.fx
+                            graphData.nodes[nodeIndex].fy = item.data.fy
+                            graphData.nodes[nodeIndex].fz = item.data.fz
+                        }
+                    }
+                    break;
+                case 'add_link':
+                    // リンク追加を元に戻す（削除）
+                    deleteLink(item.data);
+                    break;
+                case 'delete_link':
+                    // リンク削除を元に戻す（追加）
+                    graphData.links.push(item.data);
+                    item.data.source = graphData.nodes.find(n => n.id === item.data.source.id);
+                    item.data.target = graphData.nodes.find(n => n.id === item.data.target.id);
+                    break;
+                case 'edit_link':
+                    // リンク編集を元に戻す
+                    const linkToRestore = graphData.links.find(l => l.index === item.data.before.index);
+                    linkToRestore.name = item.data.before.name;
+                    break;
+            }
+            historyIndexRef.current--;
+            forceUpdate({});
+        }
+    }, []);
+
+    // Redo操作
+    const redo = useCallback(() => {
+        if (historyIndexRef.current < historyRef.current.length - 1) {
+            const item = historyRef.current[historyIndexRef.current + 1];
+            // アクションの種類に応じてやり直し処理
+            switch (item.action) {
+                case 'add_node':
+                    // ノード追加をやり直す
+                    graphData.nodes.push(item.data.node);
+                    item.data.links.forEach((link: any) => {
+                        graphData.links.push(link);
+                        link.source = graphData.nodes.find(n => n.id === link.source.id);
+                        link.target = graphData.nodes.find(n => n.id === link.target.id);
+                    });
+                    break;
+                case 'delete_node':
+                    // ノード削除をやり直す
+                    deleteNode(item.data.node.id);
+                    break;
+                case 'edit_node':
+                    // ノード編集をやり直す
+                    const nodeToEdit = graphData.nodes.find(n => n.id === item.data.after.id);
+                    if (nodeToEdit) {
+                        // graphData内のノードを新しいノードで置き換え
+                        const nodeIndex = graphData.nodes.findIndex(n => n.id === item.data.after.id);
+                        if (nodeIndex !== -1) {
+                            graphData.nodes[nodeIndex] = item.data.after;
+                        }
+                        // リンクのsource/targetが更新された場合、リンクも更新
+                        graphData.links.forEach(link => {
+                            if (link.source.id === item.data.after.id) {
+                                link.source = item.data.after;
+                            }
+                            if (link.target.id === item.data.after.id) {
+                                link.target = item.data.after;
+                            }
+                        });
+                    }
+                    break;
+                case 'move_node':
+                    // ノード移動をやり直す
+                    const nodeToMove = graphData.nodes.find(n => n.id === item.data.id);
+                    if (nodeToMove) {
+                        const nodeIndex = graphData.nodes.findIndex(n => n.id === item.data.id);
+                        if (nodeIndex !== -1) {
+                            graphData.nodes[nodeIndex].fx = item.data.px
+                            graphData.nodes[nodeIndex].fy = item.data.py
+                            graphData.nodes[nodeIndex].fz = item.data.pz
+                        }
+                    }
+                    break;
+                case 'add_link':
+                    // リンク追加をやり直す
+                    graphData.links.push(item.data);
+                    item.data.source = graphData.nodes.find(n => n.id === item.data.source.id);
+                    item.data.target = graphData.nodes.find(n => n.id === item.data.target.id);
+                    break;
+                case 'delete_link':
+                    // リンク削除をやり直す
+                    deleteLink(item.data);
+                    break;
+                case 'edit_link':
+                    // リンク編集をやり直す
+                    const linkToEdit = graphData.links.find(l => l.index === item.data.after.index);
+                    linkToEdit.name = item.data.after.name;
+                    break;
+            }
+            historyIndexRef.current++;
+            forceUpdate({});
+        }
+    }, []);
 
     interface NodeData {
         id: number;
@@ -138,11 +345,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             
             // 更新前のノードの状態を取得（ディープコピーを作成）
             const originalNode = graphData.nodes.find(n => n.id === node.id);
-            const originalNodeCopy = originalNode ? _.cloneDeep(originalNode) : null;
-            const isNew = node && _.has(node, 'isNew');
+            const originalNodeCopy = originalNode ? cloneDeep(originalNode) : null;
+            const isNew = node && has(node, 'isNew');
             
             // nodeがコピーでないことを確認し、コピーを作成
-            const nodeToUpdate = _.cloneDeep(node);
+            const nodeToUpdate = cloneDeep(node);
             
             //nodeにisNewがある場合、キーを削除する
             if (isNew) {
@@ -190,7 +397,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         deleteNode: (node: any) => {
             console.log('deleteNode', node);
             // 削除前のノードとそれに関連するリンクを保存
-            const nodeToDelete = _.cloneDeep(node);
+            const nodeToDelete = cloneDeep(node);
             const relatedLinks = graphData.links.filter(l => 
                 l.source.id === node.id || l.target.id === node.id
             );
@@ -218,8 +425,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         refreshLink: (link: any) => {
             // リンク更新前の状態を保存
             const originalLink = graphData.links.find(l => l.index === link.index);
-            const originalLinkCopy = originalLink ? _.cloneDeep(originalLink) : null;
-            const isNew = link && _.has(link, 'isNew');
+            const originalLinkCopy = originalLink ? cloneDeep(originalLink) : null;
+            const isNew = link && has(link, 'isNew');
             
             link.source = originalLink.source;
             link.target = originalLink.target;
@@ -261,7 +468,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             copiedNodeRef.current = selectedNode;
         },
         getCopiedNode: () => {
-            return _.cloneDeep(copiedNodeRef.current);
+            return cloneDeep(copiedNodeRef.current);
         },
         // 複数選択中のノードリストを取得する関数を追加
         getSelectedNodeList: () => {
@@ -343,11 +550,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         },
         // 履歴管理用メソッド
         canUndo: () => {
-            return historyIndex >= 0;
+            return historyIndexRef.current >= 0;
         },
         undo: () => {
-            if (historyIndex >= 0) {
-                const item = history[historyIndex];
+            if (historyIndexRef.current >= 0) {
+                const item = historyRef.current[historyIndexRef.current];
                 console.log('undo', item);
                 
                 // アクションの種類に応じて元に戻す処理
@@ -426,16 +633,21 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         break;
                 }
                 
-                setHistoryIndex(historyIndex - 1);
+                // setTimeout を使用して状態更新を遅延させる
+                setTimeout(() => {
+                    historyIndexRef.current--;
+                    forceUpdate({});
+                }, 0);
+                
                 fgRef.current.refresh();
             }
         },
         canRedo: () => {
-            return historyIndex < history.length - 1;
+            return historyIndexRef.current < historyRef.current.length - 1;
         },
         redo: () => {
-            if (historyIndex < history.length - 1) {
-                const item = history[historyIndex + 1];
+            if (historyIndexRef.current < historyRef.current.length - 1) {
+                const item = historyRef.current[historyIndexRef.current + 1];
                 
                 // アクションの種類に応じてやり直し処理
                 switch (item.action) {
@@ -501,7 +713,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         break;
                 }
                 
-                setHistoryIndex(historyIndex + 1);
+                // setTimeout を使用して状態更新を遅延させる
+                setTimeout(() => {
+                    historyIndexRef.current++;
+                    forceUpdate({});
+                }, 0);
+                
                 fgRef.current.refresh();
             }
         }
@@ -523,7 +740,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const refreshLink = (link: any) => {
         console.log('refreshLink', link);
         //linkにisNewがある場合、キーを削除する
-        if (link && _.has(link, 'isNew')) {
+        if (link && has(link, 'isNew')) {
             delete link.isNew;
             link.name = `${link.source.name || ''} to ${link.target.name || ''}`;
         }
@@ -533,6 +750,27 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             setSelectedNode(null);
             return;
         }
+
+        // Ctrlキーが押されている場合は複数選択モード
+        if ( funcMode  && node) {
+            console.log('funcMode Node clicked:', node);
+
+            // ノードが通常選択されている場合、選択を解除
+            if (selectedNode && node.id == selectedNode.id) {
+                setSelectedNode(null);
+            }
+            
+            // 既に選択されているノードをクリックした場合は選択解除
+            if (selectedNodeList.some(n => n.id === node.id)) {
+                console.log('Node unselected:', node);
+                setSelectedNodeList(prev => prev.filter(n => n.id !== node.id));
+            } else {
+                // 新しいノードを選択リストに追加
+                console.log('Node selected:', node);
+                setSelectedNodeList(prev => [...prev, node]);
+            }
+            return;
+        } 
 
         const now = Date.now();
         const timeSinceLastClick = now - lastClickTime.current;
@@ -550,31 +788,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         lastClickTime.current = now;
         lastClickedNode.current = node;
 
-        // 通常の選択モード
-        if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
-            // クリックしたノードが複数選択ノード配列に含まれていた場合、複数選択をクリア
-            if (selectedNodeList.some(n => n.id === node.id)) {
-                setSelectedNodeList([]);
-            }
-            const distance = 700;
-            const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
 
-            // 視点座標を保存
-            setLookAtTarget(new THREE.Vector3(node.x, node.y, node.z));
-
-            if (fgRef.current) {
-                fgRef.current.cameraPosition(
-                    { x: node.x, y: node.y, z: node.z + distance }, // new position
-                    { x: node.x, y: node.y, z: node.z }, // lookAt ({ x, y, z })
-                    600  // ms transition duration
-                );
-            }
-            console.log('Node clicked:', node);
-
-        }
         // 選択されたノードを更新（これは常に行う）
         setSelectedNode(node);
-    }, [fgRef,selectedNodeList, graphData]);
+    }, [fgRef,selectedNodeList, graphData,funcMode]);
     
     // ノードのダブルクリックを処理する関数
     const handleDoubleClick = (node: any) => {
@@ -601,6 +818,30 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             console.log('Opening folder:', node.folder_path);
             props.onOpenFolder && props.onOpenFolder(node);
         }
+        else {
+            // 通常の選択モード
+            if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
+                // クリックしたノードが複数選択ノード配列に含まれていた場合、複数選択をクリア
+                if (selectedNodeList.some(n => n.id === node.id)) {
+                    setSelectedNodeList([]);
+                }
+                const distance = 700;
+                const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
+
+                // 視点座標を保存
+                setLookAtTarget(new THREE.Vector3(node.x, node.y, node.z));
+
+                if (fgRef.current) {
+                    fgRef.current.cameraPosition(
+                        { x: node.x, y: node.y, z: node.z + distance }, // new position
+                        { x: node.x, y: node.y, z: node.z }, // lookAt ({ x, y, z })
+                        600  // ms transition duration
+                    );
+                }
+                console.log('Node clicked:', node);
+
+            }
+        }
     };
 
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
@@ -616,26 +857,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         console.log('handleLinkClick', link);
     };
     const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
-        // Ctrlキーが押されている場合は複数選択モード
-        if ( !isHovering.current && funcMode  && node) {
-
-            // ノードが通常選択されている場合、選択を解除
-            if (selectedNode && node.id == selectedNode.id) {
-                setSelectedNode(null);
-            }
-            
-            // 既に選択されているノードをクリックした場合は選択解除
-            if (selectedNodeList.some(n => n.id === node.id)) {
-                console.log('Node unselected:', node);
-                setSelectedNodeList(prev => prev.filter(n => n.id !== node.id));
-            } else {
-                // 新しいノードを選択リストに追加
-                console.log('Node selected:', node);
-                setSelectedNodeList(prev => [...prev, node]);
-            }
-            
-        }
-
         isHovering.current = !!node;
 
     };
@@ -979,22 +1200,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             fgRef.current.d3Force('charge', d3force.forceManyBody().strength(-10))
         }
     }, [fgRef]);
-
-    // 履歴に追加する関数
-    const addToHistory = (action: HistoryItem['action'], data: any) => {
-        const newHistoryItem = {
-            action,
-            data: _.cloneDeep(data),
-            timestamp: Date.now()
-        };
-        
-        // historyIndexより後の履歴を削除して新しい履歴を追加
-        const newHistory = history.slice(0, historyIndex + 1).concat(newHistoryItem);
-        setHistory(newHistory);
-        setHistoryIndex(newHistory.length - 1);
-        
-        console.log(`Added to history: ${action}`, data);
-    };
 
     return (
         <>
