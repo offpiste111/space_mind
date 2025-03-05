@@ -167,7 +167,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","baackground"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -213,6 +213,15 @@ node_file_styles = [
 
 node_folder_styles = [
     {"class": "folder_1", "rounded_rectangle_radius": 8, "background_trasparent": False},
+]
+
+node_issue_styles = [
+    {"class": "issue_1", "rounded_rectangle_radius": 0, "background_trasparent": True}, 
+    {"class": "normal_2", "rounded_rectangle_radius": 8, "background_trasparent": False}, 
+    {"class": "normal_3", "rounded_rectangle_radius": 0, "background_trasparent": True},
+    {"class": "normal_4", "rounded_rectangle_radius": 8, "background_trasparent": False},
+    {"class": "normal_5", "rounded_rectangle_radius": 0, "background_trasparent": True}, 
+    {"class": "normal_6", "rounded_rectangle_radius": 8, "background_trasparent": False},
 ]
 
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
@@ -297,9 +306,15 @@ def generate_image(node):
         styles = node_file_styles
     elif "type" in node and node["type"] == "folder":
         styles = node_folder_styles
+    elif "type" in node and node["type"] == "issue":
+        styles = node_issue_styles
 
     if True:  # Execute only on Windows
         import imgkit
+
+        # fram_bushes.pngをbase64に変換
+        with open('web_src/assets/fram_bushes.png', 'rb') as img_file:
+            fram_bushes_base64 = base64.b64encode(img_file.read()).decode('utf-8')
 
         if os.name == 'nt':
             wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
@@ -429,6 +444,22 @@ def generate_image(node):
                         border-radius: 4px;
                     }}
 
+                    .issue_1 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        height: 300px;
+                        width: 300px;
+                        background-image: url('data:image/png;base64,{fram_bushes_base64}');
+                        background-size: cover;
+                        background-position: center;
+                        color: #000000;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        text-align: center;
+                    }}
+
                     .link_1 {{
                         margin: 20px auto;
                         padding: 20px 20px 20px 55px;
@@ -504,6 +535,8 @@ def generate_image(node):
         img = img.crop(img.getbbox())
         img = ImageOps.invert(img)
 
+        img.save(f"./web_src/assets/{node['img']}_", 'PNG')
+
 
         # 白(255)を透明に変更
         if styles[node['style_id']-1]['background_trasparent']:
@@ -512,7 +545,7 @@ def generate_image(node):
             # Convert image to numpy array for faster processing
             np_img = np.array(img)
             # Create alpha mask - where all channels are 255 (white), set alpha to 0 (transparent), else keep original alpha
-            alpha_mask = np.all(np_img[:, :, :3] == 255, axis=-1)
+            alpha_mask = np.all(np_img[:, :, :3] > 240, axis=-1)
             np_img[:, :, 3] = np.where(alpha_mask, 0, np_img[:, :, 3])
             # Convert back to PIL image
             img = Image.fromarray(np_img)

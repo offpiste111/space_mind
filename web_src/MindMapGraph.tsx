@@ -279,6 +279,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     }
 
     const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
+    const [backgroundColor, setBackgroundColor] = useState<string>("#87CEEB");
     const setRotateVecFunc = () => {
         return new THREE.Vector3(0,0,3000);
     };   
@@ -790,6 +791,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const handleDoubleClick = (node: any) => {
         console.log('Node double clicked:', node);
         
+        // issueタイプのノードの場合、背景色を更新
+        if (node.type === "issue" && node.background) {
+            setBackgroundColor(node.background);
+        }
+        
         // リンクタイプのノードの場合、URLを開く
         if (node.type === "link" && node.url) {
             console.log('Opening URL:', node.url);
@@ -1128,8 +1134,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     }, [fgRef]);
 
     return (
-        <>
-            <ForceGraph3D
+        <ForceGraph3D
                 ref={fgRef}
                 graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
                 nodeThreeObject={(node) => {
@@ -1151,7 +1156,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     return sprite;
                 }}
                 enableNavigationControls={true}
-                backgroundColor="#010101"
+                backgroundColor={backgroundColor}
                 linkColor={(link) => {
                     let opacity = 1;
                     if (link.source.disabled || link.target.disabled) {
@@ -1254,7 +1259,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
                 }}
             />
-        </>
     );
 });
 
