@@ -15,7 +15,7 @@ import { useState, forwardRef, useImperativeHandle, useMemo, useCallback} from '
 
 
 import { Canvas } from '@react-three/fiber'
-import { Html, Loader } from '@react-three/drei'
+import { Html, Loader, useGLTF } from '@react-three/drei'
 import { TextureLoader, SpriteMaterial, Sprite } from 'three'
 import { OrbitControls } from '@react-three/drei'
 import { render, useFrame, useThree, useGraph } from '@react-three/fiber'
@@ -269,6 +269,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         disabled?: boolean;
         type?: string;      // "folder" | "file" | "link" などのタイプを指定
         folder_path?: string;  // フォルダパスを保存
+        style_id?: number;  // 1: Horse.glb, 2: 次のモデル... などのスタイルを指定
+        scale?: number;     // 3Dオブジェクトのスケール (0.3 to 2.0)
     }
 
     interface GraphData {
@@ -333,11 +335,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             }
         },
         refreshNode: (node:any) => {
-            //setObj3D((oldObj3D) => {
-            //    const tmp_ndoes = { ...oldObj3D }
-            //    delete tmp_ndoes[node.id];
-            //    return tmp_ndoes;
-            //});
             console.log('refreshNode', node);
             
             // 更新前のノードの状態を取得（ディープコピーを作成）
@@ -1024,9 +1021,20 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         return MultilineText;
     };
 
-    const nodeThreeObjectImageTexture = (node: any) => {
+    const horseModel = useMemo(() => useGLTF('./assets/Horse.glb'), []);
+
+    const nodeThreeObjectImageTexture = useCallback((node: any): THREE.Object3D | SpriteText => {
         if (node.id < 0) {
             return nodeThreeObjectCustomMesh(node);
+        }
+
+        if (node.type === "3dobject") {
+            if (node.style_id === 1) {  // Horse.glbモデル
+                const scene = horseModel.scene.clone();
+                const scale = node.scale || 1;  // デフォルトスケール1.0
+                scene.scale.set(scale, scale, scale);
+                return scene;
+            }
         }
         const imgTexture = new THREE.TextureLoader().load(`./assets/${node['img']}`);
         imgTexture.colorSpace = THREE.SRGBColorSpace;
@@ -1034,18 +1042,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         const sprite = new THREE.Sprite(material);
         const aspectRatio = node.size_x / node.size_y;
         sprite.scale.set(node.size_x, node.size_x / aspectRatio, 1);
-
-        // const mesh = new THREE.Mesh(
-        //     new THREE.BoxGeometry(50, 20, 1),
-        //     new THREE.MeshLambertMaterial({
-        //         color: 'rgba(250,250,250,0.9)',
-        //         transparent: true,
-        //         opacity: 0.75
-        //     })
-        // );
-
         return sprite;
-    };
+    }, [horseModel]);
 
     const [interimLink, setInterimLinkState] = useState<any>(null);
 

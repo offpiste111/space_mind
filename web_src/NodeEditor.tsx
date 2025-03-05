@@ -1,6 +1,6 @@
 import React,{useState, forwardRef, useImperativeHandle, useEffect } from 'react'
 import { Modal, Input, Button, Flex, Select, Upload, Slider } from 'antd';
-import { InboxOutlined, FolderOpenOutlined } from '@ant-design/icons';
+import { UploadOutlined, FolderOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import type { UploadProps } from 'antd';
 import { eel } from './index';
@@ -42,6 +42,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         url?: string;
         file_path?: string;
         folder_path?: string;
+        scale?: number;  // 3Dオブジェクトのスケール
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
@@ -95,9 +96,6 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             const nodeToUpdate = _.cloneDeep(editNode);
             
             nodeToUpdate.name = contents;
-            
-            // ノードタイプがnormal以外の場合はスタイルIDを1に固定
-            nodeToUpdate.style_id = nodeType === "normal" ? styleId : 1;
             nodeToUpdate.icon_img = iconImg;
             nodeToUpdate.icon_size = imageSize; // 画像サイズの保存
             nodeToUpdate.type = nodeType; // ノードタイプの保存
@@ -105,6 +103,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             // タイプ固有の属性を保存
             switch (nodeType) {
                 case "normal":
+                    nodeToUpdate.style_id = styleId;
                     // ノーマルタイプでは不要な属性を削除
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
@@ -114,6 +113,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.folder_path;
                     break;
                 case "task":
+                    nodeToUpdate.style_id = 1;
                     nodeToUpdate.deadline = deadline;
                     if (priority === null) {
                         delete nodeToUpdate.priority;
@@ -130,6 +130,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.folder_path;
                     break;
                 case "link":
+                    nodeToUpdate.style_id = 1;
                     nodeToUpdate.url = url;
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
@@ -138,6 +139,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.folder_path;
                     break;
                 case "file":
+                    nodeToUpdate.style_id = 1;
                     nodeToUpdate.file_path = filePath;
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
@@ -146,12 +148,27 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.folder_path;
                     break;
                 case "folder":
+                    nodeToUpdate.style_id = 1;
                     nodeToUpdate.folder_path = folderPath;
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
+                    break;
+                case "3dobject":
+                    // 3Dオブジェクト用の属性を設定
+                    nodeToUpdate.style_id = styleId;
+                    nodeToUpdate.scale = editNode.scale || 1.0;
+                    // 不要な属性を削除
+                    delete nodeToUpdate.deadline;
+                    delete nodeToUpdate.priority;
+                    delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.url;
+                    delete nodeToUpdate.file_path;
+                    delete nodeToUpdate.folder_path;
+                    delete nodeToUpdate.icon_img;
+                    delete nodeToUpdate.icon_size;
                     break;
             }
             
@@ -263,7 +280,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                             style={{ flex: 1 }}
                         />
                         <Button 
-                            icon={<FolderOpenOutlined />}
+                            icon={<FolderOutlined rev="" />}
                             onClick={handleFileSelect}>
                             選択
                         </Button>
@@ -279,10 +296,43 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                             style={{ flex: 1 }}
                         />
                         <Button 
-                            icon={<FolderOpenOutlined />}
+                            icon={<FolderOutlined rev="" />}
                             onClick={handleFolderSelect}>
                             選択
                         </Button>
+                    </Flex>
+                );
+            case "3dobject":
+                return (
+                    <Flex vertical gap="small">
+                        <Flex gap="middle" align="center">
+                            <div style={{ width: '80px' }}>モデル</div>
+                            <Select
+                                style={{ flex: 1 }}
+                                value={styleId}
+                                onChange={(value) => setStyleId(value)}
+                                options={[
+                                    { value: 1, label: 'Horse.glb' },
+                                ]}
+                            />
+                        </Flex>
+                        <Flex gap="middle" align="center">
+                            <div style={{ width: '80px' }}>スケール</div>
+                            <Flex vertical style={{ flex: 1 }}>
+                                <Slider
+                                    min={0.3}
+                                    max={2.0}
+                                    step={0.1}
+                                    value={editNode?.scale || 1.0}
+                                    onChange={(value) => {
+                                        if (editNode) {
+                                            const updatedNode = { ...editNode, scale: value };
+                                            setEditNode(updatedNode);
+                                        }
+                                    }}
+                                />
+                            </Flex>
+                        </Flex>
                     </Flex>
                 );
             default:
@@ -357,6 +407,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                   { value: "link", label: 'リンク' },
                   { value: "file", label: 'ファイル' },
                   { value: "folder", label: 'フォルダ' },
+                  { value: "3dobject", label: '3Dオブジェクト' },
                 ]}
               />
             </Flex>
@@ -372,6 +423,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 }
               }}
             />
+            {/* スタイル選択 */}
             {nodeType === "normal" ? (
               <Flex gap="middle" align="center">
                 <div style={{ width: '80px' }}>スタイル</div>
@@ -389,42 +441,46 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                   ]}
                 />
               </Flex>
-            ) : (
+            ) : nodeType !== "3dobject" && (
               <Flex gap="middle" align="center">
                 <div style={{ width: '80px' }}>スタイル</div>
                 <div style={{ flex: 1 }}>スタイル1 (固定)</div>
               </Flex>
             )}
-            <Flex gap="middle" align="start">
-              <div style={{ width: '80px' }}>アイコン</div>
-              <Flex vertical style={{ flex: 1 }}>
-                <Upload.Dragger {...uploadProps} style={{ padding: '6px', height: '70px', minHeight: 'auto' }}>
-                    <p className="ant-upload-drag-icon" style={{ marginTop: '2px', marginBottom: '2px' }}>
-                        <InboxOutlined rev={undefined} style={{ fontSize: '16px' }} />
-                    </p>
-                    <p className="ant-upload-text" style={{ fontSize: '11px', marginBottom: '2px', lineHeight: '1.2' }}>クリックまたはドラッグで画像をアップロード</p>
-                </Upload.Dragger>
-                
-                {(iconImg || imageSize !== 300) && (
-                  <Flex vertical style={{ marginTop: '8px' }}>
-                    <Flex align="center" style={{ marginBottom: '4px' }}>
-                      <div style={{ width: '360px', fontSize: '12px' }}>画像サイズ:</div>
-                      <div style={{ marginLeft: '8px', fontSize: '12px' }}>{imageSize}px</div>
+
+            {/* アイコン選択（3dobject以外で表示） */}
+            {nodeType !== "3dobject" && (
+              <Flex gap="middle" align="start">
+                <div style={{ width: '80px' }}>アイコン</div>
+                <Flex vertical style={{ flex: 1 }}>
+                  <Upload.Dragger {...uploadProps} style={{ padding: '6px', height: '70px', minHeight: 'auto' }}>
+                      <p className="ant-upload-drag-icon" style={{ marginTop: '2px', marginBottom: '2px' }}>
+                          <UploadOutlined rev="" style={{ fontSize: '16px' }} />
+                      </p>
+                      <p className="ant-upload-text" style={{ fontSize: '11px', marginBottom: '2px', lineHeight: '1.2' }}>クリックまたはドラッグで画像をアップロード</p>
+                  </Upload.Dragger>
+                  
+                  {(iconImg || imageSize !== 300) && (
+                    <Flex vertical style={{ marginTop: '8px' }}>
+                      <Flex align="center" style={{ marginBottom: '4px' }}>
+                        <div style={{ width: '360px', fontSize: '12px' }}>画像サイズ:</div>
+                        <div style={{ marginLeft: '8px', fontSize: '12px' }}>{imageSize}px</div>
+                      </Flex>
+                      <Slider
+                        min={150}
+                        max={1000}
+                        value={imageSize}
+                        onChange={(value) => setImageSize(value)}
+                      />
                     </Flex>
-                    <Slider
-                      min={150}
-                      max={1000}
-                      value={imageSize}
-                      onChange={(value) => setImageSize(value)}
-                    />
-                  </Flex>
-                )}
-                
-                {iconImg && (
-                    <img src={iconImg} alt="Node icon" style={{ maxWidth: '100%', maxHeight: '120px', objectFit: 'contain', marginTop: '8px' }} />
-                )}
+                  )}
+                  
+                  {iconImg && (
+                      <img src={iconImg} alt="Node icon" style={{ maxWidth: '100%', maxHeight: '120px', objectFit: 'contain', marginTop: '8px' }} />
+                  )}
+                </Flex>
               </Flex>
-            </Flex>
+            )}
             
             {renderTypeSpecificFields()}
             
