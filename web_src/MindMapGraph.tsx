@@ -6,9 +6,6 @@ import SpriteText from 'three-spritetext'
 import * as d3force from 'd3-force'
 import * as forceCollide from 'd3-force'
 import * as THREE from 'three'
-import SVGNodeData from './SvgNodeData'
-import satori from 'satori'
-import { html } from "satori-html";
 
 import {CSS2DObject, CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRenderer'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
@@ -980,75 +977,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         setSelectedNodeList([]);
         props.onNodeEdit(new_node);
     };
-       
-    const nodeThreeObject = (node: any) => {
-        const nodeEl = document.createElement('div');
-        nodeEl.textContent = node[label_key];
-        nodeEl.className = 'node-label2';
-        return new CSS2DObject(nodeEl);
-    };
 
-    interface Obj3DCache {
-        [key: string]: THREE.Group;
-    }
-
-    const notoSansJP = fetch('/assets/ZenOldMincho-Regular.ttf').then((res) =>
-        res.arrayBuffer()
-    )
-
-    const [Obj3Ds, setObj3D] = useState<Obj3DCache>({});
-    const nodeThreeObjectImage = (node: {id:number,name:string}) => {
-        const conv_svg = async () => {
-            const styles = [
-                "margin: 2em 0; font-size: 8px; color: #6091d3; background: #FFF; border: solid 1px #6091d3; border-radius: 7px;",
-                "margin: 2em 0; font-size: 8px; color: #232323; background: #fff8e8; border-left: solid 3px #ffc06e;",
-                "margin: 2em 0; font-size: 8px; color: #00BCD4; background: #e4fcff; border-top: solid 3px #1dc1d6;",
-                "margin: 2em 0; font-size: 8px; color: #2c2c2f; background: #cde4ff; border-top: solid 3px #5989cf; border-bottom: solid 3px #5989cf;",
-                "margin: 2em 0; font-size: 8px; color: #565656; background: #ffeaea; border: dashed 2px #ffc3c3; border-radius: 8px;",
-                "margin: 2em 0; font-size: 8px; background: #f4f4f4; border-left: solid 3px #5bb7ae; "
-            ];
-
-            const markup:any = html`<div style="
-                                    min-height: 30px;
-                                    min-width: 100px;
-                                    display: flex;
-                                    justify-content: center;
-                                    align-items: center;
-                                    ${styles[node.id%styles.length]}
-                                    transform: scale(1,-1);">
-                                    ${node.name}
-                                </div>`;
-            const svg = await satori(markup, {
-                width: 0,
-                height: 0,
-                fonts: [
-                    {
-                        name: 'Noto Sans JP',
-                        data: await notoSansJP,
-                    },
-                ],
-            });
-        
-            const obj3d = SVGNodeData(svg);
-            obj3d.scale.set(1,1,1)
-            obj3d.position.set(-50, -30, 0);
-
-            const setObj = (key:string, value:THREE.Group) => {
-                setObj3D((oldObj3D) => {
-                    return { ...oldObj3D, [key]: value };
-                });
-            };
-
-            setObj(node.id.toString(), obj3d);
-        };
-
-        if ((node.id.toString() in Obj3Ds) === false) {
-            conv_svg();
-        }
-        
-        return Obj3Ds[node.id.toString()];
-    }
-      
     const nodeThreeObjectCustomMesh = (node: any) => {
         const mesh = new THREE.Mesh(
             new THREE.BoxGeometry(500, 200, 1),
