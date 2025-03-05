@@ -742,7 +742,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         //linkにisNewがある場合、キーを削除する
         if (link && has(link, 'isNew')) {
             delete link.isNew;
-            link.name = `${link.source.name || ''} to ${link.target.name || ''}`;
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
@@ -1247,7 +1246,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 linkThreeObjectExtend={true}
                 linkThreeObject={link => {
                     // extend link with text sprite
-                    const sprite = new SpriteText(`${link.name}`);
+                    let link_name = link.name;
+                    if (link_name === "") {
+                        link_name = `${link.source.name || ''} to ${link.target.name || ''}`;
+                    }
+                    const sprite = new SpriteText(`${link_name}`);
                     sprite.color = 'lightgrey';
                     sprite.textHeight = 10.5;
 

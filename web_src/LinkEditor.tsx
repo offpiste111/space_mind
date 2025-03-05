@@ -40,6 +40,8 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
             // 元のリンクをディープコピーして、そのコピーに変更を適用する
             const linkToUpdate = _.cloneDeep(editLink);
             linkToUpdate.name = contents;
+            linkToUpdate.source = editLink.source;
+            linkToUpdate.target = editLink.target;
             props.onRefreshLink(linkToUpdate);
         }
     };
