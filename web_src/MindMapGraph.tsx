@@ -1418,14 +1418,14 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     style={{ background: "black" }}
                     camera={{ position: [0, 0, 40], near: 0.1, far: 1000 }}
                 >
-                    {/*<MovingStars />*/}
+                    <MovingStars />
+                    {/*
                      <Sky 
                         distance={45000}
                         sunPosition={[0, 1, 0]}
                         inclination={0.6}
                         azimuth={0.25}
                     /> 
-                    {/*
                     <Cloud 
                         position={[-20, 10, -10]}
                         speed={0.2}
