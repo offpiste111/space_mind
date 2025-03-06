@@ -1144,8 +1144,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             // リンクの距離を設定
             fgRef.current.d3Force('link').distance(20).strength(1);
             
-            const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.2, 0.9);
-            fgRef.current.postProcessingComposer().addPass(bloomPass);
+            //const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.2, 0.9);
+            //fgRef.current.postProcessingComposer().addPass(bloomPass);
             
             fgRef.current.d3Force('collision', d3force.forceCollide(150));
             //fgRef.current.d3Force('center', d3force.forceCenter(0, 0));
@@ -1191,7 +1191,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 }}
                 enableNavigationControls={true}
                 showNavInfo={false}
-                backgroundColor="rgba(0,0,0,0)"
+                backgroundColor={"rgba(0,0,0,0)"}
                 linkColor={(link) => {
                     let opacity = 1;
                     if (link.source.disabled || link.target.disabled) {
@@ -1307,7 +1307,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 pointerEvents: "none" 
             }}>
                 <Canvas
-                    style={{ background: "transparent" }}
+                    style={{ background: "black" }}
                     camera={{ position: [0, 0, 40], near: 0.1, far: 1000 }}
                 >
                     <MovingStars />
@@ -1316,7 +1316,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         sunPosition={[0, 1, 0]}
                         inclination={0.6}
                         azimuth={0.25}
-                    /> */}
+                    /> 
                     <Cloud 
                         position={[-20, 10, -10]}
                         speed={0.2}
@@ -1334,7 +1334,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         speed={0.3}
                         opacity={0.6}
                         scale={[12, 12, 12]}
-                    />
+                    />*/}
                     <ambientLight intensity={0.5} />
                     <pointLight position={[10, 10, 10]} />
                 </Canvas>
