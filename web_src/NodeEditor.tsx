@@ -337,7 +337,12 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                 value={styleId}
                                 onChange={(value) => setStyleId(value)}
                                 options={[
-                                    { value: 1, label: 'Horse.glb' },
+                                    { value: 1, label: 'Horse' },
+                                    { value: 2, label: 'T-Rex' },
+                                    { value: 3, label: 'Cat' },
+                                    { value: 4, label: 'Bird' },
+                                    { value: 5, label: 'Bird2' },
+                                    { value: 6, label: 'Airplane' },
                                 ]}
                             />
                         </Flex>
@@ -345,7 +350,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                             <div style={{ width: '80px' }}>スケール</div>
                             <Flex vertical style={{ flex: 1 }}>
                                 <Slider
-                                    min={0.3}
+                                    min={0.1}
                                     max={2.0}
                                     step={0.1}
                                     value={editNode?.scale || 1.0}

@@ -217,11 +217,11 @@ node_folder_styles = [
 
 node_issue_styles = [
     {"class": "issue_1", "rounded_rectangle_radius": 0, "background_trasparent": True}, 
-    {"class": "normal_2", "rounded_rectangle_radius": 8, "background_trasparent": False}, 
-    {"class": "normal_3", "rounded_rectangle_radius": 0, "background_trasparent": True},
-    {"class": "normal_4", "rounded_rectangle_radius": 8, "background_trasparent": False},
-    {"class": "normal_5", "rounded_rectangle_radius": 0, "background_trasparent": True}, 
-    {"class": "normal_6", "rounded_rectangle_radius": 8, "background_trasparent": False},
+    {"class": "issue_2", "rounded_rectangle_radius": 8, "background_trasparent": True}, 
+    {"class": "issue_3", "rounded_rectangle_radius": 0, "background_trasparent": True},
+    {"class": "issue_4", "rounded_rectangle_radius": 8, "background_trasparent": True},
+    {"class": "issue_5", "rounded_rectangle_radius": 8, "background_trasparent": False}, 
+    {"class": "issue_6", "rounded_rectangle_radius": 8, "background_trasparent": True},
 ]
 
 if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
@@ -297,6 +297,14 @@ def generate_image(node):
         img.save(buffered, format="PNG")
         icon_base64 = base64.b64encode(buffered.getvalue()).decode()
 
+    frame_bushes_base64 = ""
+    frame_bushes2_base64 = ""
+    frame_bushes3_base64 = ""
+    frame_bushes4_base64 = ""
+    frame_bushes5_base64 = ""
+    frame_bushes6_base64 = ""
+
+
     styles = node_styles
     if "type" in node and node["type"] == "link":
         styles = node_link_styles
@@ -309,12 +317,33 @@ def generate_image(node):
     elif "type" in node and node["type"] == "issue":
         styles = node_issue_styles
 
+        # base64に変換
+        
+        if node["style_id"] == 1:
+            with open('web_src/assets/frame_bushes.png', 'rb') as img_file:
+                frame_bushes_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+        if node["style_id"] == 2:
+            with open('web_src/assets/frame_bushes2.png', 'rb') as img_file:
+                frame_bushes2_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+        if node["style_id"] == 3:
+            with open('web_src/assets/frame_bushes3.png', 'rb') as img_file:
+                frame_bushes3_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+        if node["style_id"] == 4:
+            with open('web_src/assets/frame_bushes4.png', 'rb') as img_file:
+                frame_bushes4_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+        if node["style_id"] == 5:
+            with open('web_src/assets/frame_bushes5.png', 'rb') as img_file:
+                frame_bushes5_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+        if node["style_id"] == 6:
+            with open('web_src/assets/frame_bushes6.png', 'rb') as img_file:
+                frame_bushes6_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+
+
     if True:  # Execute only on Windows
         import imgkit
 
-        # fram_bushes.pngをbase64に変換
-        with open('web_src/assets/fram_bushes.png', 'rb') as img_file:
-            fram_bushes_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+
+
 
         if os.name == 'nt':
             wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
@@ -447,9 +476,10 @@ def generate_image(node):
                     .issue_1 {{
                         margin: 20px auto;
                         padding: 20px;
-                        height: 300px;
+                        height: 200px;
                         width: 300px;
-                        background-image: url('data:image/png;base64,{fram_bushes_base64}');
+                        background-image: url('data:image/png;base64,{frame_bushes_base64}');
+                        background-size:100%; /*背景画像のサイズ指定*/
                         background-size: cover;
                         background-position: center;
                         color: #000000;
@@ -459,7 +489,81 @@ def generate_image(node):
                         align-items: center;
                         text-align: center;
                     }}
-
+                    .issue_2 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        height: 200px;
+                        width: 300px;
+                        background-image: url('data:image/png;base64,{frame_bushes2_base64}');
+                        background-size:100%; /*背景画像のサイズ指定*/
+                        background-position: center;
+                        color: #000000;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        text-align: center;
+                    }}
+                    .issue_3 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        height: 300px;
+                        width: 300px;
+                        background-image: url('data:image/png;base64,{frame_bushes3_base64}');
+                        background-size:100%; /*背景画像のサイズ指定*/
+                        background-position: center;
+                        color: #000000;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        text-align: center;
+                    }}
+                    .issue_4 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        height: 200px;
+                        width: 300px;
+                        background-image: url('data:image/png;base64,{frame_bushes4_base64}');
+                        background-size:100%; /*背景画像のサイズ指定*/
+                        background-position: center;
+                        color: #000000;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        text-align: center;
+                    }}
+                    .issue_5 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        height: 200px;
+                        width: 300px;
+                        background-image: url('data:image/png;base64,{frame_bushes5_base64}');
+                        background-size:100%; /*背景画像のサイズ指定*/
+                        background-position: center;
+                        color: #000000;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        text-align: center;
+                    }}
+                    .issue_6 {{
+                        margin: 20px auto;
+                        padding: 20px;
+                        height: 200px;
+                        width: 300px;
+                        background-image: url('data:image/png;base64,{frame_bushes6_base64}');
+                        background-size:100%; /*背景画像のサイズ指定*/
+                        background-position: center;
+                        color: #000000;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        text-align: center;
+                    }}
                     .link_1 {{
                         margin: 20px auto;
                         padding: 20px 20px 20px 55px;

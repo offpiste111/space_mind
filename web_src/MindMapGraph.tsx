@@ -9,7 +9,9 @@ import * as THREE from 'three'
 
 import {CSS2DObject, CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRenderer'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
-
+import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 
 import { useState, forwardRef, useImperativeHandle, useMemo, useCallback} from 'react'
 
@@ -1028,6 +1030,87 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     };
 
     const horseModel = useMemo(() => useGLTF('./assets/Horse.glb'), []);
+    const [trexModel, setTrexModel] = useState<THREE.Group | null>(null);
+    const [catModel, setCatModel] = useState<THREE.Group | null>(null);
+    const [birdModel, setBirdModel] = useState<THREE.Group | null>(null);
+    const [bird2Model, setBird2Model] = useState<THREE.Group | null>(null);
+    const [airplaneModel, setAirplaneModel] = useState<THREE.Group | null>(null);
+
+    useEffect(() => {
+        // // Load Tree model
+        // const tdsLoader = new TDSLoader();
+        // tdsLoader.load('./assets/t-rex/Tree1.3ds', (object) => {
+        //     setTrexModel(object);
+        // });
+        const mtlLoader_trex = new MTLLoader();
+        mtlLoader_trex.setPath('./assets/t-rex/');
+        mtlLoader_trex.load('T-Rex Model.mtl', (materials) => {
+            materials.preload();
+            
+            const objLoader = new OBJLoader();
+            objLoader.setMaterials(materials);
+            objLoader.setPath('./assets/t-rex/');
+            objLoader.load('T-Rex Model.obj', (object) => {
+                setTrexModel(object);
+            });
+        });
+
+        // Load Cat model
+        const mtlLoader = new MTLLoader();
+        mtlLoader.setPath('./assets/cat/');
+        mtlLoader.load('12221_Cat_v1_l3.mtl', (materials) => {
+            materials.preload();
+            
+            const objLoader = new OBJLoader();
+            objLoader.setMaterials(materials);
+            objLoader.setPath('./assets/cat/');
+            objLoader.load('12221_Cat_v1_l3.obj', (object) => {
+                setCatModel(object);
+            });
+        });
+
+        // Load Bird model
+        const birdMtlLoader = new MTLLoader();
+        birdMtlLoader.setPath('./assets/bird1/');
+        birdMtlLoader.load('12213_Bird_v1_l3.mtl', (materials) => {
+            materials.preload();
+            
+            const objLoader = new OBJLoader();
+            objLoader.setMaterials(materials);
+            objLoader.setPath('./assets/bird1/');
+            objLoader.load('12213_Bird_v1_l3.obj', (object) => {
+                setBirdModel(object);
+            });
+        });
+
+        // Load Bird2 model
+        const bird2MtlLoader = new MTLLoader();
+        bird2MtlLoader.setPath('./assets/bird2/');
+        bird2MtlLoader.load('12249_Bird_v1_L2.mtl', (materials) => {
+            materials.preload();
+            
+            const objLoader = new OBJLoader();
+            objLoader.setMaterials(materials);
+            objLoader.setPath('./assets/bird2/');
+            objLoader.load('12249_Bird_v1_L2.obj', (object) => {
+                setBird2Model(object);
+            });
+        });
+
+        // Load Airplane model
+        const airplaneMtlLoader = new MTLLoader();
+        airplaneMtlLoader.setPath('./assets/airplane/');
+        airplaneMtlLoader.load('11803_Airplane_v1_l1.mtl', (materials) => {
+            materials.preload();
+            
+            const objLoader = new OBJLoader();
+            objLoader.setMaterials(materials);
+            objLoader.setPath('./assets/airplane/');
+            objLoader.load('11803_Airplane_v1_l1.obj', (object) => {
+                setAirplaneModel(object);
+            });
+        });
+    }, []);
 
     const nodeThreeObjectImageTexture = useCallback((node: any): THREE.Object3D | SpriteText => {
         if (node.id < 0) {
@@ -1037,8 +1120,33 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         if (node.type === "3dobject") {
             if (node.style_id === 1) {  // Horse.glbモデル
                 const scene = horseModel.scene.clone();
-                const scale = node.scale || 1;  // デフォルトスケール1.0
+                const scale = node.scale || 1;  
+                scene.scale.set(scale * 0.2, scale * 0.2, scale * 0.2);
+                return scene;
+            } else if (node.style_id === 2 && trexModel) {  // Trexモデル
+                const scene = trexModel.clone();
+                const scale = node.scale || 1; 
+                scene.scale.set(scale * 0.2, scale * 0.3, scale * 0.2);
+                return scene;
+            } else if (node.style_id === 3 && catModel) {  // Cat.objモデル
+                const scene = catModel.clone();
+                const scale = node.scale || 1; 
+                scene.scale.set(scale * 1, scale * 1, scale * 1);
+                return scene;
+            } else if (node.style_id === 4 && birdModel) {  // Bird.objモデル
+                const scene = birdModel.clone();
+                const scale = node.scale || 1  
+                scene.scale.set(scale * 5, scale * 5, scale * 5);
+                return scene;
+            } else if (node.style_id === 5 && bird2Model) {  // Bird2.objモデル
+                const scene = bird2Model.clone();
+                const scale = node.scale || 1;  
                 scene.scale.set(scale, scale, scale);
+                return scene;
+            } else if (node.style_id === 6 && airplaneModel) {  // Airplane.objモデル
+                const scene = airplaneModel.clone();
+                const scale = node.scale || 1;  // デフォルトスケール0.05
+                scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
                 return scene;
             }
         }
@@ -1049,7 +1157,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         const aspectRatio = node.size_x / node.size_y;
         sprite.scale.set(node.size_x, node.size_x / aspectRatio, 1);
         return sprite;
-    }, [horseModel]);
+    }, [horseModel,trexModel,catModel,birdModel,bird2Model,airplaneModel]);
 
     const [interimLink, setInterimLinkState] = useState<any>(null);
 
