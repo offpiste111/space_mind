@@ -14,11 +14,11 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { useState, forwardRef, useImperativeHandle, useMemo, useCallback} from 'react'
 
 
-import { Canvas } from '@react-three/fiber'
-import { Html, Loader, useGLTF } from '@react-three/drei'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { Html, Loader, useGLTF, Sky, Cloud,Stars } from '@react-three/drei'
 import { TextureLoader, SpriteMaterial, Sprite } from 'three'
 import { OrbitControls } from '@react-three/drei'
-import { render, useFrame, useThree, useGraph } from '@react-three/fiber'
+import { render, useThree, useGraph } from '@react-three/fiber'
 import ThreeForceGraph from 'three-forcegraph'
 
 import './index.css'
@@ -44,6 +44,30 @@ const useBatchUpdate = () => {
     }, []);
     
     return { scheduleBatchedUpdate, isPending };
+};
+
+const MovingStars = () => {
+    const starsRef = useRef<THREE.Group | null>(null);
+  
+    useFrame(({ clock }) => {
+        if (starsRef.current) {
+            starsRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.1) * 0.2;
+            starsRef.current.rotation.y = clock.getElapsedTime() * 0.05;
+        }
+    });
+  
+    return (
+        <group ref={starsRef}>
+            <Stars 
+                radius={100}
+                depth={50}
+                count={5000}
+                factor={4}
+                saturation={0}
+                fade={true}
+            />
+        </group>
+    );
 };
 
 const MindMapGraph = forwardRef((props: any, ref:any) => {
@@ -279,7 +303,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     }
 
     const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
-    const [backgroundColor, setBackgroundColor] = useState<string>("#87CEEB");
+    const [backgroundColor, setBackgroundColor] = useState<string>("rgba(0,0,0,0)");
     const setRotateVecFunc = () => {
         return new THREE.Vector3(0,0,3000);
     };   
@@ -1134,7 +1158,17 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     }, [fgRef]);
 
     return (
-        <ForceGraph3D
+        <div style={{position: "relative", width: "100%", height: "100%" }}>
+            {/* Force Graphのレイヤー */}
+            <div style={{
+                position: "absolute", 
+                top: 0, 
+                left: 0, 
+                width: "100%", 
+                height: "100%", 
+                zIndex: 1 
+            }}>
+                <ForceGraph3D
                 ref={fgRef}
                 graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
                 nodeThreeObject={(node) => {
@@ -1156,7 +1190,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     return sprite;
                 }}
                 enableNavigationControls={true}
-                backgroundColor={backgroundColor}
+                showNavInfo={false}
+                backgroundColor="rgba(0,0,0,0)"
                 linkColor={(link) => {
                     let opacity = 1;
                     if (link.source.disabled || link.target.disabled) {
@@ -1258,7 +1293,53 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     }
 
                 }}
-            />
+                />
+            </div>
+            
+            {/* R3Fのレイヤー */}
+            <div style={{ 
+                position: "absolute", 
+                top: 0, 
+                left: 0, 
+                width: "100%", 
+                height: "100%", 
+                zIndex: 0,
+                pointerEvents: "none" 
+            }}>
+                <Canvas
+                    style={{ background: "transparent" }}
+                    camera={{ position: [0, 0, 40], near: 0.1, far: 1000 }}
+                >
+                    <MovingStars />
+                    {/* <Sky 
+                        distance={45000}
+                        sunPosition={[0, 1, 0]}
+                        inclination={0.6}
+                        azimuth={0.25}
+                    /> */}
+                    <Cloud 
+                        position={[-20, 10, -10]}
+                        speed={0.2}
+                        opacity={0.7}
+                        scale={[10, 10, 10]}
+                    />
+                    <Cloud 
+                        position={[15, 5, -15]}
+                        speed={0.1}
+                        opacity={0.5}
+                        scale={[8, 8, 8]}
+                    />
+                    <Cloud 
+                        position={[0, 15, -20]}
+                        speed={0.3}
+                        opacity={0.6}
+                        scale={[12, 12, 12]}
+                    />
+                    <ambientLight intensity={0.5} />
+                    <pointLight position={[10, 10, 10]} />
+                </Canvas>
+            </div>
+        </div>
     );
 });
 
