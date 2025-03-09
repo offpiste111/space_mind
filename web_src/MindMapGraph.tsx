@@ -48,29 +48,7 @@ const useBatchUpdate = () => {
     return { scheduleBatchedUpdate, isPending };
 };
 
-const MovingStars = () => {
-    const starsRef = useRef<THREE.Group | null>(null);
-  
-    useFrame(({ clock }) => {
-        if (starsRef.current) {
-            starsRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.1) * 0.2;
-            starsRef.current.rotation.y = clock.getElapsedTime() * 0.05;
-        }
-    });
-  
-    return (
-        <group ref={starsRef}>
-            <Stars 
-                radius={100}
-                depth={50}
-                count={5000}
-                factor={4}
-                saturation={0}
-                fade={true}
-            />
-        </group>
-    );
-};
+import { SpaceScene } from './components/SpaceScene';
 
 const MindMapGraph = forwardRef((props: any, ref:any) => {
     const fgRef = useRef<any>();
@@ -1418,32 +1396,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     style={{ background: "black" }}
                     camera={{ position: [0, 0, 40], near: 0.1, far: 1000 }}
                 >
-                    <MovingStars />
-                    {/*
-                     <Sky 
-                        distance={45000}
-                        sunPosition={[0, 1, 0]}
-                        inclination={0.6}
-                        azimuth={0.25}
-                    /> 
-                    <Cloud 
-                        position={[-20, 10, -10]}
-                        speed={0.2}
-                        opacity={0.7}
-                        scale={[10, 10, 10]}
-                    />
-                    <Cloud 
-                        position={[15, 5, -15]}
-                        speed={0.1}
-                        opacity={0.5}
-                        scale={[8, 8, 8]}
-                    />
-                    <Cloud 
-                        position={[0, 15, -20]}
-                        speed={0.3}
-                        opacity={0.6}
-                        scale={[12, 12, 12]}
-                    />*/}
+                    <SpaceScene />
                     <ambientLight intensity={0.5} />
                     <pointLight position={[10, 10, 10]} />
                 </Canvas>
