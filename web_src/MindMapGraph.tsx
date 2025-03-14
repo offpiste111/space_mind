@@ -744,6 +744,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         //linkにisNewがある場合、キーを削除する
         if (link && has(link, 'isNew')) {
             delete link.isNew;
+
+            link.name = "";
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
