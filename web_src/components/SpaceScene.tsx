@@ -10,7 +10,7 @@ const Moon = ({ parentPosition }: { parentPosition: THREE.Vector3 }) => {
     
     // 地球の周りの公転
     const orbitRadius = 4; // 地球からの距離
-    const orbitSpeed = 0.5; // 公転速度
+    const orbitSpeed = 0.25; // 公転速度
     
     useFrame(({ clock }) => {
         if (moonRef.current) {
@@ -44,7 +44,7 @@ const Earth = () => {
     
     // 公転の中心座標
     const orbitRadius = 100;
-    const orbitSpeed = 0.2;
+    const orbitSpeed = 0.1;
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
@@ -206,7 +206,7 @@ const Venus = () => {
     
     // 公転の設定
     const orbitRadius = 75; // 太陽からの距離（水星と地球の間）
-    const orbitSpeed = 0.35; // 公転速度
+    const orbitSpeed = 0.1725; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
@@ -241,7 +241,7 @@ const Jupiter = () => {
     
     // 公転の設定
     const orbitRadius = 175; // 太陽からの距離（火星と土星の間）
-    const orbitSpeed = 0.15; // 公転速度
+    const orbitSpeed = 0.075; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
@@ -278,7 +278,7 @@ const Mercury = () => {
     
     // 公転の設定
     const orbitRadius = 50; // 太陽からの距離（最も内側）
-    const orbitSpeed = 0.4; // 公転速度（最も速い）
+    const orbitSpeed = 0.2; // 公転速度（最も速い）
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
@@ -313,7 +313,7 @@ const Phobos = ({ parentPosition }: { parentPosition: THREE.Vector3 }) => {
     
     // 火星の周りの公転
     const orbitRadius = 3; // 火星からの距離
-    const orbitSpeed = 0.8; // 公転速度（火星の衛星なので速め）
+    const orbitSpeed = 0.4; // 公転速度（火星の衛星なので速め）
     
     useFrame(({ clock }) => {
         if (phobosRef.current) {
@@ -347,7 +347,7 @@ const Mars = () => {
     
     // 公転の設定
     const orbitRadius = 125; // 太陽からの距離（地球と木星の間）
-    const orbitSpeed = 0.3; // 公転速度
+    const orbitSpeed = 0.15; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
@@ -386,7 +386,7 @@ const Pluto = () => {
     
     // 公転の設定
     const orbitRadius = 300; // 太陽からの距離（最も外側）
-    const orbitSpeed = 0.03; // 公転速度（最も遅い）
+    const orbitSpeed = 0.015; // 公転速度（最も遅い）
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
@@ -423,7 +423,7 @@ const Uranus = () => {
     
     // 公転の設定
     const orbitRadius = 225; // 太陽からの距離（土星と海王星の間）
-    const orbitSpeed = 0.07; // 公転速度
+    const orbitSpeed = 0.035; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
@@ -460,7 +460,7 @@ const Neptune = () => {
     
     // 公転の設定
     const orbitRadius = 250; // 太陽からの距離（最も外側）
-    const orbitSpeed = 0.05; // 公転速度（最も遅い）
+    const orbitSpeed = 0.025; // 公転速度（最も遅い）
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
@@ -499,7 +499,7 @@ const Saturn = () => {
     
     // 公転の設定
     const orbitRadius = 200; // 太陽からの距離
-    const orbitSpeed = 0.1; // 公転速度
+    const orbitSpeed = 0.05; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     
     useFrame(({ clock }) => {
