@@ -1172,7 +1172,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         );
     };
 
-    const snapInDistance = 220; // Define snapInDistance with an appropriate value
+    const snapInDistance = 120; // Define snapInDistance with an appropriate value
     const snapOutDistance = 250; // Define snapOutDistance with an appropriate value
 
     const setInterimLink = (linkId: number, source: any, target: any) => {
