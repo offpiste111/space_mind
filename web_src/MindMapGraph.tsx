@@ -16,12 +16,15 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { useState, forwardRef, useImperativeHandle, useMemo, useCallback} from 'react'
 
 
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useLoader} from '@react-three/fiber'
 import { Html, Loader, useGLTF, Sky, Cloud,Stars } from '@react-three/drei'
 import { TextureLoader, SpriteMaterial, Sprite } from 'three'
 import { OrbitControls } from '@react-three/drei'
 import { render, useThree, useGraph } from '@react-three/fiber'
 import ThreeForceGraph from 'three-forcegraph'
+
+import { Popconfirm } from 'antd'
+
 
 import './index.css'
 
@@ -1397,12 +1400,46 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     camera={{ position: [0, 0, 40], near: 0.1, far: 1000 }}
                 >
                     <SpaceScene />
+                    {/* <OrbitControls enableZoom={true} enablePan={false} enableDamping dampingFactor={0.2} autoRotate={true} rotateSpeed={-0.001} />
+                    <Portals />
                     <ambientLight intensity={0.5} />
-                    <pointLight position={[10, 10, 10]} />
+                    <pointLight position={[10, 10, 10]} /> */}
                 </Canvas>
             </div>
         </div>
     );
 });
+
+// const store: { name: string; color: string; position: [number, number, number]; url: string; link: number }[] = [
+//     { name: 'outside', color: 'lightpink', position: [10, 0, -15], url: 'assets/20201102113639.png', link: 1 },
+//     // ...
+//   ]
+  
+//   function Dome({ name, position, texture, onClick }: { name: string; position: [number, number, number]; texture: THREE.Texture; onClick: () => void }) {
+//     return (
+//       <group>
+//         <mesh>
+//           <sphereGeometry args={[500, 60, 40]} />
+//           <meshBasicMaterial map={texture} side={THREE.BackSide} />
+//         </mesh>
+//         {/* <mesh position={position}>
+//           <sphereGeometry args={[1.25, 32, 32]} />
+//           <meshBasicMaterial color="white" />
+//           <Html center>
+//             <Popconfirm title="Are you sure you want to leave?" onConfirm={onClick} okText="Yes" cancelText="No">
+//               <a href="#">{name}</a>
+//             </Popconfirm>
+//           </Html>
+//         </mesh> */}
+//       </group>
+//     )
+//   }
+  
+//   function Portals() {
+//     const [which, set] = useState(0)
+//     const { link, ...props } = store[which]
+//     const maps = useLoader(THREE.TextureLoader, store.map((entry) => entry.url)) // prettier-ignore
+//     return <Dome onClick={() => set(link)} {...props} texture={maps[which]} />
+//   }
 
 export default MindMapGraph;
