@@ -27,7 +27,6 @@ window.eel.expose( sayHelloJS, 'say_hello_js' )
 const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
-    const [isCtrlPressed, setIsCtrlPressed] = useState(false);
     const [currentFileName, setCurrentFileName] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
@@ -262,7 +261,6 @@ const App = () => {
     }, []);
 
     const keyFunction = useCallback((event:any) => {
-        // いずれかのエディターが開いているときはキー受付を無効化
         if (isNodeEditorOpen || isLinkEditorOpen || isTreeDrawerOpen) return;
         if(event.ctrlKey) {
             if(event.code === "KeyS"){
@@ -396,32 +394,26 @@ const App = () => {
         // キーボードイベントのリスナーを追加
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Control') {
-                if(!isCtrlPressed){
-                    mindMapGraphRef.current!.setFuncMode(true);
-                }
-                setIsCtrlPressed(true);
+                mindMapGraphRef.current!.setFuncMode(true);
             }
         };
 
         const handleKeyUp = (event: KeyboardEvent) => {
             if (event.key === 'Control') {
-                if(isCtrlPressed){
-                    mindMapGraphRef.current!.setFuncMode(false);
-                }
-                setIsCtrlPressed(false);
+                mindMapGraphRef.current!.setFuncMode(false);
             }
         };
 
-        document.addEventListener("keydown", keyFunction, false);
+        document.addEventListener("keyup", keyFunction, false);
         document.addEventListener("keydown", handleKeyDown, false);
         document.addEventListener("keyup", handleKeyUp, false);
 
         return () => {
-            document.removeEventListener("keydown", keyFunction, false);
+            document.removeEventListener("keyup", keyFunction, false);
             document.removeEventListener("keydown", handleKeyDown, false);
             document.removeEventListener("keyup", handleKeyUp, false);
         };
-      }, [keyFunction, isCtrlPressed, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
+      }, [keyFunction, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
 
 
 
@@ -492,8 +484,6 @@ const App = () => {
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-
     <App/>
-
   </React.StrictMode>,
 );

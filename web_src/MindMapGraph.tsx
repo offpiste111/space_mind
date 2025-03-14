@@ -514,11 +514,14 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             newNode.fx = newNode.fx + (10 + Math.floor(Math.random() * 21));
             newNode.fy = newNode.fy + (10 + Math.floor(Math.random() * 21));
             newNode.fz = newNode.fz + (10 + Math.floor(Math.random() * 21));
+            newNode.isNew = true;
             
             // 新規ノードを追加
             props.onRefreshNode(newNode);
             graphData.nodes.push(newNode);
             fgRef.current.refresh();
+
+
         },
         // 新規ノード追加用のインターフェース
         addNewNode: () => {
