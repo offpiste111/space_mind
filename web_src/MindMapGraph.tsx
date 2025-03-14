@@ -1035,7 +1035,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     };
 
     const horseModel = useMemo(() => useGLTF('./assets/Horse.glb'), []);
-    const [trexModel, setTrexModel] = useState<THREE.Group | null>(null);
+    const watchModel = useMemo(() => useGLTF('./assets/watch-v1.glb'), []);
     const [catModel, setCatModel] = useState<THREE.Group | null>(null);
     const [birdModel, setBirdModel] = useState<THREE.Group | null>(null);
     const [bird2Model, setBird2Model] = useState<THREE.Group | null>(null);
@@ -1044,21 +1044,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     useEffect(() => {
         // // Load Tree model
         // const tdsLoader = new TDSLoader();
-        // tdsLoader.load('./assets/t-rex/Tree1.3ds', (object) => {
+        // tdsLoader.load('./assets/Plants1/Plants1.3ds', (object) => {
         //     setTrexModel(object);
         // });
-        const mtlLoader_trex = new MTLLoader();
-        mtlLoader_trex.setPath('./assets/t-rex/');
-        mtlLoader_trex.load('T-Rex Model.mtl', (materials) => {
-            materials.preload();
-            
-            const objLoader = new OBJLoader();
-            objLoader.setMaterials(materials);
-            objLoader.setPath('./assets/t-rex/');
-            objLoader.load('T-Rex Model.obj', (object) => {
-                setTrexModel(object);
-            });
-        });
 
         // Load Cat model
         const mtlLoader = new MTLLoader();
@@ -1126,32 +1114,42 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             if (node.style_id === 1) {  // Horse.glbモデル
                 const scene = horseModel.scene.clone();
                 const scale = node.scale || 1;  
-                scene.scale.set(scale * 0.2, scale * 0.2, scale * 0.2);
+                scene.scale.set(scale * 0.7, scale * 0.7, scale * 0.7);
+                scene.rotation.y = Math.PI/2;
                 return scene;
-            } else if (node.style_id === 2 && trexModel) {  // Trexモデル
-                const scene = trexModel.clone();
+            } else if (node.style_id === 2 && watchModel) {  // watchモデル
+                const scene = watchModel.scene.clone();
                 const scale = node.scale || 1; 
-                scene.scale.set(scale * 0.2, scale * 0.3, scale * 0.2);
+                scene.scale.set(scale* 0.1, scale * 0.1, scale* 0.1);
+                scene.rotation.y = Math.PI/12;
                 return scene;
             } else if (node.style_id === 3 && catModel) {  // Cat.objモデル
                 const scene = catModel.clone();
                 const scale = node.scale || 1; 
-                scene.scale.set(scale * 1, scale * 1, scale * 1);
+                scene.scale.set(scale * 2, scale * 2, scale * 2);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = -Math.PI/6;
                 return scene;
             } else if (node.style_id === 4 && birdModel) {  // Bird.objモデル
                 const scene = birdModel.clone();
                 const scale = node.scale || 1  
                 scene.scale.set(scale * 5, scale * 5, scale * 5);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = Math.PI/6;
                 return scene;
             } else if (node.style_id === 5 && bird2Model) {  // Bird2.objモデル
                 const scene = bird2Model.clone();
                 const scale = node.scale || 1;  
                 scene.scale.set(scale, scale, scale);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = Math.PI/6;
                 return scene;
             } else if (node.style_id === 6 && airplaneModel) {  // Airplane.objモデル
                 const scene = airplaneModel.clone();
                 const scale = node.scale || 1;  // デフォルトスケール0.05
                 scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
+                scene.rotation.x = -Math.PI/3;
+                scene.rotation.z = Math.PI/6;
                 return scene;
             }
         }
@@ -1162,7 +1160,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         const aspectRatio = node.size_x / node.size_y;
         sprite.scale.set(node.size_x, node.size_x / aspectRatio, 1);
         return sprite;
-    }, [horseModel,trexModel,catModel,birdModel,bird2Model,airplaneModel]);
+    }, [horseModel,watchModel,catModel,birdModel,bird2Model,airplaneModel]);
 
     const [interimLink, setInterimLinkState] = useState<any>(null);
 
