@@ -297,12 +297,25 @@ const App = () => {
                     console.log("Node copied via Ctrl+C");
                 }
             }
+            else if(event.code === "KeyX"){
+                if(mindMapGraphRef.current) {
+                    // 最初にノードをコピー
+                    (mindMapGraphRef.current as any).copyNode();
+                    
+                    // 選択中のノードを削除
+                    const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                    if (selectedNode) {
+                        mindMapGraphRef.current.deleteNode(selectedNode);
+                        console.log("Node cut via Ctrl+X");
+                    }
+                }
+            }
             else if(event.code === "KeyV"){
                 if(mindMapGraphRef.current) {
                     const copied = (mindMapGraphRef.current as any).getCopiedNode();
+                    const selectedNode = (mindMapGraphRef.current as any).getSelectedNode();
                     
                     if(copied) {
-
                         //必要なキーのリスト
                         const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img"];
                         //必要なキーだけを残し他は削除する
@@ -311,7 +324,16 @@ const App = () => {
                                 delete copied[key];
                             }
                         });
+
                         mindMapGraphRef.current.addNode(copied);
+                        
+                        // 選択中のノードがある場合、貼り付けたノードとのリンクを作成
+                        if (selectedNode) {
+                            const data = mindMapGraphRef.current.getGraphData();
+                            const pastedNode = data.nodes[data.nodes.length - 1]; // 最後に追加されたノード
+                            mindMapGraphRef.current.addLink(selectedNode, pastedNode);
+                        }
+                        
                         console.log("Add Node:",copied);
                     } else {
                         console.log("No node to paste");

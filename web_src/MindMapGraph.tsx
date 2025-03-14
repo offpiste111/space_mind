@@ -502,7 +502,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         },
         // 新規ノード追加用のインターフェース
         addNode: (newNode:any) => {
-            if (!selectedNode) return;
+
+            if (selectedNode){
+                newNode.fx = selectedNode.fx;
+                newNode.fy = selectedNode.fy;
+                newNode.fz = selectedNode.fz;                           
+            }
             
             const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
             newNode.id = nodeId;
