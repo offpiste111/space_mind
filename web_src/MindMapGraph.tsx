@@ -949,23 +949,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
     const handleBackgroundClick = (event:any) => {
         let camera = fgRef.current.camera();
-        //クリック位置からnodeのx,y,z_layerを探索する処理
-        //let distance = camera.position.distanceTo(new THREE.Vector3(0, 0, z_layer));
-        const distance = 700;
-        let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance );
-        /*
-        let iterations = 0;
-        while (iterations < 10) {
-            const diff = coords.z - z_layer;
-            if (Math.abs(diff) <= 5) {
-            break;
-            }
-            // Increase adjustment magnitude for faster convergence.
-            distance += diff * 0.5;
-            coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance);
-            iterations++;
+        let distance = 800;
+        if (selectedNode) {
+            distance = Math.abs((selectedNode.fz ?? 0) - camera.position.z);
+            console.log('distance', distance);
         }
-        */
+        let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance );
 
         let nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
         let groupId = 1
@@ -984,16 +973,16 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             style_id: 1, 
             fx: coords.x, 
             fy: coords.y, 
-            fz: /*z_layer*/coords.z, 
+            fz: coords.z, 
+            size_x: 240,
+            size_y: 80,
             name: "",
             isNew: true,
             createdAt: now,
             updatedAt: now
         };
-        setGraphData(prevData => ({
-            ...prevData,
-            nodes: [...prevData.nodes, new_node]
-        }));
+        graphData.nodes.push(new_node);
+        fgRef.current.refresh();
         setSelectedNodeList([]);
         props.onNodeEdit(new_node);
     };
@@ -1274,14 +1263,14 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         const material = sprite.material as THREE.SpriteMaterial;
                         if (selectedNode && node.id === selectedNode.id) {
                             material.color = new THREE.Color(0xffffff);
-                            material.opacity = (node.disabled) ? 0.05 : 1;
+                            material.opacity = (node.disabled) ? 0.1 : 1;
                         } else if (selectedNodeList.some(n => n.id === node.id)) {
                             console.log('selectedNodeList:', selectedNodeList);
                             material.color = new THREE.Color(0x4169e1);
-                            material.opacity = (node.disabled) ? 0.05 : 1;
+                            material.opacity = (node.disabled) ? 0.1 : 1;
                         } else {
                             material.color = new THREE.Color(0xe0e0e0);
-                            material.opacity = (node.disabled) ? 0.05 : 1;
+                            material.opacity = (node.disabled) ? 0.1: (node.isNew) ? 0.3 : 1;
                         }
                     }
                     return sprite;
