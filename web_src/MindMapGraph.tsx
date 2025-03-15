@@ -278,6 +278,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         folder_path?: string;  // フォルダパスを保存
         style_id?: number;  // 1: Horse.glb, 2: 次のモデル... などのスタイルを指定
         scale?: number;     // 3Dオブジェクトのスケール (0.3 to 2.0)
+        size_x?: number;    // ノードの幅
+        size_y?: number;    // ノードの高さ
     }
 
     interface GraphData {
@@ -878,10 +880,35 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const handleLinkClick = (link: any) => {
         console.log('handleLinkClick', link);
     };
-    const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
-        isHovering.current = !!node;
+const [kebabMenuPosition, setKebabMenuPosition] = useState<{ x: number, y: number } | null>(null);
 
-    };
+const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
+    isHovering.current = !!node;
+
+    setSelectedNode(node);
+    
+    // if (node) {
+    //     // ノードの位置を画面座標に変換
+    //     const { x, y } = fgRef.current.graph2ScreenCoords(node.x, node.y, node.z);
+        
+    //     // ノードのサイズを考慮してケバブメニューの位置を計算
+    //     const nodeWidth = node.size_x || 120;
+    //     const menuX = x + (nodeWidth / 2) - 20; // 右端から少し内側に
+    //     const menuY = y - (node.size_y || 40) / 2; // 上端
+        
+    //     setKebabMenuPosition({ x: menuX, y: menuY });
+    // } else {
+    //     setKebabMenuPosition(null);
+    // }
+};
+
+const handleKebabMenuClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    if (selectedNode) {
+        // 現在のマウス位置でコンテキストメニューを表示
+        props.onNodeRightClick && props.onNodeRightClick(selectedNode, event.clientX, event.clientY);
+    }
+};
 
     const handleNodeDrag = (dragNode:any) => {
 
@@ -1251,6 +1278,24 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
     return (
         <div style={{position: "relative", width: "100%", height: "100%" }}>
+            {/* ケバブメニュー */}
+            {kebabMenuPosition && isHovering && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        left: `${kebabMenuPosition.x}px`,
+                        top: `${kebabMenuPosition.y}px`,
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        zIndex: 1000
+                    }}
+                    onClick={handleKebabMenuClick}
+                >
+                    ⋮
+                </div>
+            )}
             {/* Force Graphのレイヤー */}
             <div style={{
                 position: "absolute", 
