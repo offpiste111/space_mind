@@ -5,7 +5,8 @@ import ReactDOM from 'react-dom/client'
 import { css } from "@emotion/react";
 
 
-import { Input , Button, Popover, message, Spin} from 'antd';  
+import { Input, Button, Popover, message, Spin, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 
 import MindMapGraph from './MindMapGraph'
 import NodeEditor from './NodeEditor'
@@ -144,23 +145,94 @@ const App = () => {
     const linkAddModalRef = useRef<ModalRef>(null)
     const treeDrawerRef = useRef<TreeDrawerRef>(null)
 
+    const [menuPosition, setMenuPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
+    const [menuOpen, setMenuOpen] = useState(false);
 
-  
     const handleNodeEdit = (node:any) => {
         if(nodeEditorRef.current){
             setIsNodeEditorOpen(true);
             nodeEditorRef.current.showModal(node);
         }
-        //setIsNodeEditorOpen(true);
-
-        /*
-        if (document.getElementById("add_popup") !== null)
-        {
-            document.getElementById("add_popup")?.click();
-        }
-        */
-
     }
+
+    
+    const handleNodeRightClick = (node: any, x: number, y: number) => {
+        setMenuPosition({x, y});
+        setMenuOpen(true);
+    };
+
+    const handleMenuOpenChange = (open: boolean) => {
+        setMenuOpen(open);
+    };
+
+    const menuItems: MenuProps['items'] = [
+        {
+            key: 'add',
+            label: '追加',
+            onClick: () => {
+                if (mindMapGraphRef.current) {
+                    mindMapGraphRef.current.addNewNode();
+                }
+            }
+        },
+        {
+            key: 'edit',
+            label: '編集',
+            onClick: () => {
+                const selectedNode = mindMapGraphRef.current?.getSelectedNode();
+                if (selectedNode && nodeEditorRef.current) {
+                    setIsNodeEditorOpen(true);
+                    nodeEditorRef.current.showModal(selectedNode);
+                }
+            }
+        },
+        {
+            key: 'copy',
+            label: 'コピー',
+            onClick: () => {
+                if (mindMapGraphRef.current) {
+                    mindMapGraphRef.current.copyNode();
+                }
+            }
+        },
+        {
+            key: 'paste',
+            label: '貼り付け',
+            onClick: () => {
+                if (mindMapGraphRef.current) {
+                    const copied = mindMapGraphRef.current.getCopiedNode();
+                    const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                    
+                    if (copied) {
+                        const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img"];
+                        Object.keys(copied).forEach(key => {
+                            if (!keys.includes(key)) {
+                                delete copied[key];
+                            }
+                        });
+
+                        mindMapGraphRef.current.addNode(copied);
+                        
+                        if (selectedNode) {
+                            const data = mindMapGraphRef.current.getGraphData();
+                            const pastedNode = data.nodes[data.nodes.length - 1];
+                            mindMapGraphRef.current.addLink(selectedNode, pastedNode);
+                        }
+                    }
+                }
+            }
+        },
+        {
+            key: 'delete',
+            label: '削除',
+            onClick: () => {
+                const selectedNode = mindMapGraphRef.current?.getSelectedNode();
+                if (selectedNode) {
+                    mindMapGraphRef.current?.deleteNode(selectedNode);
+                }
+            }
+        }
+    ];
 
     const handleLinkEdit = (link:any) => {
         if(linkAddModalRef.current){
@@ -438,11 +510,37 @@ const App = () => {
         <MindMapGraph 
             ref={mindMapGraphRef}
             onHover={handleHover}
-            onRefreshNode={handleRefreshNode}
             onNodeEdit={handleNodeEdit}
+            onRefreshNode={handleRefreshNode}
+            onNodeRightClick={handleNodeRightClick}
             onLinkEdit={handleLinkEdit}
             onOpenFile={handleOpenFile}
             onOpenFolder={handleOpenFolder} />
+            
+        <div style={{ position: 'relative' }}>
+            <Dropdown 
+                menu={{
+                    items: menuItems,
+                    onClick: () => {
+                        setMenuOpen(false);
+                    }
+                }}
+                open={menuOpen}
+                onOpenChange={handleMenuOpenChange}
+                trigger={['contextMenu']}
+                dropdownRender={(menu) => (
+                    <div style={{
+                        position: 'fixed',
+                        left: menuPosition.x,
+                        top: menuPosition.y,
+                    }}>
+                        {menu}
+                    </div>
+                )}
+            >
+                <div style={{ width: '100%', height: '100%' }} />
+            </Dropdown>
+        </div>
 
         <Popover content={content} title="Node Edit" trigger="click" >
             <Button id="add_popup" css={setCss(x,y)}></Button>

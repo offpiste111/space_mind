@@ -861,9 +861,15 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     };
 
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
+        if (!node || !event) return;
+        
         setSelectedNodeList([]);
-        props.onNodeEdit(node)
-        //deleteNode(node.id);
+        setSelectedNode(node);
+
+        console.log(event.clientX, event.clientY);
+        
+        // 画面上のクリック座標を親コンポーネントに通知
+        props.onNodeRightClick && props.onNodeRightClick(node, event.clientX, event.clientY);
     };
 
     const handleLinkRightClick = (link: any) => {
