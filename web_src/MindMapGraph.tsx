@@ -409,10 +409,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             deleteNode(node.id);
             
             // 履歴に追加
-            addToHistory('delete_node', {
-                node: nodeToDelete,
-                links: relatedLinks
-            });
+            if (!nodeToDelete.isNew) {
+                addToHistory('delete_node', {
+                    node: nodeToDelete,
+                    links: relatedLinks
+                });
+            }
             
             fgRef.current.refresh();
         },

@@ -5,8 +5,10 @@ import ReactDOM from 'react-dom/client'
 import { css } from "@emotion/react";
 
 
-import { Input, Button, Popover, message, Spin, Dropdown } from 'antd';
+import { Input, Button, Popover, message, Spin, Dropdown, Drawer, Modal, List } from 'antd';
+import { MenuOutlined, SettingFilled, FileOutlined, EditOutlined, SettingOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
+import { Menu } from 'antd';
 
 import MindMapGraph from './MindMapGraph'
 import NodeEditor from './NodeEditor'
@@ -25,14 +27,62 @@ function sayHelloJS( x: any ) {
 // WARN: must use window.eel to keep parse-able eel.expose{...}
 window.eel.expose( sayHelloJS, 'say_hello_js' )
 
+type MenuItem = Required<MenuProps>['items'][number];
+
+const items: MenuItem[] = [
+  {
+    label: 'File',
+    key: 'file',
+    icon: <FileOutlined rev={undefined} />,
+    children: [
+          { label: 'Open File …', key: 'open_file' },
+          { label: 'Open Recent', key: 'open_recent' },
+          
+          { type: 'divider'},
+     
+          { label: 'Save', key: 'save' },
+          { label: 'Save as …', key: 'save_as' },
+
+          { type: 'divider'},
+
+          { label: 'New Window', key: 'new_window' },
+    ],
+  },
+  {
+    label: 'Edit',
+    key: 'edit',
+    icon: <EditOutlined rev={undefined} />,
+    children: [
+
+        { label: 'Undo', key: 'undo' },
+        { label: 'Redo', key: 'redo' },
+        
+        { type: 'divider'},
+
+        { label: 'Cut', key: 'cut' },
+        { label: 'Copy', key: 'copy' },
+        { label: 'Paste', key: 'paste' },
+
+        { type: 'divider'},
+
+        { label: 'Find …', key: 'find' },
+    ],
+  }
+];
+
 const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
+    const [drawerVisible, setDrawerVisible] = useState(false);
     const [currentFileName, setCurrentFileName] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
     const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
     const [isTreeDrawerOpen, setIsTreeDrawerOpen] = useState(false);
+    const [current, setCurrent] = useState('mail');
+    const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+    const [searchText, setSearchText] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
 
     const handleFileSelect = async () => {
         setLoading(true);
@@ -293,34 +343,40 @@ const App = () => {
 
     }
 
-    const handleSave = useCallback(async () => {
-        if(mindMapGraphRef.current){
-            let data = mindMapGraphRef.current.getGraphData();
+    const saveData = useCallback(async (saveFunction: (data: any) => Promise<any>) => {
+        if(!mindMapGraphRef.current) return;
+        
+        let data = mindMapGraphRef.current.getGraphData();
+        data.nodes = data.nodes.map((node: any) => {
+            delete node.__threeObj;
+            return node;
+        });
 
-            //data.nodes.__threeObjを削除する
-            data.nodes = data.nodes.map((node: any) => {
-                delete node.__threeObj;
-                return node;
-            });
-            console.log(data)
-            try {
-                const result = await eel.save_data(data)();
-                if (result && result[0]) {
-                    const filename = result[1];
-                    message.success({
-                        content: `${filename}に保存しました`,
-                        duration: 3,
-                    });
-                    setCurrentFileName(filename);
-                } else {
-                    message.error('保存に失敗しました');
-                }
-            } catch (error) {
-                console.error('Error saving file:', error);
+        try {
+            const result = await saveFunction(data);
+            if (result && result[0]) {
+                const filename = result[1];
+                message.success({
+                    content: `${filename}に保存しました`,
+                    duration: 3,
+                });
+                setCurrentFileName(filename);
+            } else {
                 message.error('保存に失敗しました');
             }
+        } catch (error) {
+            console.error('Error saving file:', error);
+            message.error('保存に失敗しました');
         }
     }, []);
+
+    const handleSave = useCallback(() => {
+        return saveData(eel.save_data);
+    }, [saveData]);
+
+    const handleSaveAs = useCallback(() => {
+        return saveData(eel.save_as_data);
+    }, [saveData]);
 
     const handleSearch = useCallback((text: string) => {
         if (!mindMapGraphRef.current || !text) return [];
@@ -365,6 +421,14 @@ const App = () => {
                 if(mindMapGraphRef.current) {
                     (mindMapGraphRef.current as any).copyNode();
                     console.log("Node copied via Ctrl+C");
+                }
+            }
+            else if(event.code === "KeyF"){
+                // 現在フォーカスされている要素がinput要素でない場合のみ検索モーダルを表示
+                if (!(document.activeElement instanceof HTMLInputElement) &&
+                    !(document.activeElement instanceof HTMLTextAreaElement)) {
+                    event.preventDefault();
+                    setIsSearchModalOpen(true);
                 }
             }
             else if(event.code === "KeyX"){
@@ -476,12 +540,12 @@ const App = () => {
             }
         };
 
-        document.addEventListener("keyup", keyFunction, false);
+        document.addEventListener("keydown", keyFunction, false);
         document.addEventListener("keydown", handleKeyDown, false);
         document.addEventListener("keyup", handleKeyUp, false);
 
         return () => {
-            document.removeEventListener("keyup", keyFunction, false);
+            document.removeEventListener("keydown", keyFunction, false);
             document.removeEventListener("keydown", handleKeyDown, false);
             document.removeEventListener("keyup", handleKeyUp, false);
         };
@@ -507,6 +571,98 @@ const App = () => {
 
     return (
         <Spin spinning={loading} tip="ファイルを読み込み中...">
+            <Button 
+                icon={<MenuOutlined rev={undefined} />}
+                onClick={() => setDrawerVisible(true)}
+                style={{
+                    position: 'fixed',
+                    left: 10,
+                    top: 10,
+                    zIndex: 1000
+                }}
+            />
+            <Drawer
+                title=""
+                placement="top"
+                onClose={() => setDrawerVisible(false)}
+                open={drawerVisible}
+                closeIcon={false}
+                height={46}
+                styles={{
+                    body: {
+                        padding: "0px"
+                    }
+                }}
+            >
+                <Menu 
+                    mode="horizontal"
+                    items={items}
+                    theme="dark"
+                    selectedKeys={[current]}
+                    onClick={({ key }) => {
+                        setCurrent(key);
+                        setDrawerVisible(false);
+                        if (key === 'open_file') {
+                            handleFileSelect();
+                        } else if (key === 'new_window') {
+                            window.open(window.location.href, '_blank');
+                        } else if (key === 'save') {
+                            handleSave();
+                        } else if (key === 'save_as') {
+                            handleSaveAs();
+                        } else if (key === 'undo') {
+                            if (mindMapGraphRef.current && mindMapGraphRef.current.canUndo()) {
+                                mindMapGraphRef.current.undo();
+                            } else {
+                                message.info('元に戻せる操作がありません');
+                            }
+                        } else if (key === 'redo') {
+                            if (mindMapGraphRef.current && mindMapGraphRef.current.canRedo()) {
+                                mindMapGraphRef.current.redo();
+                            } else {
+                                message.info('やり直せる操作がありません');
+                            }
+                        } else if (key === 'copy') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.copyNode();
+                            }
+                        } else if (key === 'cut') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.copyNode();
+                                const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                                if (selectedNode) {
+                                    mindMapGraphRef.current.deleteNode(selectedNode);
+                                }
+                            }
+                        } else if (key === 'paste') {
+                            if (mindMapGraphRef.current) {
+                                const copied = mindMapGraphRef.current.getCopiedNode();
+                                const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                                
+                                if (copied) {
+                                    const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img"];
+                                    Object.keys(copied).forEach(key => {
+                                        if (!keys.includes(key)) {
+                                            delete copied[key];
+                                        }
+                                    });
+
+                                    mindMapGraphRef.current.addNode(copied);
+                                    
+                                    if (selectedNode) {
+                                        const data = mindMapGraphRef.current.getGraphData();
+                                        const pastedNode = data.nodes[data.nodes.length - 1];
+                                        mindMapGraphRef.current.addLink(selectedNode, pastedNode);
+                                    }
+                                }
+                            }
+                        } else if (key === 'find') {
+                            setIsSearchModalOpen(true);
+                        }
+                    }}
+                />
+            </Drawer>
+
         <MindMapGraph 
             ref={mindMapGraphRef}
             onHover={handleHover}
@@ -571,7 +727,67 @@ const App = () => {
             onClose={() => setIsTreeDrawerOpen(false)}
             open={isTreeDrawerOpen} />
 
-        <FloatButton onClick={() => showDrawer()} />
+        <FloatButton 
+            icon={<SettingFilled rev={undefined} />}
+            onClick={() => showDrawer()}
+            style={{
+                right: 24,
+                top: 24
+            }}
+        />
+
+        <Modal
+            title="ノード検索"
+            open={isSearchModalOpen}
+            afterOpenChange={(visible) => {
+                if (visible) {
+                    // モーダルが開いた後に実行
+                    setTimeout(() => {
+                        const input = document.querySelector('.ant-modal .ant-input') as HTMLInputElement;
+                        if (input) {
+                            input.focus();
+                        }
+                    }, 100);
+                }
+            }}
+            onCancel={() => {
+                setIsSearchModalOpen(false);
+                setSearchText('');
+                setSearchResults([]);
+            }}
+            footer={null}
+        >
+            <Input
+                placeholder="検索するノード名を入力"
+                value={searchText}
+                onChange={(e) => {
+                    setSearchText(e.target.value);
+                    if (mindMapGraphRef.current) {
+                        const results = mindMapGraphRef.current.searchNodes(e.target.value);
+                        setSearchResults(results);
+                    }
+                }}
+                style={{ marginBottom: 16 }}
+            />
+            <List
+                dataSource={searchResults}
+                renderItem={(item) => (
+                    <List.Item
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.selectNode(item);
+                                setIsSearchModalOpen(false);
+                                setSearchText('');
+                                setSearchResults([]);
+                            }
+                        }}
+                    >
+                        {item.name}
+                    </List.Item>
+                )}
+            />
+        </Modal>
 
         </Spin>
     );
