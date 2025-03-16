@@ -5,7 +5,7 @@ import ReactDOM from 'react-dom/client'
 import { css } from "@emotion/react";
 
 
-import { Input, Button, Popover, message, Spin, Dropdown, Drawer, Modal, List } from 'antd';
+import { Input, Button, Popover, message, Spin, Dropdown, Drawer, Modal, List, ConfigProvider } from 'antd';
 import { MenuOutlined, SettingFilled, FileOutlined, EditOutlined, SettingOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Menu } from 'antd';
@@ -13,7 +13,6 @@ import { Menu } from 'antd';
 import MindMapGraph from './MindMapGraph'
 import NodeEditor from './NodeEditor'
 import LinkEditor from './LinkEditor'
-import TreeDrawer from './TreeDrawer'
 import { FloatButton } from 'antd';
 
 declare const window: any;
@@ -78,7 +77,6 @@ const App = () => {
     const [loading, setLoading] = useState(false);
     const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
     const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
-    const [isTreeDrawerOpen, setIsTreeDrawerOpen] = useState(false);
     const [current, setCurrent] = useState('mail');
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -186,14 +184,9 @@ const App = () => {
         showModal: (data: any) => void;
     }
 
-    interface TreeDrawerRef {
-        showDrawer: () => void;
-    }
-
     const mindMapGraphRef = useRef<MindMapGraphRef>(null)
     const nodeEditorRef = useRef<ModalRef>(null)
     const linkAddModalRef = useRef<ModalRef>(null)
-    const treeDrawerRef = useRef<TreeDrawerRef>(null)
 
     const [menuPosition, setMenuPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
     const [menuOpen, setMenuOpen] = useState(false);
@@ -335,13 +328,6 @@ const App = () => {
 
     }
 
-    const showDrawer = () => {
-        if (treeDrawerRef.current){
-            setIsTreeDrawerOpen(true);
-            treeDrawerRef.current.showDrawer();
-        }
-
-    }
 
     const saveData = useCallback(async (saveFunction: (data: any) => Promise<any>) => {
         if(!mindMapGraphRef.current) return;
@@ -389,7 +375,7 @@ const App = () => {
     }, []);
 
     const keyFunction = useCallback((event:any) => {
-        if (isNodeEditorOpen || isLinkEditorOpen || isTreeDrawerOpen) return;
+        if (isNodeEditorOpen || isLinkEditorOpen) return;
         if(event.ctrlKey) {
             if(event.code === "KeyS"){
                 event.preventDefault();
@@ -524,7 +510,7 @@ const App = () => {
                 }
             }
         }
-      }, [handleSave, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
+      }, [handleSave, isNodeEditorOpen, isLinkEditorOpen]);
     
       useEffect(() => {
         // キーボードイベントのリスナーを追加
@@ -549,7 +535,7 @@ const App = () => {
             document.removeEventListener("keydown", handleKeyDown, false);
             document.removeEventListener("keyup", handleKeyUp, false);
         };
-      }, [keyFunction, isNodeEditorOpen, isLinkEditorOpen, isTreeDrawerOpen]);
+      }, [keyFunction, isNodeEditorOpen, isLinkEditorOpen]);
 
 
 
@@ -594,13 +580,19 @@ const App = () => {
                     }
                 }}
             >
-                <Menu 
-                    mode="horizontal"
-                    items={items}
-                    theme="dark"
-                    selectedKeys={[current]}
+                <ConfigProvider theme={{
+                    components: {
+                        Menu: {
+                        }
+                    }
+                }}>
+                    <Menu 
+                        mode="horizontal"
+                        items={items}
+                        theme="dark"
+                        selectedKeys={[current]}
                     onClick={({ key }) => {
-                        setCurrent(key);
+                        setCurrent(''); // 選択状態をリセット
                         setDrawerVisible(false);
                         if (key === 'open_file') {
                             handleFileSelect();
@@ -660,7 +652,8 @@ const App = () => {
                             setIsSearchModalOpen(true);
                         }
                     }}
-                />
+                    />
+                </ConfigProvider>
             </Drawer>
 
         <MindMapGraph 
@@ -717,24 +710,6 @@ const App = () => {
             onClose={() => setIsLinkEditorOpen(false)}
             open={isLinkEditorOpen} />
 
-        <TreeDrawer
-            ref={treeDrawerRef}
-            onSave={handleSave}
-            onSearch={handleSearch}
-            onNodeSelect={handleNodeSelect}
-            onFileSelect={handleFileSelect}
-            currentFileName={currentFileName}
-            onClose={() => setIsTreeDrawerOpen(false)}
-            open={isTreeDrawerOpen} />
-
-        <FloatButton 
-            icon={<SettingFilled rev={undefined} />}
-            onClick={() => showDrawer()}
-            style={{
-                right: 24,
-                top: 24
-            }}
-        />
 
         <Modal
             title="ノード検索"
