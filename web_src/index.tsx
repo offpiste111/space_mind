@@ -66,6 +66,15 @@ const items: MenuItem[] = [
 
         { label: 'Find …', key: 'find' },
     ],
+  },
+  {
+    label: 'Layout',
+    key: 'layout',
+    icon: <SettingOutlined rev={undefined} />,
+    children: [
+      { label: 'Tree Layout', key: 'tree_layout' },
+      { label: 'Free Layout', key: 'free_layout' }
+    ],
   }
 ];
 
@@ -178,6 +187,7 @@ const App = () => {
         undo: () => void;
         canRedo: () => boolean;
         redo: () => void;
+        arrangeNodes: (layout: string) => void;
     }
 
     interface ModalRef {
@@ -650,6 +660,14 @@ const App = () => {
                             }
                         } else if (key === 'find') {
                             setIsSearchModalOpen(true);
+                        } else if (key === 'tree_layout') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.arrangeNodes('tree');
+                            }
+                        } else if (key === 'free_layout') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.arrangeNodes('free');
+                            }
                         }
                     }}
                     />
