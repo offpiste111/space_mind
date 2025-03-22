@@ -16,10 +16,10 @@ const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
     const params = useMemo(() => ({
         count: 15000,           // 星の数
         size: 0.02,            // 星のサイズを小さく調整
-        radius: 50,            // 銀河の半径を小さく
-        branches: 10 + Math.floor(Math.random() * 3), // 渦巻きの腕の数
-        spin: Math.random() * 2 - 1,    // 渦の回転度合い（-1から1）
-        randomness: 0.5,        // ランダム性を増加（メッシュの広がりを強く）
+        radius: 100,            // 銀河の半径を小さく
+        branches: 100, // 渦巻きの腕の数
+        spin:  0,    // 渦の回転度合い（-1から1）
+        randomness: 0.05,        // ランダム性を増加（メッシュの広がりを強く）
         randomnessPower: 2.5,   // ランダム性の指数を調整
         insideColor: new THREE.Color(Math.random() < 0.5 ? '#ff6030' : '#ffae30'), // 内側の色
         outsideColor: new THREE.Color(Math.random() < 0.5 ? '#1b3984' : '#50a5dd'), // 外側の色
@@ -49,7 +49,7 @@ const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
             const i3 = i * 3;
             
             // 銀河の中心からの距離（二乗分布で端に向かって密度が下がるように）
-            const radiusRatio = Math.pow(Math.random(), 1.5); // 1.5乗にすることで端に向かって星が少なくなる
+            const radiusRatio = Math.pow(Math.random(), 2); // 1.5乗にすることで端に向かって星が少なくなる
             const radius = radiusRatio * params.radius;
             
             // 渦巻きの角度
@@ -95,7 +95,7 @@ const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
     useFrame(({ clock }) => {
         if (galaxyRef.current) {
             // より遅い回転速度
-            galaxyRef.current.rotation.y = clock.getElapsedTime() * 0.02;
+            galaxyRef.current.rotation.y = clock.getElapsedTime() * 0.002;
         }
     });
     
@@ -182,7 +182,7 @@ const Earth = () => {
     
     // 公転の中心座標
     const orbitRadius = 150;
-    const orbitSpeed = 0.2;
+    const orbitSpeed = 0.02;
     
     useFrame(({ clock }) => {
         if (earthRef.current) {
@@ -304,7 +304,7 @@ const ShootingStarMesh = () => {
                 size={0.12}
                 color="#ffffff"
                 transparent
-                opacity={0.7}
+                opacity={0.9}
                 sizeAttenuation={false}  // 距離に関係なく一定サイズ
                 blending={THREE.AdditiveBlending}  // 光が重なって明るく見える
                 depthWrite={false}  // 深度バッファに書き込まない
@@ -328,7 +328,7 @@ const MovingStars = () => {
             <Stars 
                 radius={100}
                 depth={50}
-                count={5000}
+                count={500}
                 factor={4}
                 saturation={0}
                 fade={true}
@@ -345,7 +345,7 @@ const Saturn = () => {
     
     // 公転の設定
     const orbitRadius = 200; // 太陽からの距離
-    const orbitSpeed = 0.1; // 公転速度
+    const orbitSpeed = 0.01; // 公転速度
     
     useFrame(({ clock }) => {
         if (saturnRef.current && ringsRef.current) {
@@ -406,11 +406,11 @@ const MovingGalaxies = ({ galaxyCount, opacity }: { galaxyCount: number; opacity
 
     useFrame(({ clock }) => {
         if (galaxiesRef.current) {
-            galaxiesRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.03) * 0.1;
-            galaxiesRef.current.rotation.y = clock.getElapsedTime() * 0.02;
+            galaxiesRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.1) * 0.2;
+            galaxiesRef.current.rotation.y = clock.getElapsedTime() * 0.05;
 
             // ランダムな確率で銀河を生成（毎フレーム0.5%の確率）
-            if (Math.random() < 0.005) {
+            if (Math.random() < 0.0001) {
                 spawnGalaxy();
             }
         }
@@ -427,8 +427,8 @@ const MovingGalaxies = ({ galaxyCount, opacity }: { galaxyCount: number; opacity
 
 export function SpaceScene() {
     // 銀河の設定
-    const galaxyCount = 3; // 同時に表示される最大の銀河数
-    const galaxyOpacity = 0.15; // より鮮明に表示
+    const galaxyCount = 1; // 同時に表示される最大の銀河数
+    const galaxyOpacity = 0.05; // より鮮明に表示
     
     return (
         <>
