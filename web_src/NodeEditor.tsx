@@ -338,7 +338,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                 onChange={(value) => setStyleId(value)}
                                 options={[
                                     { value: 1, label: 'Horse' },
-                                    { value: 2, label: 'T-Rex' },
+                                    { value: 2, label: 'Watch' },
                                     { value: 3, label: 'Cat' },
                                     { value: 4, label: 'Bird' },
                                     { value: 5, label: 'Bird2' },

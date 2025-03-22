@@ -148,7 +148,7 @@ const Moon = ({ parentPosition }: { parentPosition: THREE.Vector3 }) => {
     
     // 地球の周りの公転
     const orbitRadius = 4; // 地球からの距離
-    const orbitSpeed = 0.5; // 公転速度
+    const orbitSpeed = 0.25; // 公転速度
     
     useFrame(({ clock }) => {
         if (moonRef.current) {
@@ -183,14 +183,14 @@ const Earth = () => {
     // 公転の中心座標
     const orbitRadius = 150;
     const orbitSpeed = 0.02;
-    
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
     useFrame(({ clock }) => {
         if (earthRef.current) {
             // 自転 (Y軸周り)
             earthRef.current.rotation.y = clock.getElapsedTime() * 0.5;
             
-            // 公転 (XZ平面上で円運動)
-            const time = clock.getElapsedTime() * orbitSpeed;
+            // 公転 (XZ平面上で円運動)（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
             const x = Math.cos(time) * orbitRadius;
             const z = Math.sin(time) * orbitRadius;
             
@@ -337,6 +337,297 @@ const MovingStars = () => {
     );
 };
 
+const Venus = () => {
+    const venusRef = useRef<THREE.Mesh>(null);
+    const texture = useMemo(() => new THREE.TextureLoader().load('./assets/venusmap.jpg'), []);
+    
+    // 公転の設定
+    const orbitRadius = 75; // 太陽からの距離（水星と地球の間）
+    const orbitSpeed = 0.1725; // 公転速度
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    
+    useFrame(({ clock }) => {
+        if (venusRef.current) {
+            // 自転（金星は逆回転）
+            venusRef.current.rotation.y = -clock.getElapsedTime() * 0.4;
+            
+            // 公転（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
+            const x = Math.cos(time) * orbitRadius;
+            const z = Math.sin(time) * orbitRadius;
+            
+            venusRef.current.position.set(x, 0, z);
+        }
+    });
+    
+    return (
+        <mesh ref={venusRef}>
+            <sphereGeometry args={[1.9, 64, 64]} />
+            <meshStandardMaterial
+                map={texture}
+                metalness={0.4}
+                roughness={0.7}
+            />
+        </mesh>
+    );
+};
+
+const Jupiter = () => {
+    const jupiterRef = useRef<THREE.Mesh>(null);
+    const texture = useMemo(() => new THREE.TextureLoader().load('./assets/jupitermap.jpg'), []);
+    
+    // 公転の設定
+    const orbitRadius = 175; // 太陽からの距離（火星と土星の間）
+    const orbitSpeed = 0.075; // 公転速度
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    
+    useFrame(({ clock }) => {
+        if (jupiterRef.current) {
+            // 自転（木星は高速自転）
+            jupiterRef.current.rotation.y = clock.getElapsedTime() * 0.8;
+            
+            // 公転（軌道面を少し傾ける）（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
+            const orbitAngle = Math.PI / 30; // 6度の傾き
+            const x = Math.cos(time) * orbitRadius;
+            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            
+            jupiterRef.current.position.set(x, y, z);
+        }
+    });
+    
+    return (
+        <mesh ref={jupiterRef}>
+            <sphereGeometry args={[2.8, 64, 64]} />
+            <meshStandardMaterial
+                map={texture}
+                metalness={0.4}
+                roughness={0.7}
+            />
+        </mesh>
+    );
+};
+
+const Mercury = () => {
+    const mercuryRef = useRef<THREE.Mesh>(null);
+    const texture = useMemo(() => new THREE.TextureLoader().load('./assets/mercurymap.jpg'), []);
+    
+    // 公転の設定
+    const orbitRadius = 50; // 太陽からの距離（最も内側）
+    const orbitSpeed = 0.2; // 公転速度（最も速い）
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    
+    useFrame(({ clock }) => {
+        if (mercuryRef.current) {
+            // 自転
+            mercuryRef.current.rotation.y = clock.getElapsedTime() * 0.5;
+            
+            // 公転（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
+            const x = Math.cos(time) * orbitRadius;
+            const z = Math.sin(time) * orbitRadius;
+            
+            mercuryRef.current.position.set(x, 0, z);
+        }
+    });
+    
+    return (
+        <mesh ref={mercuryRef}>
+            <sphereGeometry args={[0.8, 64, 64]} />
+            <meshStandardMaterial
+                map={texture}
+                metalness={0.4}
+                roughness={0.7}
+            />
+        </mesh>
+    );
+};
+
+const Phobos = ({ parentPosition }: { parentPosition: THREE.Vector3 }) => {
+    const phobosRef = useRef<THREE.Mesh>(null);
+    const texture = useMemo(() => new THREE.TextureLoader().load('./assets/phobosbump.jpg'), []);
+    
+    // 火星の周りの公転
+    const orbitRadius = 3; // 火星からの距離
+    const orbitSpeed = 0.4; // 公転速度（火星の衛星なので速め）
+    
+    useFrame(({ clock }) => {
+        if (phobosRef.current) {
+            // 自転
+            phobosRef.current.rotation.y = clock.getElapsedTime() * 0.4;
+            
+            // 火星を中心とした公転
+            const time = clock.getElapsedTime() * orbitSpeed;
+            phobosRef.current.position.x = parentPosition.x + Math.cos(time) * orbitRadius;
+            phobosRef.current.position.y = parentPosition.y;
+            phobosRef.current.position.z = parentPosition.z + Math.sin(time) * orbitRadius;
+        }
+    });
+    
+    return (
+        <mesh ref={phobosRef}>
+            <sphereGeometry args={[0.3, 32, 32]} />
+            <meshStandardMaterial
+                map={texture}
+                metalness={0.4}
+                roughness={0.7}
+            />
+        </mesh>
+    );
+};
+
+const Mars = () => {
+    const marsRef = useRef<THREE.Mesh>(null);
+    const marsPosition = useRef(new THREE.Vector3());
+    const texture = useMemo(() => new THREE.TextureLoader().load('./assets/marsmap1k.jpg'), []);
+    
+    // 公転の設定
+    const orbitRadius = 125; // 太陽からの距離（地球と木星の間）
+    const orbitSpeed = 0.15; // 公転速度
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    
+    useFrame(({ clock }) => {
+        if (marsRef.current) {
+            // 自転
+            marsRef.current.rotation.y = clock.getElapsedTime() * 0.4;
+            
+            // 公転（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
+            const x = Math.cos(time) * orbitRadius;
+            const z = Math.sin(time) * orbitRadius;
+            
+            marsRef.current.position.set(x, 0, z);
+            marsPosition.current.set(x, 0, z);
+        }
+    });
+    
+    return (
+        <>
+            <mesh ref={marsRef}>
+                <sphereGeometry args={[1.2, 64, 64]} />
+                <meshStandardMaterial
+                    map={texture}
+                    metalness={0.4}
+                    roughness={0.7}
+                />
+            </mesh>
+            <Phobos parentPosition={marsPosition.current} />
+        </>
+    );
+};
+
+const Pluto = () => {
+    const plutoRef = useRef<THREE.Mesh>(null);
+    const texture = useMemo(() => new THREE.TextureLoader().load('./assets/plutomap1k.jpg'), []);
+    
+    // 公転の設定
+    const orbitRadius = 300; // 太陽からの距離（最も外側）
+    const orbitSpeed = 0.015; // 公転速度（最も遅い）
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    
+    useFrame(({ clock }) => {
+        if (plutoRef.current) {
+            // 自転
+            plutoRef.current.rotation.y = clock.getElapsedTime() * 0.2;
+            
+            // 公転（軌道面を大きく傾ける）（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
+            const orbitAngle = Math.PI / 10.5; // 約17度の傾き
+            const x = Math.cos(time) * orbitRadius;
+            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            
+            plutoRef.current.position.set(x, y, z);
+        }
+    });
+    
+    return (
+        <mesh ref={plutoRef}>
+            <sphereGeometry args={[0.4, 64, 64]} />
+            <meshStandardMaterial
+                map={texture}
+                metalness={0.4}
+                roughness={0.7}
+            />
+        </mesh>
+    );
+};
+
+const Uranus = () => {
+    const uranusRef = useRef<THREE.Mesh>(null);
+    const texture = useMemo(() => new THREE.TextureLoader().load('./assets/uranusmap.jpg'), []);
+    
+    // 公転の設定
+    const orbitRadius = 225; // 太陽からの距離（土星と海王星の間）
+    const orbitSpeed = 0.035; // 公転速度
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    
+    useFrame(({ clock }) => {
+        if (uranusRef.current) {
+            // 自転（横倒しになった自転）
+            uranusRef.current.rotation.z = clock.getElapsedTime() * 0.3;
+            
+            // 公転（大きく傾いた軌道）（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
+            const orbitAngle = Math.PI / 1.84; // 約98度の傾き
+            const x = Math.cos(time) * orbitRadius;
+            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            
+            uranusRef.current.position.set(x, y, z);
+        }
+    });
+    
+    return (
+        <mesh ref={uranusRef} rotation={[0, 0, Math.PI / 2]}> // 初期姿勢を横倒しに
+            <sphereGeometry args={[1.7, 64, 64]} />
+            <meshStandardMaterial
+                map={texture}
+                metalness={0.4}
+                roughness={0.7}
+            />
+        </mesh>
+    );
+};
+
+const Neptune = () => {
+    const neptuneRef = useRef<THREE.Mesh>(null);
+    const texture = useMemo(() => new THREE.TextureLoader().load('./assets/neptunemap.jpg'), []);
+    
+    // 公転の設定
+    const orbitRadius = 250; // 太陽からの距離（最も外側）
+    const orbitSpeed = 0.025; // 公転速度（最も遅い）
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    
+    useFrame(({ clock }) => {
+        if (neptuneRef.current) {
+            // 自転
+            neptuneRef.current.rotation.y = clock.getElapsedTime() * 0.3;
+            
+            // 公転（軌道面を少し傾ける）（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
+            const orbitAngle = Math.PI / 15; // 12度の傾き
+            const x = Math.cos(time) * orbitRadius;
+            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            
+            neptuneRef.current.position.set(x, y, z);
+        }
+    });
+    
+    return (
+        <mesh ref={neptuneRef}>
+            <sphereGeometry args={[1.6, 64, 64]} />
+            <meshStandardMaterial
+                map={texture}
+                metalness={0.4}
+                roughness={0.7}
+            />
+        </mesh>
+    );
+};
+
 const Saturn = () => {
     const saturnRef = useRef<THREE.Mesh>(null);
     const ringsRef = useRef<THREE.Mesh>(null);
@@ -345,16 +636,17 @@ const Saturn = () => {
     
     // 公転の設定
     const orbitRadius = 200; // 太陽からの距離
-    const orbitSpeed = 0.01; // 公転速度
-    
+    const orbitSpeed = 0.05; // 公転速度
+    const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+   
     useFrame(({ clock }) => {
         if (saturnRef.current && ringsRef.current) {
             // 自転
             saturnRef.current.rotation.y = clock.getElapsedTime() * 0.3;
             ringsRef.current.rotation.y = clock.getElapsedTime() * 0.3;
             
-            // 公転（軌道面を傾ける）
-            const time = clock.getElapsedTime() * orbitSpeed;
+            // 公転（軌道面を傾ける）（初期角度を加算）
+            const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
             const orbitAngle = Math.PI / 12; // 15度の傾き
             const x = Math.cos(time) * orbitRadius;
             const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
@@ -433,10 +725,16 @@ export function SpaceScene() {
     return (
         <>
             <MovingStars />
+            <Mercury />
+            <Venus />
             <Earth />
+            <Mars />
+            <Jupiter />
             <Saturn />
+            <Uranus />
+            <Neptune />
+            <Pluto />
             <ShootingStarMesh />
-            <MovingGalaxies galaxyCount={galaxyCount} opacity={galaxyOpacity} />
             <ambientLight intensity={0.8} />
             <pointLight position={[15, 15, 15]} intensity={1.5} />
             <pointLight position={[-15, -15, -15]} intensity={1.0} />

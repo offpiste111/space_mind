@@ -16,12 +16,15 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { useState, forwardRef, useImperativeHandle, useMemo, useCallback} from 'react'
 
 
-import { Canvas, useFrame } from '@react-three/fiber'
+import { Canvas, useFrame, useLoader} from '@react-three/fiber'
 import { Html, Loader, useGLTF, Sky, Cloud,Stars } from '@react-three/drei'
 import { TextureLoader, SpriteMaterial, Sprite } from 'three'
 import { OrbitControls } from '@react-three/drei'
 import { render, useThree, useGraph } from '@react-three/fiber'
 import ThreeForceGraph from 'three-forcegraph'
+
+import { Popconfirm } from 'antd'
+
 
 import './index.css'
 import { useHistory } from './hooks/useHistory';
@@ -88,6 +91,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         folder_path?: string;  // フォルダパスを保存
         style_id?: number;  // 1: Horse.glb, 2: 次のモデル... などのスタイルを指定
         scale?: number;     // 3Dオブジェクトのスケール (0.3 to 2.0)
+        size_x?: number;    // ノードの幅
+        size_y?: number;    // ノードの高さ
     }
 
     interface GraphData {
@@ -217,10 +222,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             deleteNode(node.id);
             
             // 履歴に追加
-            addToHistory('delete_node', {
-                node: nodeToDelete,
-                links: relatedLinks
-            });
+            if (!nodeToDelete.isNew) {
+                addToHistory('delete_node', {
+                    node: nodeToDelete,
+                    links: relatedLinks
+                });
+            }
             
             fgRef.current.refresh();
         },
@@ -312,18 +319,26 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         },
         // 新規ノード追加用のインターフェース
         addNode: (newNode:any) => {
-            if (!selectedNode) return;
+
+            if (selectedNode){
+                newNode.fx = selectedNode.fx;
+                newNode.fy = selectedNode.fy;
+                newNode.fz = selectedNode.fz;                           
+            }
             
             const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
             newNode.id = nodeId;
             newNode.fx = newNode.fx + (10 + Math.floor(Math.random() * 21));
             newNode.fy = newNode.fy + (10 + Math.floor(Math.random() * 21));
             newNode.fz = newNode.fz + (10 + Math.floor(Math.random() * 21));
+            newNode.isNew = true;
             
             // 新規ノードを追加
             props.onRefreshNode(newNode);
             graphData.nodes.push(newNode);
             fgRef.current.refresh();
+
+
         },
         // 新規ノード追加用のインターフェース
         addNewNode: () => {
@@ -400,6 +415,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         //linkにisNewがある場合、キーを削除する
         if (link && has(link, 'isNew')) {
             delete link.isNew;
+
+            link.name = "";
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
@@ -507,9 +524,15 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     };
 
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
+        if (!node || !event) return;
+        
         setSelectedNodeList([]);
-        props.onNodeEdit(node)
-        //deleteNode(node.id);
+        setSelectedNode(node);
+
+        console.log(event.clientX, event.clientY);
+        
+        // 画面上のクリック座標を親コンポーネントに通知
+        props.onNodeRightClick && props.onNodeRightClick(node, event.clientX, event.clientY);
     };
 
     const handleLinkRightClick = (link: any) => {
@@ -518,10 +541,35 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const handleLinkClick = (link: any) => {
         console.log('handleLinkClick', link);
     };
-    const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
-        isHovering.current = !!node;
+const [kebabMenuPosition, setKebabMenuPosition] = useState<{ x: number, y: number } | null>(null);
 
-    };
+const handleHover = (node: NodeData | null, prevNode: NodeData | null) => {
+    isHovering.current = !!node;
+
+    setSelectedNode(node);
+    
+    // if (node) {
+    //     // ノードの位置を画面座標に変換
+    //     const { x, y } = fgRef.current.graph2ScreenCoords(node.x, node.y, node.z);
+        
+    //     // ノードのサイズを考慮してケバブメニューの位置を計算
+    //     const nodeWidth = node.size_x || 120;
+    //     const menuX = x + (nodeWidth / 2) - 20; // 右端から少し内側に
+    //     const menuY = y - (node.size_y || 40) / 2; // 上端
+        
+    //     setKebabMenuPosition({ x: menuX, y: menuY });
+    // } else {
+    //     setKebabMenuPosition(null);
+    // }
+};
+
+const handleKebabMenuClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    if (selectedNode) {
+        // 現在のマウス位置でコンテキストメニューを表示
+        props.onNodeRightClick && props.onNodeRightClick(selectedNode, event.clientX, event.clientY);
+    }
+};
 
     const handleNodeDrag = (dragNode:any) => {
 
@@ -595,23 +643,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
     const handleBackgroundClick = (event:any) => {
         let camera = fgRef.current.camera();
-        //クリック位置からnodeのx,y,z_layerを探索する処理
-        //let distance = camera.position.distanceTo(new THREE.Vector3(0, 0, z_layer));
-        const distance = 700;
-        let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance );
-        /*
-        let iterations = 0;
-        while (iterations < 10) {
-            const diff = coords.z - z_layer;
-            if (Math.abs(diff) <= 5) {
-            break;
-            }
-            // Increase adjustment magnitude for faster convergence.
-            distance += diff * 0.5;
-            coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance);
-            iterations++;
+        let distance = 800;
+        if (selectedNode) {
+            distance = Math.abs((selectedNode.fz ?? 0) - camera.position.z);
+            console.log('distance', distance);
         }
-        */
+        let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance );
 
         let nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
         let groupId = 1
@@ -630,16 +667,16 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             style_id: 1, 
             fx: coords.x, 
             fy: coords.y, 
-            fz: /*z_layer*/coords.z, 
+            fz: coords.z, 
+            size_x: 240,
+            size_y: 80,
             name: "",
             isNew: true,
             createdAt: now,
             updatedAt: now
         };
-        setGraphData(prevData => ({
-            ...prevData,
-            nodes: [...prevData.nodes, new_node]
-        }));
+        graphData.nodes.push(new_node);
+        fgRef.current.refresh();
         setSelectedNodeList([]);
         props.onNodeEdit(new_node);
     };
@@ -691,7 +728,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     };
 
     const horseModel = useMemo(() => useGLTF('./assets/Horse.glb'), []);
-    const [trexModel, setTrexModel] = useState<THREE.Group | null>(null);
+    const watchModel = useMemo(() => useGLTF('./assets/watch-v1.glb'), []);
     const [catModel, setCatModel] = useState<THREE.Group | null>(null);
     const [birdModel, setBirdModel] = useState<THREE.Group | null>(null);
     const [bird2Model, setBird2Model] = useState<THREE.Group | null>(null);
@@ -700,21 +737,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     useEffect(() => {
         // // Load Tree model
         // const tdsLoader = new TDSLoader();
-        // tdsLoader.load('./assets/t-rex/Tree1.3ds', (object) => {
+        // tdsLoader.load('./assets/Plants1/Plants1.3ds', (object) => {
         //     setTrexModel(object);
         // });
-        const mtlLoader_trex = new MTLLoader();
-        mtlLoader_trex.setPath('./assets/t-rex/');
-        mtlLoader_trex.load('T-Rex Model.mtl', (materials) => {
-            materials.preload();
-            
-            const objLoader = new OBJLoader();
-            objLoader.setMaterials(materials);
-            objLoader.setPath('./assets/t-rex/');
-            objLoader.load('T-Rex Model.obj', (object) => {
-                setTrexModel(object);
-            });
-        });
 
         // Load Cat model
         const mtlLoader = new MTLLoader();
@@ -782,32 +807,42 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             if (node.style_id === 1) {  // Horse.glbモデル
                 const scene = horseModel.scene.clone();
                 const scale = node.scale || 1;  
-                scene.scale.set(scale * 0.2, scale * 0.2, scale * 0.2);
+                scene.scale.set(scale * 0.7, scale * 0.7, scale * 0.7);
+                scene.rotation.y = Math.PI/2;
                 return scene;
-            } else if (node.style_id === 2 && trexModel) {  // Trexモデル
-                const scene = trexModel.clone();
+            } else if (node.style_id === 2 && watchModel) {  // watchモデル
+                const scene = watchModel.scene.clone();
                 const scale = node.scale || 1; 
-                scene.scale.set(scale * 0.2, scale * 0.3, scale * 0.2);
+                scene.scale.set(scale* 0.1, scale * 0.1, scale* 0.1);
+                scene.rotation.y = Math.PI/12;
                 return scene;
             } else if (node.style_id === 3 && catModel) {  // Cat.objモデル
                 const scene = catModel.clone();
                 const scale = node.scale || 1; 
-                scene.scale.set(scale * 1, scale * 1, scale * 1);
+                scene.scale.set(scale * 2, scale * 2, scale * 2);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = -Math.PI/6;
                 return scene;
             } else if (node.style_id === 4 && birdModel) {  // Bird.objモデル
                 const scene = birdModel.clone();
                 const scale = node.scale || 1  
                 scene.scale.set(scale * 5, scale * 5, scale * 5);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = Math.PI/6;
                 return scene;
             } else if (node.style_id === 5 && bird2Model) {  // Bird2.objモデル
                 const scene = bird2Model.clone();
                 const scale = node.scale || 1;  
                 scene.scale.set(scale, scale, scale);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = Math.PI/6;
                 return scene;
             } else if (node.style_id === 6 && airplaneModel) {  // Airplane.objモデル
                 const scene = airplaneModel.clone();
                 const scale = node.scale || 1;  // デフォルトスケール0.05
                 scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
+                scene.rotation.x = -Math.PI/3;
+                scene.rotation.z = Math.PI/6;
                 return scene;
             }
         }
@@ -818,7 +853,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         const aspectRatio = node.size_x / node.size_y;
         sprite.scale.set(node.size_x, node.size_x / aspectRatio, 1);
         return sprite;
-    }, [horseModel,trexModel,catModel,birdModel,bird2Model,airplaneModel]);
+    }, [horseModel,watchModel,catModel,birdModel,bird2Model,airplaneModel]);
 
     const [interimLink, setInterimLinkState] = useState<any>(null);
 
@@ -831,7 +866,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         );
     };
 
-    const snapInDistance = 220; // Define snapInDistance with an appropriate value
+    const snapInDistance = 120; // Define snapInDistance with an appropriate value
     const snapOutDistance = 250; // Define snapOutDistance with an appropriate value
 
     const setInterimLink = (linkId: number, source: any, target: any) => {
@@ -904,6 +939,24 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
     return (
         <div style={{position: "relative", width: "100%", height: "100%" }}>
+            {/* ケバブメニュー */}
+            {kebabMenuPosition && isHovering && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        left: `${kebabMenuPosition.x}px`,
+                        top: `${kebabMenuPosition.y}px`,
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        zIndex: 1000
+                    }}
+                    onClick={handleKebabMenuClick}
+                >
+                    ⋮
+                </div>
+            )}
             {/* Force Graphのレイヤー */}
             <div style={{
                 position: "absolute", 
@@ -922,14 +975,14 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         const material = sprite.material as THREE.SpriteMaterial;
                         if (selectedNode && node.id === selectedNode.id) {
                             material.color = new THREE.Color(0xffffff);
-                            material.opacity = (node.disabled) ? 0.05 : 1;
+                            material.opacity = (node.disabled) ? 0.1 : 1;
                         } else if (selectedNodeList.some(n => n.id === node.id)) {
                             console.log('selectedNodeList:', selectedNodeList);
                             material.color = new THREE.Color(0x4169e1);
-                            material.opacity = (node.disabled) ? 0.05 : 1;
+                            material.opacity = (node.disabled) ? 0.1 : 1;
                         } else {
                             material.color = new THREE.Color(0xe0e0e0);
-                            material.opacity = (node.disabled) ? 0.05 : 1;
+                            material.opacity = (node.disabled) ? 0.1: (node.isNew) ? 0.3 : 1;
                         }
                     }
                     return sprite;
@@ -1056,12 +1109,46 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     camera={{ position: [0, 0, 40], near: 0.1, far: 1000 }}
                 >
                     <SpaceScene />
+                    {/* <OrbitControls enableZoom={true} enablePan={false} enableDamping dampingFactor={0.2} autoRotate={true} rotateSpeed={-0.001} />
+                    <Portals />
                     <ambientLight intensity={0.5} />
-                    <pointLight position={[10, 10, 10]} />
+                    <pointLight position={[10, 10, 10]} /> */}
                 </Canvas>
             </div>
         </div>
     );
 });
+
+// const store: { name: string; color: string; position: [number, number, number]; url: string; link: number }[] = [
+//     { name: 'outside', color: 'lightpink', position: [10, 0, -15], url: 'assets/20201102113639.png', link: 1 },
+//     // ...
+//   ]
+  
+//   function Dome({ name, position, texture, onClick }: { name: string; position: [number, number, number]; texture: THREE.Texture; onClick: () => void }) {
+//     return (
+//       <group>
+//         <mesh>
+//           <sphereGeometry args={[500, 60, 40]} />
+//           <meshBasicMaterial map={texture} side={THREE.BackSide} />
+//         </mesh>
+//         {/* <mesh position={position}>
+//           <sphereGeometry args={[1.25, 32, 32]} />
+//           <meshBasicMaterial color="white" />
+//           <Html center>
+//             <Popconfirm title="Are you sure you want to leave?" onConfirm={onClick} okText="Yes" cancelText="No">
+//               <a href="#">{name}</a>
+//             </Popconfirm>
+//           </Html>
+//         </mesh> */}
+//       </group>
+//     )
+//   }
+  
+//   function Portals() {
+//     const [which, set] = useState(0)
+//     const { link, ...props } = store[which]
+//     const maps = useLoader(THREE.TextureLoader, store.map((entry) => entry.url)) // prettier-ignore
+//     return <Dome onClick={() => set(link)} {...props} texture={maps[which]} />
+//   }
 
 export default MindMapGraph;

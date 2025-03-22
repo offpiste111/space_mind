@@ -808,22 +808,27 @@ def save_data(data):
         save_json(data, g_current_file_path)
         return [True, g_current_file_path]
     else:
-        # ファイルが選択されていない場合は保存ダイアログを表示
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes('-topmost', True)
-        root.lift()
-        
-        file_path = filedialog.asksaveasfilename(
-            parent=root,
-            defaultextension='.json',
-            filetypes=[('JSON files', '*.json'), ('All files', '*.*')]
-        )
-        
-        if file_path:
-            g_current_file_path = file_path
-            save_json(data, file_path)
-            return [True, file_path]
+        return save_as_data(data)
+
+@eel.expose
+def save_as_data(data):
+    global g_current_file_path
+    # 保存ダイアログを表示
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    root.lift()
+    
+    file_path = filedialog.asksaveasfilename(
+        parent=root,
+        defaultextension='.json',
+        filetypes=[('JSON files', '*.json'), ('All files', '*.*')]
+    )
+    
+    if file_path:
+        g_current_file_path = file_path
+        save_json(data, file_path)
+        return [True, file_path]
     return [False, None]
 
 @eel.expose
