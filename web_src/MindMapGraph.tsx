@@ -765,6 +765,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 );
             }
 
+            let camera = fgRef.current.camera();
+            camera.rotation.x = 0;
+            camera.rotation.y = 0;
+            camera.rotation.z = 0;
+
             // ルートノードを原点に配置
             const rootNodeObj = graphData.nodes.find(n => n.id === minId);
             if (rootNodeObj) {
