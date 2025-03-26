@@ -402,338 +402,20 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     // ノードを指定のレイアウトで配置する関数
     const arrangeNodes = (layout: string) => {
         if (layout === 'right-tree') {
-            const minId = Math.min(...graphData.nodes.map(node => node.id));
-            const rootNode = graphData.nodes.find(node => node.id === minId);
-            if (!rootNode) return;
-
-            // ルートノードを原点に配置
-            const rootNodeObj = graphData.nodes.find(n => n.id === minId);
-            if (rootNodeObj) {
-                rootNodeObj.fx = 0;
-                rootNodeObj.fy = 0;
-                rootNodeObj.fz = 0;
-            }
-
-            // グラフを階層構造に変換
-            const visited = new Set<number>();
-            const nodes: { [key: number]: NodeData & { 
-                level?: number; 
-                children?: (NodeData & { level?: number })[];
-                parentBranch?: number;
-                branchSize?: number;
-            } } = {};
-
-            const buildHierarchy = (node: NodeData, level: number, branchIndex: number = 0, totalBranches: number = 1) => {
-                if (visited.has(node.id)) return;
-                visited.add(node.id);
-
-                const nodeWithLayout: NodeData & { 
-                    level: number; 
-                    children: (NodeData & { level?: number })[],
-                    parentBranch: number;
-                    branchSize: number;
-                } = {
-                    ...node,
-                    level: level,
-                    children: [],
-                    parentBranch: branchIndex,
-                    branchSize: totalBranches
-                };
-                nodes[node.id] = nodeWithLayout;
-
-                // 現在のノードにリンクされているノードを取得
-                const linkedNodes = graphData.links
-                    .filter(link => link.source.id === node.id)
-                    .map(link => link.target as NodeData)
-                    .filter(target => !visited.has(target.id));
-
-                // 子ノードの配置を計算
-                let currentBranchStart = branchIndex;
-                const totalChildNodes = linkedNodes.length;
-                
-                linkedNodes.forEach((child, index) => {
-                    const childBranchSize = totalBranches / totalChildNodes;
-                    const child2 = buildHierarchy(
-                        child,
-                        level + 1,
-                        currentBranchStart,
-                        childBranchSize
-                    );
-                    if (child2) {
-                        nodeWithLayout.children?.push(child2);
-                    }
-                    currentBranchStart += childBranchSize;
-                });
-
-                return nodeWithLayout;
-            };
-
-            const hierarchyRoot = buildHierarchy(rootNode, 0);
-            if (!hierarchyRoot) return;
-
-            // 階層ごとのノードを収集
-            const levelNodes: { [key: number]: (NodeData & { level?: number })[] } = {};
-            const collectLevelNodes = (node: NodeData & { level?: number; children?: (NodeData & { level?: number })[] }) => {
-                if (node.level === undefined) return;
-                if (!levelNodes[node.level]) {
-                    levelNodes[node.level] = [];
-                }
-                levelNodes[node.level].push(node);
-                node.children?.forEach(collectLevelNodes);
-            };
-            collectLevelNodes(hierarchyRoot);
-
-            // 各レベルのノードを右方向に配置
-            Object.entries(levelNodes).forEach(([level, nodesInLevel]) => {
-                const levelNum = parseInt(level);
-                
-                nodesInLevel.forEach((node, index) => {
-                    const nodeInfo = nodes[node.id];
-                    if (!nodeInfo) return;
-
-                    // X座標: 前のレベルの最大幅を考慮して配置
-                    // 各レベルの最大ノード幅を計算
-                    const maxWidthByLevel: { [key: number]: number } = {};
-                    Object.entries(levelNodes).forEach(([lvl, nodes]) => {
-                        maxWidthByLevel[parseInt(lvl)] = Math.max(...nodes.map(n => n.size_x || 240));
-                    });
-                    
-                    // 現在のレベルまでの累積X座標を計算
-                    const horizontalPadding = 50; // レベル間の最小間隔
-                    let x = 0;
-                    for (let i = 0; i < levelNum; i++) {
-                        x += (maxWidthByLevel[i] || 240) + horizontalPadding;
-                    }
-                    
-                    // Y座標: ノードのサイズを考慮した配置
-                    const totalNodesInLevel = nodesInLevel.length;
-                    const nodeHeight = node.size_y || 80; // デフォルトの高さ
-                    const verticalPadding = 20; // ノード間の最小間隔
-                    
-                    // 現在のレベルの全ノードの合計高さを計算
-                    const totalHeight = nodesInLevel.reduce((sum, n) => sum + (n.size_y || 80), 0) 
-                        + (verticalPadding * (totalNodesInLevel - 1));
-                    
-                    // 現在のノードまでの累積高さを計算
-                    let accumulatedHeight = 0;
-                    for (let i = 0; i < index; i++) {
-                        accumulatedHeight += (nodesInLevel[i].size_y || 80) + verticalPadding;
-                    }
-                    
-                    // ノードの中心位置を計算（レベル全体が中央揃えになるように調整）
-                    const y = accumulatedHeight - (totalHeight / 2) + (nodeHeight / 2);
-                    
-                    // ノードの位置を更新
-                    const originalNode = graphData.nodes.find(n => n.id === node.id);
-                    if (originalNode) {
-                        originalNode.fx = x;
-                        originalNode.fy = y;
-                        originalNode.fz = 0;
-                    }
-                });
-            });
+            
 
             // カメラ位置の更新
             if (fgRef.current) {
-                const maxLevel = Math.max(...Object.keys(levelNodes).map(k => parseInt(k)));
-                const maxDistance = (maxLevel + 1) * 300;
-                
-                fgRef.current.cameraPosition(
-                    { x: maxDistance / 2, y: 0, z: 1000 },
-                    { x: maxDistance / 2, y: 0, z: 0 },
-                    2000
-                );
+
+                let camera = fgRef.current.camera();
+                camera.up.set(0, 1, 0); // Y軸を上向きに設定
+
             }
-
-        } else if (layout === 'free') {
-            // すべてのノードのfx,fy,fzを解放
-            graphData.nodes.forEach(node => {
-                delete node.fx;
-                delete node.fy;
-                delete node.fz;
-            });
-            fgRef.current.refresh();
-        } else if (layout === 'tree') {
-            const minId = Math.min(...graphData.nodes.map(node => node.id));
-            const rootNode = graphData.nodes.find(node => node.id === minId);
-            if (!rootNode) return;
-
-            // カメラを適切な位置に配置
-            if (fgRef.current) {
-                fgRef.current.cameraPosition(
-                    { x: 0, y: 0, z: 1000 }, // カメラ位置
-                    { x: 0, y: 0, z: 0 }, // 注視点
-                    2000 // アニメーション時間(ms)
-                );
-            }
-
-            let camera = fgRef.current.camera();
-            camera.rotation.x = 0;
-            camera.rotation.y = 0;
-            camera.rotation.z = 0;
-
-            // ルートノードを原点に配置
-            const rootNodeObj = graphData.nodes.find(n => n.id === minId);
-            if (rootNodeObj) {
-                rootNodeObj.fx = 0;
-                rootNodeObj.fy = 0;
-                rootNodeObj.fz = 0;
-            }
-
-            // グラフを階層構造に変換
-            const visited = new Set<number>();
-            const nodes: { [key: number]: NodeData & { 
-                level?: number; 
-                children?: (NodeData & { level?: number })[];
-                parentBranch?: number;
-                branchSize?: number;
-            } } = {};
-
-            // 各ノードの子孫の数を計算
-            const calculateDescendants = (node: NodeData): number => {
-                const linkedNodes = graphData.links
-                    .filter(link => link.source.id === node.id)
-                    .map(link => link.target as NodeData)
-                    .filter(target => !visited.has(target.id));
-
-                if (linkedNodes.length === 0) return 1;
-
-                let count = 1;
-                linkedNodes.forEach(child => {
-                    count += calculateDescendants(child);
-                });
-                return count;
-            };
-
-            const buildHierarchy = (node: NodeData, level: number, branchIndex: number = 0, totalBranches: number = 1) => {
-                if (visited.has(node.id)) return;
-                visited.add(node.id);
-
-                const nodeWithLayout: NodeData & { 
-                    level: number; 
-                    children: (NodeData & { level?: number })[],
-                    parentBranch: number;
-                    branchSize: number;
-                } = {
-                    ...node,
-                    level: level,
-                    children: [],
-                    parentBranch: branchIndex,
-                    branchSize: totalBranches
-                };
-                nodes[node.id] = nodeWithLayout;
-
-                // 現在のノードにリンクされているノードを取得
-                const linkedNodes = graphData.links
-                    .filter(link => link.source.id === node.id)
-                    .map(link => link.target as NodeData)
-                    .filter(target => !visited.has(target.id));
-
-                // 子ノードの配置を計算
-                let currentBranchStart = branchIndex;
-                const totalChildNodes = linkedNodes.length;
-                
-                // 再帰的に子ノードを処理
-                linkedNodes.forEach((child, index) => {
-                    // 各子ノードに均等な領域を割り当て
-                    const childBranchSize = totalBranches / totalChildNodes;
-                    const child2 = buildHierarchy(
-                        child,
-                        level + 1,
-                        currentBranchStart,
-                        childBranchSize
-                    );
-                    if (child2) {
-                        nodeWithLayout.children?.push(child2);
-                    }
-                    currentBranchStart += childBranchSize;
-                });
-
-                return nodeWithLayout;
-            };
-
-            const hierarchyRoot = buildHierarchy(rootNode, 0);
-            if (!hierarchyRoot) return;
-
-            // 階層ごとのY座標を設定
-            const levelNodes: { [key: number]: (NodeData & { level?: number })[] } = {};
-
-            // 各レベルのノードを収集
-            const collectLevelNodes = (node: NodeData & { level?: number; children?: (NodeData & { level?: number })[] }) => {
-                if (node.level === undefined) return;
-                if (!levelNodes[node.level]) {
-                    levelNodes[node.level] = [];
-                }
-                levelNodes[node.level].push(node);
-                node.children?.forEach(collectLevelNodes);
-            };
-            collectLevelNodes(hierarchyRoot);
-
-            // 各レベルのノードを配置
-            // 各レベルのノードを配置（系統を考慮した放射状レイアウト）
-            Object.entries(levelNodes).forEach(([level, nodesInLevel]) => {
-                const levelNum = parseInt(level);
-                if (levelNum === 0) return; // ルートノードはスキップ
-
-                // 階層に応じた円の半径を計算
-                const radius = levelNum * 300; // 階層間の距離を300に設定
-
-                // 各ノードを配置
-                nodesInLevel.forEach((node) => {
-                    const nodeInfo = nodes[node.id];
-                    if (!nodeInfo || nodeInfo.branchSize === undefined || nodeInfo.parentBranch === undefined) return;
-
-                    // より密集した配置のための計算
-                    const parentAngle = -Math.PI/2 + (2 * Math.PI * nodeInfo.parentBranch);
-                    const systemSize = 2 * Math.PI * nodeInfo.branchSize;
-                    
-                    // より細かい角度調整
-                    const childCount = nodeInfo.children?.length || 0;
-                    const depthFactor = Math.max(0.25, 1 - (levelNum * 0.15)); // より急激に角度を狭める
-                    const neighborCount = nodesInLevel.length;
-                    const densityFactor = Math.min(1, 5 / neighborCount); // 同じ階層のノード数に応じて調整
-                    
-                    const angleSpread = childCount > 2 
-                        ? Math.min(0.6, 0.4 + (childCount * 0.04)) * depthFactor * densityFactor
-                        : 0.3 * depthFactor * densityFactor;
-                    const angleSpan = systemSize * angleSpread;
-                    const angle = parentAngle + (angleSpan / 2);
-
-                    // より近い配置のための半径計算
-                    const baseRadius = 50; // 基本半径をさらに小さく
-                    const levelFactor = Math.pow(1.15, levelNum); // より緩やかな増加
-                    const densityAdjustment = Math.max(0.8, 1 - (neighborCount * 0.02)); // ノード数による調整
-                    const radius = baseRadius * levelFactor * densityAdjustment;
-
-                    // 円周上の座標を計算
-                    const x = radius * Math.cos(angle);
-                    const y = radius * Math.sin(angle);
-
-                    // ノードの位置を更新
-                    const originalNode = graphData.nodes.find(n => n.id === node.id);
-                    if (originalNode) {
-                        originalNode.fx = x;
-                        originalNode.fy = y;
-                        originalNode.fz = 0;
-                    }
-                });
-            });
-
-            // カメラ位置の更新とグラフの更新
-            if (fgRef.current) {
-                // 最大の階層数を取得
-                const maxLevel = Math.max(...Object.keys(levelNodes).map(k => parseInt(k)));
-                const maxRadius = (maxLevel + 1) * 300;
-                
-                // カメラ位置を更新（より近くに配置）
-                fgRef.current.cameraPosition(
-                    { x: 0, y: 0, z: maxRadius * 1.1 }, // カメラ位置をより近くに
-                    { x: 0, y: 0, z: 0 }, // 注視点
-                    2000 // アニメーション時間(ms)
-                );
-
-                fgRef.current.refresh();
-            }
+            
+        // 同心円状に配置
+        } else if (layout === 'circle') {
+            
+        
         }
     };
 
@@ -761,6 +443,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
+        console.log('Node clicked:', node);
+        console.log('camera rotation:', fgRef.current.camera().rotation);
+        
         if (!node) {
             setSelectedNode(null);
             return;
@@ -858,7 +543,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         600  // ms transition duration
                     );
                 }
-                console.log('Node clicked:', node);
 
             }
         }
@@ -1395,17 +1079,6 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     //     delete node.fx;
                     //     delete node.fy;
                     //     delete node.fz;
-                    // }
-                    // else{
-                    //     // ノードにfx,fy,fzのキーがなければ、現在のx,y,zを保存する
-                    //     node.fx = node.x;
-                    //     node.fy = node.y;
-                    //     node.fz = node.z;
-                    // }
-                    // ドラッグ終了時の処理
-                    isDraggingNode.current = false;
-                    setInterimLinkState(null);
-
                     // ドラッグ中のノードの位置を更新
                     node.fx = node.x;
                     node.fy = node.y;

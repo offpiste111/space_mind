@@ -72,8 +72,17 @@ const items: MenuItem[] = [
     key: 'layout',
     icon: <SettingOutlined rev={undefined} />,
     children: [
-      { label: 'Tree Layout', key: 'tree_layout' },
-      { label: 'Free Layout', key: 'free_layout' }
+      {
+        label: 'Tree Layout',
+        key: 'tree_layout',
+        children: [
+            { label: 'Right', key: 'right_tree_layout' },
+            { label: 'Left', key: 'left_tree_layout' },
+            { label: 'Upper', key: 'up_tree_layout' },
+            { label: 'lower', key: 'low_tree_layout' },
+        ],
+    },
+      { label: 'Circle Layout', key: 'circle_layout' }
     ],
   }
 ];
@@ -569,12 +578,12 @@ const App = () => {
         <Spin spinning={loading} tip="ファイルを読み込み中...">
             <Button 
                 icon={<MenuOutlined rev={undefined} />}
-                onClick={() => setDrawerVisible(true)}
+                onClick={() => setDrawerVisible(!drawerVisible)}
                 style={{
                     position: 'fixed',
                     left: 10,
                     top: 10,
-                    zIndex: 1000
+                    zIndex: 1001
                 }}
             />
             <Drawer
@@ -586,7 +595,14 @@ const App = () => {
                 height={46}
                 styles={{
                     body: {
-                        padding: "0px"
+                        padding: "0px 0px 0px 40px",
+                        backgroundColor: "#141414"
+                    },
+                    mask: {
+                        backgroundColor: "transparent"
+                    },
+                    wrapper: {
+                        backgroundColor: "#141414"
                     }
                 }}
             >
@@ -660,13 +676,13 @@ const App = () => {
                             }
                         } else if (key === 'find') {
                             setIsSearchModalOpen(true);
-                        } else if (key === 'tree_layout') {
+                        } else if (key === 'right_tree_layout') {
                             if (mindMapGraphRef.current) {
-                                mindMapGraphRef.current.arrangeNodes('tree');
+                                mindMapGraphRef.current.arrangeNodes('right-tree');
                             }
-                        } else if (key === 'free_layout') {
+                        } else if (key === 'circle_layout') {
                             if (mindMapGraphRef.current) {
-                                mindMapGraphRef.current.arrangeNodes('free');
+                                mindMapGraphRef.current.arrangeNodes('circle');
                             }
                         }
                     }}
