@@ -81,8 +81,9 @@ const items: MenuItem[] = [
             { label: 'Upper', key: 'up_tree_layout' },
             { label: 'lower', key: 'low_tree_layout' },
         ],
-    },
-      { label: 'Circle Layout', key: 'circle_layout' }
+     },
+      { label: 'Circle Layout', key: 'circle_layout' },
+      { label: 'Free Layout', key: 'free_layout' }
     ],
   }
 ];
@@ -680,9 +681,25 @@ const App = () => {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('right-tree');
                             }
+                        } else if (key === 'left_tree_layout') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.arrangeNodes('left-tree');
+                            }
+                        } else if (key === 'up_tree_layout') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.arrangeNodes('lower-tree');
+                            }
+                        } else if (key === 'low_tree_layout') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.arrangeNodes('upper-tree');
+                            }
                         } else if (key === 'circle_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('circle');
+                            }
+                        } else if (key === 'free_layout') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.arrangeNodes('free');
                             }
                         }
                     }}

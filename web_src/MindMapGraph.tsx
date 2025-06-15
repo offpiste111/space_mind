@@ -25,6 +25,8 @@ import ThreeForceGraph from 'three-forcegraph'
 
 import { Popconfirm } from 'antd'
 
+import { executeTreeLayout, calculateCameraPosition } from './layouts/TreeLayout';
+import { executeCircleLayout } from './layouts/CircleLayout';
 
 import './index.css'
 import { useHistory } from './hooks/useHistory';
@@ -386,7 +388,171 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             fgRef.current.refresh();
         },
         arrangeNodes: (layout: string) => {
-            arrangeNodes(layout);
+            // 連結成分を特定する関数
+            const findConnectedComponents = () => {
+                const visited = new Set<number>();
+                const components: Array<NodeData[]> = [];
+                
+                // 深さ優先探索でノードとその連結成分を見つける
+                const dfs = (nodeId: number, component: NodeData[]) => {
+                    if (visited.has(nodeId)) return;
+                    
+                    visited.add(nodeId);
+                    const node = graphData.nodes.find(n => n.id === nodeId);
+                    if (node) {
+                        component.push(node);
+                        
+                        // このノードに接続されたすべてのノードを探索
+                        graphData.links.forEach(link => {
+                            if (link.source.id === nodeId) {
+                                dfs(link.target.id, component);
+                            } else if (link.target.id === nodeId) {
+                                dfs(link.source.id, component);
+                            }
+                        });
+                    }
+                };
+                
+                // すべてのノードが訪問されるまで連結成分を探索
+                for (const node of graphData.nodes) {
+                    if (!visited.has(node.id)) {
+                        const component: NodeData[] = [];
+                        dfs(node.id, component);
+                        components.push(component);
+                    }
+                }
+                
+                return components;
+            };
+            
+            // 連結成分ごとのリンクを取得
+            const getLinksForComponent = (componentNodes: NodeData[]) => {
+                const nodeIds = new Set(componentNodes.map(node => node.id));
+                return graphData.links.filter(link => 
+                    nodeIds.has(link.source.id) && nodeIds.has(link.target.id)
+                );
+            };
+
+            // 連結成分を見つける
+            const components = findConnectedComponents();
+            console.log(`Found ${components.length} disconnected graph components`);
+            
+            // 各連結成分のノードにオリジナルの位置を保存
+            graphData.nodes.forEach(node => {
+                node._originalX = node.fx;
+                node._originalY = node.fy;
+                node._originalZ = node.fz;
+            });
+
+            if (layout === 'free') {
+                // force graphによる配置
+                // すべてのノードのfx, fy, fzを一時的に削除して自由に動くようにする
+                graphData.nodes.forEach(node => {
+                    // 現在の位置を記憶
+                    node._tempX = node.x || 0;
+                    node._tempY = node.y || 0;
+                    node._tempZ = node.z || 0;
+                    
+                    // 固定位置を削除
+                    delete node.fx;
+                    delete node.fy;
+                    delete node.fz;
+                });
+                
+                // グラフを更新
+                fgRef.current.refresh();
+                
+                // 1秒後に固定位置を復元
+                setTimeout(() => {
+                    graphData.nodes.forEach(node => {
+                        // 現在の位置をfx, fy, fzに設定
+                        node.fx = node.x;
+                        node.fy = node.y;
+                        node.fz = node.z;
+                        
+                        // 一時変数を削除
+                        delete node._tempX;
+                        delete node._tempY;
+                        delete node._tempZ;
+                        delete node._originalX;
+                        delete node._originalY;
+                        delete node._originalZ;
+                    });
+                    
+                    fgRef.current.refresh();
+                }, 1000);
+                return;
+            }
+
+            // 各連結成分に対して独立してレイアウトを適用
+            let xOffset = 0;
+            const spacing = 800; // 連結成分間の間隔
+            
+            for (let i = 0; i < components.length; i++) {
+                const component = components[i];
+                const componentLinks = getLinksForComponent(component);
+                
+                // 一時的なグラフデータ構造を作成
+                const tempGraphData = {
+                    nodes: component,
+                    links: componentLinks
+                };
+                
+                // 選択されたレイアウトに基づいて配置
+                if (layout.endsWith('-tree')) {
+                    const direction = layout.split('-')[0] as 'right' | 'left' | 'upper' | 'lower';
+                    executeTreeLayout(tempGraphData, direction, z_layer);
+                } else if (layout === 'circle') {
+                    const baseRadius = 200; // 中心円の基本半径
+                    const radiusIncrement = 200; // レベルごとの半径の増分
+                    executeCircleLayout(tempGraphData, baseRadius, radiusIncrement, z_layer);
+                }
+                
+                // 各コンポーネントのグラフの範囲を計算
+                let minX = Infinity, maxX = -Infinity;
+                component.forEach(node => {
+                    minX = Math.min(minX, node.fx || 0);
+                    maxX = Math.max(maxX, node.fx || 0);
+                });
+                
+                // コンポーネントの幅を計算
+                const componentWidth = maxX - minX;
+                
+                // すべてのノードをX軸に沿ってシフト
+                component.forEach(node => {
+                    if (node.fx !== undefined) {
+                        node.fx += xOffset - minX;
+                    }
+                });
+                
+                // 次のコンポーネントの開始位置を更新
+                xOffset += componentWidth + spacing;
+            }
+            
+            // グラフを更新
+            fgRef.current.refresh();
+            
+            // カメラ位置の更新
+            if (fgRef.current) {
+                const { centerX, centerY, distance } = calculateCameraPosition(graphData);
+                
+                fgRef.current.cameraPosition(
+                    { 
+                        x: centerX, 
+                        y: centerY, 
+                        z: distance + z_layer 
+                    },
+                    { 
+                        x: centerX, 
+                        y: centerY, 
+                        z: z_layer 
+                    },
+                    800 // transition duration
+                );
+                
+                // カメラの向きを設定
+                setCameraOrientation();
+            }
         },
         redo: () => {
             redo(graphData, {
@@ -504,7 +670,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         // 同心円状に配置
         } else if (layout === 'circle') {
             
-        
+
         }
     };
 
@@ -629,6 +795,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         600  // ms transition duration
                     );
                 }
+                // カメラの向きを設定
+                setCameraOrientation();
 
             }
         }
