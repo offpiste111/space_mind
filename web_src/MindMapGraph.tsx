@@ -402,15 +402,104 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     // ノードを指定のレイアウトで配置する関数
     const arrangeNodes = (layout: string) => {
         if (layout === 'right-tree') {
+            // IDが最小のノードを親ノードとして特定
+            const rootNode = graphData.nodes.reduce((min, node) => 
+                node.id < min.id ? node : min, graphData.nodes[0]);
             
+            // ノード間の親子関係を構築
+            const nodeMap = new Map(graphData.nodes.map(node => [node.id, { 
+                ...node, 
+                children: [] as any[],
+                mod: 0,
+                thread: null,
+                ancestor: node,
+                change: 0,
+                shift: 0,
+                number: 0,
+                prelim: 0
+            }]));
+            
+            // リンクに基づいて親子関係を設定
+            graphData.links.forEach(link => {
+                const sourceId = link.source.id;
+                const targetId = link.target.id;
+                if (sourceId < targetId) {
+                    nodeMap.get(sourceId)?.children.push(nodeMap.get(targetId));
+                } else {
+                    nodeMap.get(targetId)?.children.push(nodeMap.get(sourceId));
+                }
+            });
+
+            // 初期X座標を計算（第1次通過）
+            const firstWalk = (node: any, level = 0) => {
+                if (!node.children.length) {
+                    if (node.number > 0) {
+                        const leftSibling = nodeMap.get(node.id - 1);
+                        node.prelim = leftSibling ? leftSibling.prelim + 200 : 0;
+                    }
+                } else {
+                    const leftMost = node.children[0];
+                    firstWalk(leftMost, level + 1);
+                    
+                    for (let i = 1; i < node.children.length; i++) {
+                        firstWalk(node.children[i], level + 1);
+                        // 兄弟ノード間の間隔調整
+                        const prevChild = node.children[i - 1];
+                        node.children[i].prelim = prevChild.prelim + 200;
+                    }
+                    
+                    // 親ノードを子ノードの中央に配置
+                    node.prelim = node.children[0].prelim + 
+                        (node.children[node.children.length - 1].prelim - 
+                         node.children[0].prelim) / 2;
+                }
+            };
+
+            // 最終的な座標を設定（第2次通過）
+            const secondWalk = (node: any, m = 0, level = 0, depth = 400) => {
+                console.log('secondWalk before ', node.id, node.fx, node.fy, node.fz);
+                node.fx = node.prelim + m;
+                node.fy = level * depth;
+                node.fz = z_layer;
+                console.log('secondWalk after ', node.id, node.fx, node.fy, node.fz);
+                
+                node.children.forEach((child: any) => {
+                    secondWalk(child, m + node.mod, level + 1, depth);
+                });
+            };
+
+            // レイアウトアルゴリズムを実行
+            if (rootNode) {
+                const root = nodeMap.get(rootNode.id);
+                if (root) {
+                    firstWalk(root);
+                    secondWalk(root);
+                }
+            }
+
+            // ノードの座標を更新
+            graphData.nodes.forEach(node => {
+
+                nodeMap.forEach((node, id) => {
+                    const n = graphData.nodes.find(n => n.id === id);
+                    if (n) {
+                        n.fx = node.fx;
+                        n.fy = node.fy;
+                        n.fz = node.fz;
+                    }
+                });
+            });            
 
             // カメラ位置の更新
             if (fgRef.current) {
-
                 let camera = fgRef.current.camera();
                 camera.up.set(0, 1, 0); // Y軸を上向きに設定
-
             }
+
+            fgRef.current.refresh();
+        } else if (layout === 'left-tree') {
+
+
             
         // 同心円状に配置
         } else if (layout === 'circle') {
@@ -443,8 +532,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
-        console.log('Node clicked:', node);
-        console.log('camera rotation:', fgRef.current.camera().rotation);
         
         if (!node) {
             setSelectedNode(null);
@@ -453,7 +540,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
         // Ctrlキーが押されている場合は複数選択モード
         if ( funcMode  && node) {
-            console.log('funcMode Node clicked:', node);
 
             // ノードが通常選択されている場合、選択を解除
             if (selectedNode && node.id == selectedNode.id) {
