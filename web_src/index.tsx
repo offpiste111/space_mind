@@ -208,6 +208,39 @@ const App = () => {
     const nodeEditorRef = useRef<ModalRef>(null)
     const linkAddModalRef = useRef<ModalRef>(null)
 
+    useEffect(() => {
+        if (mindMapGraphRef.current) {
+            window.eel.expose(mindMapGraphRef.current.getGraphData, 'get_graph_data');
+        }
+    }, [mindMapGraphRef.current]);
+
+    const resetGraph = useCallback(() => {
+        if (mindMapGraphRef.current) {
+            const now = new Date().toISOString();
+            mindMapGraphRef.current.setGraphData({
+                nodes: [{
+                    id: 1,
+                    img: "logo.png",
+                    group: 1,
+                    style_id: 1,
+                    fx: 0,
+                    fy: 0,
+                    fz: -300,
+                    size_x: 120,
+                    size_y: 40,
+                    name: "SpaceMind",
+                    createdAt: now,
+                    updatedAt: now
+                }],
+                links: []
+            });
+        }
+    }, []);
+
+    useEffect(() => {
+        window.eel.expose(resetGraph, 'reset_graph');
+    }, [resetGraph]);
+
     const [menuPosition, setMenuPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
     const [menuOpen, setMenuOpen] = useState(false);
 

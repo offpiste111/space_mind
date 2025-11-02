@@ -3,10 +3,11 @@
 
 # bottle has a issue with stdout when using pyinstaller --noconsole
     bottle #='0.13-dev'  # download the latest bottle version and replace the contents with this version from https://github.com/bottlepy/bottle/blob/master/bottle.py
-    eel==0.16.0
-    pyinstaller==5.8.0
+    eel
+    pyinstaller
     psutil==5.9.4
     imgkit==1.2.3
     jinja2 
     weasyprint
     pdf2image
+    numpy

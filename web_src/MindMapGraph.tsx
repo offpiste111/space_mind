@@ -1224,7 +1224,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 d3AlphaDecay={0.2}
                 //dagMode={"radialin"}
                 //nodeThreeObjectExtend={true}
-                onBackgroundClick={handleBackgroundClick}
+                onBackgroundRightClick={handleBackgroundClick}
                 onNodeDragEnd={(node:any) => {
 
                     // // ノードにfx,fy,fzのキーがあれば、そのキーを消す
