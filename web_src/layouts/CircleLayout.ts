@@ -58,19 +58,13 @@ interface NodeInfo {
 export class CircleLayout {
     private graphData: GraphData;
     private nodeMap: Map<number, NodeInfo> = new Map();
-    private rootNode: NodeInfo | null = null;
+    private rootNodes: NodeInfo[] = [];
     private z_layer: number;
-    private baseRadius: number = 200; // 基本半径
-    private radiusIncrement: number = 200; // レベルごとの半径の増分
-    private levelMap: Map<number, NodeInfo[]> = new Map(); // レベルごとのノード配列
+    private baseRadius: number = 300;
+    private radiusIncrement: number = 300;
+    private levelMap: Map<number, NodeInfo[]> = new Map();
+    private padding: number = 200; // ノード間の余白
     
-    /**
-     * コンストラクタ
-     * @param graphData グラフデータ（ノードとリンク）
-     * @param baseRadius 中心円の半径（未指定時はデフォルト値使用）
-     * @param radiusIncrement レベルごとの半径の増分
-     * @param z_layer Z軸の層の位置
-     */
     constructor(graphData: GraphData, baseRadius?: number, radiusIncrement?: number, z_layer: number = -300) {
         this.graphData = graphData;
         this.z_layer = z_layer;
@@ -78,52 +72,37 @@ export class CircleLayout {
         if (radiusIncrement) this.radiusIncrement = radiusIncrement;
     }
 
-    /**
-     * レイアウトを実行し、ノードの位置を更新する
-     * @returns 更新されたグラフデータ
-     */
     public executeLayout(): GraphData {
         if (this.graphData.nodes.length === 0) {
             return this.graphData;
         }
         
-        // ノードマップを初期化
         this.initializeNodeMap();
-        
-        // 親子関係を構築
         this.createParentChildRelationships();
+        this.findRootNodes();
         
-        // ルートノードを特定
-        this.findRootNode();
-        
-        if (!this.rootNode) {
+        if (this.rootNodes.length === 0) {
             return this.graphData;
         }
         
-        // レベル（階層）を割り当て
-        this.assignLevels(this.rootNode, 0);
+        for (const root of this.rootNodes) {
+            this.assignLevelsIterative(root, 0);
+            this.calculateSubtreeSizesIterative(root);
+        }
         
-        // サブツリーのサイズを計算
-        this.calculateSubtreeSizes(this.rootNode);
-        
-        // レベルごとのノードグループを作成
         this.groupNodesByLevel();
+        this.assignRootAngleRanges();
         
-        // 系統ごとの角度範囲を割り当て
-        this.assignAngleRanges();
+        for (const root of this.rootNodes) {
+            this.assignChildrenAngleRangesIterative(root);
+        }
         
-        // ノードを同心円状に配置
         this.positionNodesInCircles();
-        
-        // ノードの位置を更新
         this.updateNodePositions();
         
         return this.graphData;
     }
 
-    /**
-     * ノードマップを初期化
-     */
     private initializeNodeMap(): void {
         this.nodeMap.clear();
         this.graphData.nodes.forEach(node => {
@@ -131,108 +110,97 @@ export class CircleLayout {
                 node,
                 children: [],
                 level: 0,
-                width: node.size_x || 120,
-                height: node.size_y || 40
+                width: node.size_x || 200,
+                height: node.size_y || 80
             });
         });
     }
 
-    /**
-     * 親子関係を作成
-     */
     private createParentChildRelationships(): void {
-        // ノードが既に親を持っているかをトラッキングするためのセット
         const nodesWithParents = new Set<number>();
         
         this.graphData.links.forEach(link => {
-            const sourceId = link.source.id;
-            const targetId = link.target.id;
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
             const sourceInfo = this.nodeMap.get(sourceId);
             const targetInfo = this.nodeMap.get(targetId);
             
             if (sourceInfo && targetInfo) {
-                // ターゲットノードが既に親を持っていない場合のみ親子関係を追加
                 if (!nodesWithParents.has(targetId)) {
                     sourceInfo.children.push(targetInfo);
-                    targetInfo.parent = sourceInfo; // 親への参照を追加
+                    targetInfo.parent = sourceInfo;
                     nodesWithParents.add(targetId);
                 }
             }
         });
     }
 
-    /**
-     * ルートノードを検索
-     */
-    private findRootNode(): void {
-        // 親を持たないノードを探す
-        let rootNodes: NodeInfo[] = [];
+    private findRootNodes(): void {
+        let roots: NodeInfo[] = [];
         this.nodeMap.forEach(nodeInfo => {
             if (!nodeInfo.parent) {
-                rootNodes.push(nodeInfo);
+                roots.push(nodeInfo);
             }
         });
         
-        // ルートノードが見つからない場合は最初のノードを使用
-        if (rootNodes.length === 0 && this.graphData.nodes.length > 0) {
-            rootNodes = [this.nodeMap.get(this.graphData.nodes[0].id)!];
+        if (roots.length === 0 && this.graphData.nodes.length > 0) {
+            roots = [this.nodeMap.get(this.graphData.nodes[0].id)!];
         } 
-        // 複数のルートノードがある場合は、子孫の数が最も多いノードを選択
-        else if (rootNodes.length > 1) {
-            rootNodes.sort((a, b) => {
-                const countDescendants = (nodeInfo: NodeInfo): number => {
-                    let count = 0;
-                    const queue = [...nodeInfo.children];
-                    while (queue.length > 0) {
-                        const current = queue.shift()!;
-                        count++;
-                        queue.push(...current.children);
-                    }
-                    return count;
-                };
-                
-                return countDescendants(b) - countDescendants(a);
-            });
+        
+        roots.sort((a, b) => b.children.length - a.children.length);
+        this.rootNodes = roots;
+    }
+
+    private assignLevelsIterative(rootInfo: NodeInfo, startLevel: number): void {
+        const queue: { node: NodeInfo, level: number }[] = [{ node: rootInfo, level: startLevel }];
+        while (queue.length > 0) {
+            const { node, level } = queue.shift()!;
+            node.level = level;
+            for (const child of node.children) {
+                queue.push({ node: child, level: level + 1 });
+            }
+        }
+    }
+
+    private calculateSubtreeSizesIterative(rootInfo: NodeInfo): number {
+        const postOrderList: NodeInfo[] = [];
+        const stack: NodeInfo[] = [rootInfo];
+        const visited = new Set<number>();
+        
+        while (stack.length > 0) {
+            const current = stack[stack.length - 1];
+            
+            let allChildrenVisited = true;
+            for (const child of current.children) {
+                if (!visited.has(child.node.id)) {
+                    allChildrenVisited = false;
+                    stack.push(child);
+                    break;
+                }
+            }
+            
+            if (allChildrenVisited) {
+                stack.pop();
+                postOrderList.push(current);
+                visited.add(current.node.id);
+            }
         }
         
-        this.rootNode = rootNodes[0] || null;
-    }
-
-    /**
-     * ノードに階層レベルを割り当て
-     * @param nodeInfo 処理するノード情報
-     * @param level 階層レベル
-     */
-    private assignLevels(nodeInfo: NodeInfo, level: number): void {
-        nodeInfo.level = level;
-        nodeInfo.children.forEach(child => this.assignLevels(child, level + 1));
-    }
-
-    /**
-     * サブツリーのサイズ（ノード数）を計算
-     * @param nodeInfo 処理するノード情報
-     * @returns サブツリーサイズ（ノード数）
-     */
-    private calculateSubtreeSizes(nodeInfo: NodeInfo): number {
-        // 子ノードがない場合は自分自身のみ
-        if (nodeInfo.children.length === 0) {
-            nodeInfo.subtreeSize = 1;
-            return 1;
+        for (const node of postOrderList) {
+            if (node.children.length === 0) {
+                node.subtreeSize = 1;
+            } else {
+                let size = 1;
+                for (const child of node.children) {
+                    size += child.subtreeSize || 0;
+                }
+                node.subtreeSize = size;
+            }
         }
         
-        // 子ノードのサブツリーサイズを合計
-        let size = 1; // 自分自身もカウント
-        nodeInfo.children.forEach(child => {
-            size += this.calculateSubtreeSizes(child);
-        });
-        
-        nodeInfo.subtreeSize = size;
-        return size;
+        return rootInfo.subtreeSize || 1;
     }
 
-    /**
-     * レベルごとにノードをグループ化
-     */
     private groupNodesByLevel(): void {
         this.levelMap.clear();
         
@@ -244,86 +212,100 @@ export class CircleLayout {
         });
     }
 
-    /**
-     * 系統ごとの角度範囲を割り当て
-     */
-    private assignAngleRanges(): void {
-        if (!this.rootNode || !this.rootNode.subtreeSize) {
-            return;
+    private assignRootAngleRanges(): void {
+        let totalSize = 0;
+        for (const root of this.rootNodes) {
+            totalSize += root.subtreeSize || 1;
         }
         
-        // ルートノードは全体（2π）の角度範囲を持つ
-        this.rootNode.startAngle = 0;
-        this.rootNode.endAngle = Math.PI * 2;
-        this.rootNode.subtreeAngle = Math.PI * 2;
-        this.rootNode.angle = 0; // ルートノードは0度から始める
+        let currentAngle = 0;
         
-        // 子ノード以下の角度範囲を割り当て
-        this.assignChildrenAngleRanges(this.rootNode);
-    }
-
-    /**
-     * 子ノードの角度範囲を親ノードの範囲内で割り当て
-     * @param parentNode 親ノード情報
-     */
-    private assignChildrenAngleRanges(parentNode: NodeInfo): void {
-        if (parentNode.children.length === 0) {
-            return;
+        for (const root of this.rootNodes) {
+            const ratio = (root.subtreeSize || 1) / totalSize;
+            const rootAngle = Math.PI * 2 * ratio;
+            
+            root.startAngle = currentAngle;
+            root.subtreeAngle = rootAngle;
+            root.endAngle = currentAngle + rootAngle;
+            root.angle = currentAngle + (rootAngle / 2);
+            
+            currentAngle += rootAngle;
         }
-        
-        const startAngle = parentNode.startAngle || 0;
-        const totalAngle = parentNode.subtreeAngle || Math.PI * 2;
-        
-        // 親のサブツリーサイズから自身を除いた残りが子孫のサイズ
-        const childrenSubtreeSize = (parentNode.subtreeSize || 1) - 1;
-        
-        let currentAngle = startAngle;
-        
-        // 子ノードの角度範囲を計算
-        parentNode.children.forEach(childNode => {
-            // 子ノードのサブツリーが占める角度範囲を計算
-            const childAngleRatio = (childNode.subtreeSize || 1) / childrenSubtreeSize;
-            const childAngle = totalAngle * childAngleRatio;
-            
-            // 子ノードの角度範囲を設定
-            childNode.startAngle = currentAngle;
-            childNode.subtreeAngle = childAngle;
-            childNode.endAngle = currentAngle + childAngle;
-            
-            // 子ノードの角度は範囲の中央
-            childNode.angle = currentAngle + (childAngle / 2);
-            
-            // 次の子ノードの開始角度を更新
-            currentAngle += childAngle;
-            
-            // 再帰的に子ノードの子を処理
-            this.assignChildrenAngleRanges(childNode);
-        });
     }
 
-    /**
-     * ノードを同心円状に配置
-     */
+    private assignChildrenAngleRangesIterative(rootNode: NodeInfo): void {
+        const queue: NodeInfo[] = [rootNode];
+        
+        while (queue.length > 0) {
+            const parentNode = queue.shift()!;
+            
+            if (parentNode.children.length === 0) {
+                continue;
+            }
+        
+            const startAngle = parentNode.startAngle || 0;
+            const totalAngle = parentNode.subtreeAngle || Math.PI * 2;
+            const childCount = parentNode.children.length;
+            const angleStep = totalAngle / childCount;
+        
+            let currentAngle = startAngle;
+        
+            for (const childNode of parentNode.children) {
+                const childAngle = angleStep;
+        
+                childNode.startAngle = currentAngle;
+                childNode.subtreeAngle = childAngle;
+                childNode.endAngle = currentAngle + childAngle;
+                childNode.angle = currentAngle + (childAngle / 2);
+        
+                currentAngle += childAngle;
+        
+                queue.push(childNode);
+            }
+        }
+    }
+
     private positionNodesInCircles(): void {
-        // 各レベルごとに処理
-        this.levelMap.forEach((nodesInLevel, level) => {
-            // このレベルの円の半径を計算
-            const radius = this.baseRadius + (level * this.radiusIncrement);
+        let maxLevel = 0;
+        this.levelMap.forEach((_, level) => {
+            maxLevel = Math.max(maxLevel, level);
+        });
+
+        const radii = new Map<number, number>();
+        let currentRadius = this.baseRadius;
+
+        for (let level = 0; level <= maxLevel; level++) {
+            let maxDim = 0;
+            const nodes = this.levelMap.get(level) || [];
+            nodes.forEach(nodeInfo => {
+                maxDim = Math.max(maxDim, Math.max(nodeInfo.width, nodeInfo.height));
+            });
             
-            // 各ノードを、割り当てられた角度に配置
-            nodesInLevel.forEach(nodeInfo => {
+            // 円周上のノードが重ならないための最小半径を計算
+            const requiredCircumference = nodes.length * (maxDim + this.padding);
+            const minRadius = requiredCircumference / (2 * Math.PI);
+            
+            currentRadius = Math.max(currentRadius, minRadius);
+            radii.set(level, currentRadius);
+
+            // 次のレベルの開始半径を設定 (前のレベルのノードサイズ + 余白)
+            currentRadius += maxDim + this.padding;
+        }
+
+        this.levelMap.forEach((nodesInLevel, level) => {
+            const radius = radii.get(level) || this.baseRadius;
+            const angleOffset = Math.PI / nodesInLevel.length;
+
+            nodesInLevel.forEach((nodeInfo, index) => {
                 if (nodeInfo.angle !== undefined) {
-                    // 極座標から直交座標に変換
-                    nodeInfo.x = radius * Math.cos(nodeInfo.angle);
-                    nodeInfo.y = radius * Math.sin(nodeInfo.angle);
+                    const angle = nodeInfo.angle + angleOffset * (index % 2);
+                    nodeInfo.x = radius * Math.cos(angle);
+                    nodeInfo.y = radius * Math.sin(angle);
                 }
             });
         });
     }
 
-    /**
-     * ノードの位置を更新
-     */
     private updateNodePositions(): void {
         this.nodeMap.forEach(nodeInfo => {
             if (nodeInfo.x !== undefined && nodeInfo.y !== undefined) {
@@ -334,10 +316,6 @@ export class CircleLayout {
         });
     }
 
-    /**
-     * グラフの範囲を計算
-     * @returns {minX, maxX, minY, maxY} 範囲
-     */
     public getGraphBounds(): {minX: number, maxX: number, minY: number, maxY: number} {
         let minX = Infinity, maxX = -Infinity;
         let minY = Infinity, maxY = -Infinity;

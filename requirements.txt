@@ -11,3 +11,4 @@
     weasyprint
     pdf2image
     numpy
+    playwright

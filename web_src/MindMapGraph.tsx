@@ -69,6 +69,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const copiedNodeRef = useRef<any>(null);
     // ダブルクリック検出用の変数
     const lastClickTime = useRef<number>(0);
+    const clickTimeout = useRef<any>(null);
     const lastClickedNode = useRef<any>(null);
 
     const { scheduleBatchedUpdate, isPending } = useBatchUpdate();
@@ -77,6 +78,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         id: number;
         img: string;
         name?: string;
+        _originalX?: number;
+        _originalY?: number;
+        _originalZ?: number;
+        _tempX?: number;
+        _tempY?: number;
+        _tempZ?: number;
         group?: number;
         x?: number;
         y?: number;
@@ -156,7 +163,31 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 // 編集モーダルを表示
                 //props.onNodeEdit(new_node);
             } else {
-                setGraphData(graphData);
+                // cameraプロパティがあれば分離（stateには含めない）
+                const { camera: cameraData, ...restGraphData } = graphData;
+                setGraphData(restGraphData);
+                
+                // カメラ情報があれば復元（グラフの初期化完了後に実行）
+                if (cameraData && fgRef.current) {
+                    requestAnimationFrame(() => {
+                        setTimeout(() => {
+                            if (!fgRef.current) return;
+                            const cam = cameraData;
+                            fgRef.current.cameraPosition(
+                                cam.position,
+                                cam.lookAt,
+                                0 // 即座に移動
+                            );
+                            setLookAtTarget(new THREE.Vector3(cam.lookAt.x, cam.lookAt.y, cam.lookAt.z));
+                            const controls = fgRef.current.controls();
+                            if (controls && cam.lookAt) {
+                                controls.target.set(cam.lookAt.x, cam.lookAt.y, cam.lookAt.z);
+                                controls.update();
+                            }
+                            setCameraOrientation();
+                        }, 100); // グラフの初期化を待ってからカメラを復元
+                    });
+                }
             }
         },
         refreshNode: (node:any) => {
@@ -279,6 +310,18 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         // ノード選択用のメソッドを追加
         selectNode: (node: any) => {
             handleClick(node, null as any);
+        },
+        focusOnNode: (node: any) => {
+            if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
+                const distance = 700;
+                if (fgRef.current) {
+                    fgRef.current.cameraPosition(
+                        { x: node.x, y: node.y, z: node.z + distance }, // new position
+                        { x: node.x, y: node.y, z: node.z }, // lookAt ({ x, y, z })
+                        600  // ms transition duration
+                    );
+                }
+            }
         },
         // 選択中のノードを取得する関数を追加
         getSelectedNode: () => {
@@ -562,6 +605,16 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 refreshLink
             });
             fgRef.current.refresh();
+        },
+        getCameraState: () => {
+            if (!fgRef.current) return null;
+            const pos = fgRef.current.cameraPosition();
+            const controls = fgRef.current.controls();
+            const target = controls ? controls.target : lookAtTarget;
+            return {
+                position: { x: pos.x, y: pos.y, z: pos.z },
+                lookAt: { x: target.x, y: target.y, z: target.z }
+            };
         }
     }));
 
@@ -618,9 +671,14 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         const now = Date.now();
         const timeSinceLastClick = now - lastClickTime.current;
         
-        // ダブルクリック検出（300ms以内に同じノードをクリック）
-        if (timeSinceLastClick < 300 && lastClickedNode.current && node.id === lastClickedNode.current.id) {
+        // ダブルクリック検出（指定ms以内に同じノードをクリック）
+        const timeSinceLastClickInterval = 600
+        if (timeSinceLastClick < timeSinceLastClickInterval && lastClickedNode.current && node.id === lastClickedNode.current.id) {
             // ダブルクリック処理
+            if (clickTimeout.current) {
+                clearTimeout(clickTimeout.current);
+                clickTimeout.current = null;
+            }
             handleDoubleClick(node);
             lastClickTime.current = 0; // ダブルクリック後にリセット
             lastClickedNode.current = null;
@@ -631,9 +689,31 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         lastClickTime.current = now;
         lastClickedNode.current = node;
 
-
         // 選択されたノードを更新（これは常に行う）
         setSelectedNode(node);
+
+        if (clickTimeout.current) {
+            clearTimeout(clickTimeout.current);
+        }
+
+        // シングルクリックの場合は、ダブルクリックでないことが確定してからカメラの視点（ターゲット）のみを対象ノードに向ける
+        clickTimeout.current = setTimeout(() => {
+            if (fgRef.current && node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
+                // controls.target.set() を直接呼ぶと一瞬で視点が切り替わってしまいアニメーションが効かなくなるため削除します。
+                // 代わりに cameraPosition() に現在のカメラ位置と新しい lookAt を渡すことでスムーズに視点を移動させます。
+                const currentPos = fgRef.current.cameraPosition();
+                fgRef.current.cameraPosition(
+                    currentPos, // カメラの位置は現在の位置を維持
+                    { x: node.x, y: node.y, z: node.z }, // lookAt を対象ノードに更新
+                    1000 
+                );
+                // 視点座標を保存
+                setLookAtTarget(new THREE.Vector3(node.x, node.y, node.z));
+                // カメラの向きを設定
+                setCameraOrientation();
+            }
+            clickTimeout.current = null;
+        }, timeSinceLastClickInterval); // ダブルクリック判定時間と同じms待つ
     }, [fgRef,selectedNodeList, graphData,funcMode]);
     
     // ノードのダブルクリックを処理する関数
@@ -673,7 +753,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 if (selectedNodeList.some(n => n.id === node.id)) {
                     setSelectedNodeList([]);
                 }
-                const distance = 700;
+                const distance = 1000;
                 const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
 
                 // 視点座標を保存
@@ -683,7 +763,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     fgRef.current.cameraPosition(
                         { x: node.x, y: node.y, z: node.z + distance }, // new position
                         { x: node.x, y: node.y, z: node.z }, // lookAt ({ x, y, z })
-                        600  // ms transition duration
+                        1000  // ms transition duration
                     );
                 }
                 // カメラの向きを設定
@@ -1094,24 +1174,106 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     //     }, 100);
     //   }, []);
 
+    // 削除：副作用でのターゲット直接変更を廃止
+
     useEffect(() => {
         if (fgRef.current) {
-            // ノード間の反発力を設定
-            //fgRef.current.d3Force('charge').strength(-50);
-        
-            // リンクの距離を設定
             fgRef.current.d3Force('link').distance(2).strength(1);
-            
-            //const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.1, 0.2, 0.9);
-            //fgRef.current.postProcessingComposer().addPass(bloomPass);
-            
             fgRef.current.d3Force('collision', d3force.forceCollide(150));
-            //fgRef.current.d3Force('center', d3force.forceCenter(0, 0));
+            fgRef.current.d3Force('charge', d3force.forceManyBody().strength(-10));
 
+            // --- マウス速度に応じた可変パン/回転速度制御 ---
+            const state = {
+                isLeftDown: false,
+                isRightDown: false,
+                lastX: 0,
+                lastY: 0,
+                lastTime: 0,
+                speed: 0,
+            };
 
-            //fgRef.current.d3Force("link", d3force.forceLink(graphData.links).distance(function(){ return 10;}).strength(function(){ return 2; }))
-            //fgRef.current.d3Force("center", d3force.forceY(height/2))
-            fgRef.current.d3Force('charge', d3force.forceManyBody().strength(-10))
+            const onMouseDown = (e: MouseEvent) => {
+                if (e.button === 0) {
+                    state.isLeftDown = true;
+                    state.lastX = e.clientX;
+                    state.lastY = e.clientY;
+                    state.lastTime = performance.now();
+                    state.speed = 0;
+                } else if (e.button === 2) {
+                    state.isRightDown = true;
+                    state.lastX = e.clientX;
+                    state.lastY = e.clientY;
+                    state.lastTime = performance.now();
+                    state.speed = 0;
+                }
+            };
+            const onMouseUp = (e: MouseEvent) => {
+                if (e.button === 0) {
+                    state.isLeftDown = false;
+                    state.speed = 0;
+                    // ドラッグ終了後は元の回転速度に戻す
+                    const controls = fgRef.current?.controls();
+                    if (controls) controls.rotateSpeed = 1.0;
+                } else if (e.button === 2) {
+                    state.isRightDown = false;
+                    state.speed = 0;
+                    // ドラッグ終了後は元のパン速度に戻す
+                    const controls = fgRef.current?.controls();
+                    if (controls) controls.panSpeed = 0.3;
+                }
+            };
+            const onMouseMove = (e: MouseEvent) => {
+                if (!state.isLeftDown && !state.isRightDown) return;
+                const now = performance.now();
+                const dt = now - state.lastTime;
+                if (dt > 0) {
+                    const dist = Math.hypot(e.clientX - state.lastX, e.clientY - state.lastY);
+                    const instant = dist / dt; // px per ms
+                    // 指数移動平均でスムージング
+                    state.speed = state.speed * 0.5 + instant * 0.5;
+                }
+                state.lastX = e.clientX;
+                state.lastY = e.clientY;
+                state.lastTime = now;
+            };
+
+            let rafId: number;
+            const updateSpeeds = () => {
+                const controls = fgRef.current?.controls();
+                if (controls) {
+                    if (state.isLeftDown) {
+                        // 速度に応じて rotateSpeed を可変に
+                        // 低速時 0.3、高速時最大 1.5 程度
+                        const speedFactor = Math.min(state.speed * 5, 3.0);
+                        controls.rotateSpeed = 0.03 + speedFactor * 0.05;
+                    } else if (state.isRightDown) {
+                        // 速度に応じて panSpeed を可変に
+                        // 低速時 0.1、高速時最大 1.3 程度
+                        const speedFactor = Math.min(state.speed * 5, 3.0);
+                        controls.panSpeed = 0.01 + speedFactor * 0.05;
+                    }
+                }
+                // 速度を減衰
+                state.speed *= 0.9;
+                rafId = requestAnimationFrame(updateSpeeds);
+            };
+
+            window.addEventListener('mousedown', onMouseDown);
+            window.addEventListener('mouseup', onMouseUp);
+            window.addEventListener('mousemove', onMouseMove);
+            rafId = requestAnimationFrame(updateSpeeds);
+
+            return () => {
+                window.removeEventListener('mousedown', onMouseDown);
+                window.removeEventListener('mouseup', onMouseUp);
+                window.removeEventListener('mousemove', onMouseMove);
+                cancelAnimationFrame(rafId);
+                const controls = fgRef.current?.controls();
+                if (controls) {
+                    controls.rotateSpeed = 1.0;
+                    controls.panSpeed = 0.3;
+                }
+            };
         }
     }, [fgRef]);
 

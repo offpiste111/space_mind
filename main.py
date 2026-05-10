@@ -25,8 +25,58 @@ import numpy as np
 import io
 import base64
 import subprocess
+from jinja2 import Environment, FileSystemLoader
+
+# Import imgkit at module level to avoid repeated imports across threads
+import imgkit
+
+env = Environment(loader=FileSystemLoader('templates'))
+node_template = env.get_template('node_template.html')
 
 g_current_file_path = None  # 現在開いているファイルのパスを保持
+RECENT_FILES_PATH = os.path.expanduser("~/.space_mind_recent_files.json")
+
+def update_recent_files(path):
+    """最近使用したファイルのリストを更新する"""
+    try:
+        if os.path.exists(RECENT_FILES_PATH):
+            with open(RECENT_FILES_PATH, 'r', encoding='utf-8') as f:
+                recent_files = json.load(f)
+        else:
+            recent_files = []
+
+        # 既存のパスを削除
+        if path in recent_files:
+            recent_files.remove(path)
+
+        # 先頭に追加
+        recent_files.insert(0, path)
+
+        # 10件に制限
+        recent_files = recent_files[:10]
+
+        with open(RECENT_FILES_PATH, 'w', encoding='utf-8') as f:
+            json.dump(recent_files, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error updating recent files: {e}")
+
+@eel.expose
+def get_recent_files():
+    """最近使用したファイルのリストを取得する"""
+    if os.path.exists(RECENT_FILES_PATH):
+        with open(RECENT_FILES_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
+
+@eel.expose
+def load_json_by_path(path):
+    """指定されたパスからJSONファイルを読み込む"""
+    global g_current_file_path
+    if os.path.exists(path):
+        g_current_file_path = path
+        update_recent_files(path)
+        return load_json(path)
+    return None
 
 @eel.expose
 def select_folder():
@@ -97,6 +147,7 @@ def select_file_dialog():
     if file_path:
         global g_current_file_path
         g_current_file_path = file_path
+        update_recent_files(file_path)
         return load_json(file_path)
     return None
 
@@ -162,12 +213,14 @@ def read_json(json_path):
     return node_data
 
 def save_json(data, json_path):
-    print(json_path)
+    print("--- Saving data to:", json_path)
+    print("--- Original data:", json.dumps(data, indent=2, ensure_ascii=False))
+    
     # data["nodes"]の各要素のキーはid,name,group,x,y,color,index,fx,fyのみ、それ以外は削除
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","baackground"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","baackground", "size_x", "size_y"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -184,10 +237,16 @@ def save_json(data, json_path):
         #link["target"]がハッシュ配列型であるかつidキーがある場合のみ変換
         if isinstance(link["target"], dict) and "id" in link["target"]:
             link["target"] = link["target"]["id"]
+    
+    print("--- Cleaned data:", json.dumps(data, indent=2, ensure_ascii=False))
 
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return
+    try:
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"--- Error saving file: {e}")
+        return False
 
 
 node_styles = [
@@ -304,7 +363,6 @@ def generate_image(node):
     frame_bushes5_base64 = ""
     frame_bushes6_base64 = ""
 
-
     styles = node_styles
     if "type" in node and node["type"] == "link":
         styles = node_link_styles
@@ -317,8 +375,6 @@ def generate_image(node):
     elif "type" in node and node["type"] == "issue":
         styles = node_issue_styles
 
-        # base64に変換
-        
         if node["style_id"] == 1:
             with open('web_src/assets/frame_bushes.png', 'rb') as img_file:
                 frame_bushes_base64 = base64.b64encode(img_file.read()).decode('utf-8')
@@ -338,475 +394,79 @@ def generate_image(node):
             with open('web_src/assets/frame_bushes6.png', 'rb') as img_file:
                 frame_bushes6_base64 = base64.b64encode(img_file.read()).decode('utf-8')
 
+    html_content = node_template.render(
+        style_class=styles[node['style_id']-1]['class'],
+        icon_base64=icon_base64,
+        node_name=node['name'],
+        deadline=node.get('deadline', '').strip() if 'deadline' in node and node['deadline'] else None,
+        priority=node.get('priority'),
+        urgency=node.get('urgency'),
+        frame_bushes_base64=frame_bushes_base64,
+        frame_bushes2_base64=frame_bushes2_base64,
+        frame_bushes3_base64=frame_bushes3_base64,
+        frame_bushes4_base64=frame_bushes4_base64,
+        frame_bushes5_base64=frame_bushes5_base64,
+        frame_bushes6_base64=frame_bushes6_base64
+    )
 
-    if True:  # Execute only on Windows
-        import imgkit
+    now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    output_path = f"./web_src/assets/node_img/{node['id']}_{now}.png"
+    options = {
+        'width': '1200',
+        'height': '1200'
+    }
 
+    if 'isNew' not in node or node['isNew'] == False:
+        if node['img'] != "logo.png":
+            if os.path.exists(f"./web_src/assets/{node['img']}"):
+                os.remove(f"./web_src/assets/{node['img']}")
 
-
-
-        if os.name == 'nt':
-            wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
-                    # .normal_5 {{
-                    #     margin: 20px auto; 
-                    #     padding: 20px; 
-                    #     background-color: #fff; 
-                    #     background-image: linear-gradient(#e1eef5 1px, transparent 1px), linear-gradient(to right, #e1eef5 1px, #fff 1px);
-                    #     background-size: 20px 20px;
-                    # }}
-
-                    # .normal_4 {{
-                    #     margin: 20px auto;
-                    #     padding: 20px;
-                    #     background-color: #fff;
-                    #     background: repeating-linear-gradient( -45deg, #eaf3f8, #eaf3f8 5px, #fff 5px, #fff 13px );
-                    # }}
-
-                    # .normal_5 {{
-                    #     padding: 1em 1.5em;
-                    #     margin: 2em 0;
-                    #     background: #ffebf0;/*背景色*/
-                    #     background-image: radial-gradient(#fad6de 10%, transparent 25%), radial-gradient(#fad6de 10%, transparent 25%);
-                    #     background-position: 0 0, 10px 10px;
-                    #     background-size: 20px 20px;
-                    #     color:#333;/*文字色*/
-                    # }}
-
-
-
-                    # .normal_5 {{
-                    #     position: relative;
-                    #     width: fit-content;
-                    #     padding: 12px 16px;
-                    #     border: 2px solid #333333;
-                    #     border-radius: 4px;
-                    # }}
-                    # .normal_5::before {{
-                    #     content: "";
-                    #     position: absolute;
-                    #     bottom: -5px;
-                    #     left: 50%;
-                    #     width: 15px;
-                    #     height: 15px;
-                    #     box-sizing: border-box;
-                    #     background-color: #ffffff; /* 背景色と同じ色を指定 */
-                    #     rotate: 135deg;
-                    #     translate: -50%;
-                    # }}
-                    # .normal_5::after {{
-                    #     content: "";
-                    #     position: absolute;
-                    #     bottom: -8px;
-                    #     left: 50%;
-                    #     width: 15px;
-                    #     height: 15px;
-                    #     box-sizing: border-box;
-                    #     border: 2px solid;
-                    #     border-color: #333333 #333333 transparent transparent;
-                    #     rotate: 135deg;
-                    #     translate: -50%;
-                    # }}
-        html = f"""
-                <!DOCTYPE html>
-                <html lang="ja">
-                <head>
-                    <meta charset="UTF-8">
-
-                    <style>
-                    .node-content {{
-                        display: inline-block;
-                        padding: 10px;
-                    }}
-
-                    .normal_1 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        background-color: #e1eef5;
-                    }}
-
-                    .normal_2 {{
-                        color: #000000; 
-                        background: #ffffff; 
-                        border: solid 3px #ffc06e; 
-                        border-radius: 4px;
-                    }}
-
-                    .normal_3 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        background-color: #e1eef5;
-                        position: relative;
-                    }}
-                    .normal_3::after {{
-                        content: '';
-                        position: absolute;
-                        right: 0;
-                        top: 0;
-                        border-width: 0 20px 20px 0;
-                        border-style: solid;
-                        border-color: #4c9ac0 #fff #4c9ac0;
-                        box-shadow: -1px 1px 1px rgba(0, 0, 0, 0.15)
-                    }}
-
-
-                    .normal_4 {{
-                        padding: 1em 1.5em;
-                        margin: 2em 0;
-                        background-color:#b22222;/*背景色*/
-                        color:#ffffff;/*文字色*/
-                        font-weight:bold;
-                    }}
-                    .normal_5 {{
-                        padding: 1em 1.5em;
-                        margin: 2em 0;
-                        background: #ffebf0;/*背景色*/
-                        background-image: radial-gradient(#fad6de 10%, transparent 25%), radial-gradient(#fad6de 10%, transparent 25%);
-                        background-position: 0 0, 10px 10px;
-                        background-size: 20px 20px;
-                        color:#333;/*文字色*/
-                    }}
-
-                    .normal_6 {{
-                        color: #000000; 
-                        background: #ffffff; 
-                        border: dashed 3px #ffc3c3; 
-                        border-radius: 4px;
-                    }}
-
-                    .issue_1 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        height: 200px;
-                        width: 300px;
-                        background-image: url('data:image/png;base64,{frame_bushes_base64}');
-                        background-size:100%; /*背景画像のサイズ指定*/
-                        background-size: cover;
-                        background-position: center;
-                        color: #000000;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        text-align: center;
-                    }}
-                    .issue_2 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        height: 200px;
-                        width: 300px;
-                        background-image: url('data:image/png;base64,{frame_bushes2_base64}');
-                        background-size:100%; /*背景画像のサイズ指定*/
-                        background-position: center;
-                        color: #000000;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        text-align: center;
-                    }}
-                    .issue_3 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        height: 300px;
-                        width: 300px;
-                        background-image: url('data:image/png;base64,{frame_bushes3_base64}');
-                        background-size:100%; /*背景画像のサイズ指定*/
-                        background-position: center;
-                        color: #000000;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        text-align: center;
-                    }}
-                    .issue_4 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        height: 200px;
-                        width: 300px;
-                        background-image: url('data:image/png;base64,{frame_bushes4_base64}');
-                        background-size:100%; /*背景画像のサイズ指定*/
-                        background-position: center;
-                        color: #000000;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        text-align: center;
-                    }}
-                    .issue_5 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        height: 200px;
-                        width: 300px;
-                        background-image: url('data:image/png;base64,{frame_bushes5_base64}');
-                        background-size:100%; /*背景画像のサイズ指定*/
-                        background-position: center;
-                        color: #000000;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        text-align: center;
-                    }}
-                    .issue_6 {{
-                        margin: 20px auto;
-                        padding: 20px;
-                        height: 200px;
-                        width: 300px;
-                        background-image: url('data:image/png;base64,{frame_bushes6_base64}');
-                        background-size:100%; /*背景画像のサイズ指定*/
-                        background-position: center;
-                        color: #000000;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        text-align: center;
-                    }}
-                    .link_1 {{
-                        margin: 20px auto;
-                        padding: 20px 20px 20px 55px;
-                        background-color: #f3f2f3;
-                        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="%234c9ac0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>');
-                        background-position: 10px center;
-                        background-repeat: no-repeat;
-                        border-left: 10px solid #4c9ac0;
-                    }}
-
-                    .task_1 {{
-                        margin: 20px auto;padding: 20px;background-color: #f3f2f3;border-left: 10px solid #4c9ac0;
-                    }}
-                    .file_1 {{
-                        margin: 20px auto;
-                        padding: 20px 20px 20px 55px;
-                        background-color: #f3f2f3;
-                        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="%234c9ac0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>');
-                        background-position: 10px center;
-                        background-repeat: no-repeat;
-                        border-left: 10px solid #4c9ac0;
-                    }}
-                    .folder_1 {{
-                        margin: 20px auto;
-                        padding: 20px 20px 20px 55px;
-                        background-color: #f3f2f3;
-                        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="%234c9ac0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>');
-                        background-position: 10px center;
-                        background-repeat: no-repeat;
-                        border-left: 10px solid #4c9ac0;
-                    }}
-
-                    </style>
-
-                </head>
-                <body style="margin: 0; padding: 0; background: white;"></body>
-                <div class="node-content {styles[node['style_id']-1]['class']}">
-                        {f'<img src="data:image/png;base64,{icon_base64}" style="max-width: 100%; margin-bottom: 10px; display: block;">' if icon_base64 else ''}
-                        <div style="
-                            font-size: 20px;
-                            white-space: pre-wrap;">{node['name']}</div>
-                            {f'<div style="font-size: 14px; color: #ff4d4f; margin-top: 5px;">期限: {node["deadline"]}</div>' if 'deadline' in node and node['deadline'] and node['deadline'].strip() else ''}
-                            {f'<div style="font-size: 14px; color: #1890ff; margin-top: 5px;">重要度: {"★" * node["priority"]}</div>' if 'priority' in node and node["priority"] is not None else ''}
-                            {f'<div style="font-size: 14px; color: #52c41a; margin-top: 5px;">緊急度: {"★" * node["urgency"]}</div>' if 'urgency' in node and node["urgency"] is not None else ''}</div>
-                </body>
-                </html>
-                """
-        # now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-        # html_debug_path = f"./node_{node['id']}_{now}.html"
-        # with open(html_debug_path, 'w', encoding='utf-8') as f:
-        #     f.write(html)
-        options = {
-            'width': '1200',
-            'height': '1200'
-        }
-        #既存の画像がある場合は削除
-        if 'isNew' not in node or node['isNew'] == False:
-            if node['img'] != "logo.png":
-                if os.path.exists(f"./web_src/assets/{node['img']}"):
-                    os.remove(f"./web_src/assets/{node['img']}")
-
-        #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
-        now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-        if os.name == 'nt':
-            imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", config=wkhtmltoimage_config, options=options)
-        else:
-            imgkit.from_string(html, f"./web_src/assets/node_img/{node['id']}_{now}.png", options=options)
-        node['img'] = f"node_img/{node['id']}_{now}.png"
-
-        # 余分な領域を削除
-        img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
-        img = ImageOps.invert(img)
-        img = img.crop(img.getbbox())
-        img = ImageOps.invert(img)
-
-        img.save(f"./web_src/assets/{node['img']}_", 'PNG')
-
-
-        # 白(255)を透明に変更
-        if styles[node['style_id']-1]['background_trasparent']:
-            img = img.convert("RGBA")
-
-            # Convert image to numpy array for faster processing
-            np_img = np.array(img)
-            # Create alpha mask - where all channels are 255 (white), set alpha to 0 (transparent), else keep original alpha
-            alpha_mask = np.all(np_img[:, :, :3] > 240, axis=-1)
-            np_img[:, :, 3] = np.where(alpha_mask, 0, np_img[:, :, 3])
-            # Convert back to PIL image
-            img = Image.fromarray(np_img)
-
-        # 丸角を適用
-        if styles[node['style_id']-1]['rounded_rectangle_radius'] > 0:
-            mask = Image.new("L", img.size, 0)
-            mask_draw = ImageDraw.Draw(mask)
-            mask_draw.rounded_rectangle((0, 0, img.width, img.height), styles[node['style_id']-1]['rounded_rectangle_radius'], fill=255)
-            img.putalpha(mask)
-            
-        img.save(f"./web_src/assets/{node['img']}", 'PNG')
-       
-
-        node['size_x'] = img.size[0]
-        node['size_y'] = img.size[1]
-
-        print(node['img'])
-
+    if os.name == 'nt':
+        wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
+        imgkit.from_string(html_content, output_path, config=wkhtmltoimage_config, options=options)
     else:
-        from jinja2 import Template
-        from weasyprint import HTML
-        from pdf2image import convert_from_bytes
+        imgkit.from_string(html_content, output_path, options=options)
+    
+    node['img'] = f"node_img/{node['id']}_{now}.png"
 
-        # HTMLテンプレート
-        html_template = Template("""
-        <!DOCTYPE html>
-        <html lang="ja">
-        <head>
-            <meta charset="UTF-8">
-            <style>
-                * {
-                    margin: 0;
-                    padding: 5px;
-                    box-sizing: border-box;
-                }
-                .node-content {
-                    display: inline-block;
-                    min-height: 60px;
-                    min-width: 60px;
-                    font-size: 20px;
-                    //text-align: center;
-                    white-space: pre-wrap;
-                    {{ node_style }}
-                }
-                .node-icon {
-                    max-width: 100%;
-                    margin-bottom: 10px;
-                    display: block;
-                }
-                .deadline {
-                    font-size: 14px;
-                    color: #ff4d4f;
-                    margin-top: 5px;
-                }
-                .priority {
-                    font-size: 14px;
-                    color: #1890ff;
-                    margin-top: 5px;
-                }
-                .urgency {
-                    font-size: 14px;
-                    color: #52c41a;
-                    margin-top: 5px;
-                }
-                .node-text {
-                    white-space: pre-wrap; /* Preserve whitespace and handle newlines */
-                }
-            </style>
-        </head>
-        <body>
-            <div class="node-content">
-                {% if node_icon_base64 %}
-                <img src="data:image/png;base64,{{ node_icon_base64 }}" class="node-icon">
-                {% endif %}
-                <div>{{ node_name }}</div>
-                {% if node_deadline %}
-                <div class="deadline">期限: {{ node_deadline }}</div>
-                {% endif %}
-                {% if node_priority is not none %}
-                <div class="priority">重要度: {{ "★" * node_priority }}</div>
-                {% endif %}
-                {% if node_urgency is not none %}
-                <div class="urgency">緊急度: {{ "★" * node_urgency }}</div>
-                {% endif %}
-            </div>
-        </body>
-        </html>
-        """)
+    img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
+    img = ImageOps.invert(img)
+    img = img.crop(img.getbbox())
+    img = ImageOps.invert(img)
 
-        # HTMLを生成
-        html_content = html_template.render(
-            node_style=node_styles[node['style_id']-1],
-            node_name=node['name'],
-            node_icon_base64=icon_base64,
-            node_deadline=node['deadline'] if 'deadline' in node and node['deadline'] and node['deadline'].strip() else None,
-            node_priority=node['priority'] if 'priority' in node else None,
-            node_urgency=node['urgency'] if 'urgency' in node else None
-        )
+    img.save(f"./web_src/assets/{node['img']}_", 'PNG')
 
-        # デバッグ用：HTMLファイルを出力
-        debug_dir = "debug_output"
-        #if not os.path.exists(debug_dir):
-        #    os.makedirs(debug_dir)
+    if styles[node['style_id']-1]['background_trasparent']:
+        img = img.convert("RGBA")
+        np_img = np.array(img)
+        alpha_mask = np.all(np_img[:, :, :3] > 240, axis=-1)
+        np_img[:, :, 3] = np.where(alpha_mask, 0, np_img[:, :, 3])
+        img = Image.fromarray(np_img)
+
+    if styles[node['style_id']-1]['rounded_rectangle_radius'] > 0:
+        mask = Image.new("L", img.size, 0)
+        mask_draw = ImageDraw.Draw(mask)
+        mask_draw.rounded_rectangle((0, 0, img.width, img.height), styles[node['style_id']-1]['rounded_rectangle_radius'], fill=255)
+        img.putalpha(mask)
         
-        now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-        #html_debug_path = f"{debug_dir}/node_{node['id']}_{now}.html"
-        #with open(html_debug_path, 'w', encoding='utf-8') as f:
-        #    f.write(html_content)
-
-        #既存の画像がある場合は削除
-        if 'isNew' not in node or node['isNew'] == False:
-            if node['img'] != "logo.png":
-                if os.path.exists(f"./web_src/assets/{node['img']}"):
-                    os.remove(f"./web_src/assets/{node['img']}")
-
-        #現在の日時をyyyy-MM-dd-HH-mm-ss形式で取得
-        output_path = f"./web_src/assets/node_img/{node['id']}_{now}.png"
-        pdf_debug_path = f"{debug_dir}/node_{node['id']}_{now}.pdf"
-
-        # HTMLをPDFに変換
-        html = HTML(string=html_content)
-        pdf_bytes = html.write_pdf(presentational_hints=True)
-
-        # デバッグ用：PDFファイルを出力
-        #with open(pdf_debug_path, 'wb') as f:
-        #    f.write(pdf_bytes)
-
-        # PDFをPNGに変換
-        images = convert_from_bytes(pdf_bytes)
-        
-        # 最初のページを保存（通常は1ページのみ）
-        if images:
-            img = ImageOps.invert(images[0])
-            img = img.crop(img.getbbox())
-            img = ImageOps.invert(img)
-            mask = Image.new("L", img.size, 0)
-            mask_draw = ImageDraw.Draw(mask)
-            mask_draw.rounded_rectangle((0, 0, img.width, img.height), 17, fill=255)
-
-            img.putalpha(mask)
-            img.save(output_path, 'PNG')
-
-        node['img'] = f"node_img/{node['id']}_{now}.png"
-        node['size_x'] = img.size[0]
-        node['size_y'] = img.size[1]
-        print(node['img'])
+    img.save(f"./web_src/assets/{node['img']}", 'PNG')
+    node['size_x'] = img.size[0]
+    node['size_y'] = img.size[1]
+    print(node['img'])
         
     return node['img'], img.size
 
 @eel.expose
 def save_data(data):
+    """現在のファイルパスにデータを保存する"""
     global g_current_file_path
 
     if g_current_file_path:
-        save_json(data, g_current_file_path)
-        return [True, g_current_file_path]
+        print(f"--- g_current_file_path in save_data: {g_current_file_path}")
+        if save_json(data, g_current_file_path):
+            return [True, g_current_file_path]
+        else:
+            return [False, None]
     else:
         return save_as_data(data)
 

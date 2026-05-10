@@ -28,66 +28,6 @@ window.eel.expose( sayHelloJS, 'say_hello_js' )
 
 type MenuItem = Required<MenuProps>['items'][number];
 
-const items: MenuItem[] = [
-  {
-    label: 'File',
-    key: 'file',
-    icon: <FileOutlined rev={undefined} />,
-    children: [
-          { label: 'Open File …', key: 'open_file' },
-          { label: 'Open Recent', key: 'open_recent' },
-          
-          { type: 'divider'},
-     
-          { label: 'Save', key: 'save' },
-          { label: 'Save as …', key: 'save_as' },
-
-          { type: 'divider'},
-
-          { label: 'New Window', key: 'new_window' },
-    ],
-  },
-  {
-    label: 'Edit',
-    key: 'edit',
-    icon: <EditOutlined rev={undefined} />,
-    children: [
-
-        { label: 'Undo', key: 'undo' },
-        { label: 'Redo', key: 'redo' },
-        
-        { type: 'divider'},
-
-        { label: 'Cut', key: 'cut' },
-        { label: 'Copy', key: 'copy' },
-        { label: 'Paste', key: 'paste' },
-
-        { type: 'divider'},
-
-        { label: 'Find …', key: 'find' },
-    ],
-  },
-  {
-    label: 'Layout',
-    key: 'layout',
-    icon: <SettingOutlined rev={undefined} />,
-    children: [
-      {
-        label: 'Tree Layout',
-        key: 'tree_layout',
-        children: [
-            { label: 'Right', key: 'right_tree_layout' },
-            { label: 'Left', key: 'left_tree_layout' },
-            { label: 'Upper', key: 'up_tree_layout' },
-            { label: 'lower', key: 'low_tree_layout' },
-        ],
-     },
-      { label: 'Circle Layout', key: 'circle_layout' },
-      { label: 'Free Layout', key: 'free_layout' }
-    ],
-  }
-];
-
 const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
@@ -100,6 +40,82 @@ const App = () => {
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [searchText, setSearchText] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [recentFiles, setRecentFiles] = useState<string[]>([]);
+
+    const handleOpenRecent = async (path: string) => {
+        setLoading(true);
+        try {
+            const node_data = await eel.load_json_by_path(path)();
+            if (node_data) {
+                if (mindMapGraphRef.current) {
+                    mindMapGraphRef.current.setGraphData(node_data);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading recent file:', error);
+            message.error('最近のファイルの読み込みに失敗しました');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const getMenuItems = (recentFiles: string[]): MenuItem[] => [
+        {
+            label: 'File',
+            key: 'file',
+            icon: <FileOutlined rev={undefined} />,
+            children: [
+                { label: 'Open File …', key: 'open_file' },
+                {
+                    label: 'Open Recent',
+                    key: 'open_recent',
+                    children: recentFiles.map(file => ({
+                        label: file,
+                        key: `recent_file_${file}`,
+                    })),
+                },
+                { type: 'divider' },
+                { label: 'Save', key: 'save' },
+                { label: 'Save as …', key: 'save_as' },
+                { type: 'divider' },
+                { label: 'New Window', key: 'new_window' },
+            ],
+        },
+        {
+            label: 'Edit',
+            key: 'edit',
+            icon: <EditOutlined rev={undefined} />,
+            children: [
+                { label: 'Undo', key: 'undo' },
+                { label: 'Redo', key: 'redo' },
+                { type: 'divider' },
+                { label: 'Cut', key: 'cut' },
+                { label: 'Copy', key: 'copy' },
+                { label: 'Paste', key: 'paste' },
+                { type: 'divider' },
+                { label: 'Find …', key: 'find' },
+            ],
+        },
+        {
+            label: 'Layout',
+            key: 'layout',
+            icon: <SettingOutlined rev={undefined} />,
+            children: [
+                {
+                    label: 'Tree Layout',
+                    key: 'tree_layout',
+                    children: [
+                        { label: 'Right', key: 'right_tree_layout' },
+                        { label: 'Left', key: 'left_tree_layout' },
+                        { label: 'Upper', key: 'up_tree_layout' },
+                        { label: 'lower', key: 'low_tree_layout' },
+                    ],
+                },
+                { label: 'Circle Layout', key: 'circle_layout' },
+                { label: 'Free Layout', key: 'free_layout' }
+            ],
+        }
+    ];
 
     const handleFileSelect = async () => {
         setLoading(true);
@@ -182,6 +198,7 @@ const App = () => {
         deleteLink: (link: any) => void;
         searchNodes: (text: string) => any[];
         selectNode: (node: any) => void;
+        focusOnNode: (node: any) => void;
         copyNode: () => void;
         getCopiedNode: () => any;
         getSelectedNode: () => any;
@@ -198,6 +215,7 @@ const App = () => {
         canRedo: () => boolean;
         redo: () => void;
         arrangeNodes: (layout: string) => void;
+        getCameraState: () => any;
     }
 
     interface ModalRef {
@@ -382,17 +400,28 @@ const App = () => {
     }
 
 
-    const saveData = useCallback(async (saveFunction: (data: any) => Promise<any>) => {
+    const saveData = useCallback(async (saveFunction: (data: any) => ((result: any) => void)) => {
         if(!mindMapGraphRef.current) return;
         
         let data = mindMapGraphRef.current.getGraphData();
+        // Python側でin-place変更されるため、ディープコピーを作成
+        data = JSON.parse(JSON.stringify(data));
         data.nodes = data.nodes.map((node: any) => {
             delete node.__threeObj;
             return node;
         });
 
+        // カメラ位置と視点方向を取得して保存
+        const cameraState = mindMapGraphRef.current.getCameraState?.();
+        if (cameraState) {
+            data.camera = cameraState;
+        }
+
         try {
-            const result = await saveFunction(data);
+            const result = await new Promise<any>((resolve) => {
+                saveFunction(data)(resolve);
+            });
+            console.log("Save result:", result);
             if (result && result[0]) {
                 const filename = result[1];
                 message.success({
@@ -523,7 +552,10 @@ const App = () => {
                 }
             }
         }
-        else if(event.key === "Enter" && !event.shiftKey) {
+        else if((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
+            if (event.key === "Tab") {
+                event.preventDefault();
+            }
             if(mindMapGraphRef.current) {
                 mindMapGraphRef.current.addNewNode();
             }
@@ -648,31 +680,38 @@ const App = () => {
                 }}>
                     <Menu 
                         mode="horizontal"
-                        items={items}
+                        items={getMenuItems(recentFiles)}
                         theme="dark"
                         selectedKeys={[current]}
-                    onClick={({ key }) => {
-                        setCurrent(''); // 選択状態をリセット
-                        setDrawerVisible(false);
-                        if (key === 'open_file') {
-                            handleFileSelect();
-                        } else if (key === 'new_window') {
-                            window.open(window.location.href, '_blank');
-                        } else if (key === 'save') {
-                            handleSave();
-                        } else if (key === 'save_as') {
-                            handleSaveAs();
-                        } else if (key === 'undo') {
-                            if (mindMapGraphRef.current && mindMapGraphRef.current.canUndo()) {
-                                mindMapGraphRef.current.undo();
+                        onOpenChange={async (keys) => {
+                            if (keys.includes('file')) {
+                                const files = await eel.get_recent_files()();
+                                setRecentFiles(files);
+                            }
+                        }}
+                        onClick={({ key }) => {
+                            setCurrent(''); // 選択状態をリセット
+                            setDrawerVisible(false);
+                            if (key === 'open_file') {
+                                handleFileSelect();
+                            } else if (key.startsWith('recent_file_')) {
+                                const filePath = key.replace('recent_file_', '');
+                                handleOpenRecent(filePath);
+                            } else if (key === 'new_window') {
+                                window.open(window.location.href, '_blank');
+                            } else if (key === 'save') {
+                                handleSave();
+                            } else if (key === 'save_as') {
+                                handleSaveAs();
+                            } else if (key === 'undo') {
+                                if (mindMapGraphRef.current && mindMapGraphRef.current.canUndo()) {
+                                    mindMapGraphRef.current.undo();
                             } else {
                                 message.info('元に戻せる操作がありません');
                             }
                         } else if (key === 'redo') {
                             if (mindMapGraphRef.current && mindMapGraphRef.current.canRedo()) {
                                 mindMapGraphRef.current.redo();
-                            } else {
-                                message.info('やり直せる操作がありません');
                             }
                         } else if (key === 'copy') {
                             if (mindMapGraphRef.current) {
@@ -836,6 +875,7 @@ const App = () => {
                         onClick={() => {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.selectNode(item);
+                                mindMapGraphRef.current.focusOnNode(item);
                                 setIsSearchModalOpen(false);
                                 setSearchText('');
                                 setSearchResults([]);

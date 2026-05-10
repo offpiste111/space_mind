@@ -158,7 +158,7 @@ export const useHistory = () => {
                         if (nodeIndex !== -1) {
                             graphData.nodes[nodeIndex] = item.data.after;
                         }
-                        graphData.links.forEach(link => {
+                        graphData.links.forEach((link: any) => {
                             if (link.source.id === item.data.after.id) {
                                 link.source = item.data.after;
                             }

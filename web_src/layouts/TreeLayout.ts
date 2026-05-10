@@ -59,55 +59,51 @@ type LayoutDirection = 'right' | 'left' | 'upper' | 'lower';
 export class TreeLayout {
     private graphData: GraphData;
     private nodeMap: Map<number, NodeInfo> = new Map();
-    private rootNode: NodeInfo | null = null;
+    private rootNodes: NodeInfo[] = [];
     private direction: LayoutDirection;
     private z_layer: number;
-    private levelSpacing: number = 300; // レベル間の基本間隔
+    private levelSpacing: number = 300;
+    private paddingY: number = 200; // Increased padding for Y spacing
+    private paddingX: number = 300; // Increased padding for X spacing
 
-    /**
-     * コンストラクタ
-     * @param graphData グラフデータ（ノードとリンク）
-     * @param direction レイアウト方向 ('right', 'left', 'upper', 'lower')
-     * @param z_layer Z軸の層の位置
-     */
     constructor(graphData: GraphData, direction: LayoutDirection = 'right', z_layer: number = -300) {
         this.graphData = graphData;
         this.direction = direction;
         this.z_layer = z_layer;
     }
 
-    /**
-     * レイアウトを実行し、ノードの位置を更新する
-     * @returns 更新されたグラフデータ
-     */
     public executeLayout(): GraphData {
         this.initializeNodeMap();
         this.createParentChildRelationships();
-        this.findRootNode();
+        this.findRootNodes();
         
-        if (!this.rootNode) {
+        if (this.rootNodes.length === 0) {
             return this.graphData;
         }
         
-        this.assignLevels(this.rootNode, 0);
-        this.calculateSubtreeHeight(this.rootNode);
-        
-        // 垂直位置の割り当てを実行
         let startY = 0;
-        this.calculateNodePositions(this.rootNode, startY);
         
-        // 水平位置の割り当てを実行
+        for (const root of this.rootNodes) {
+            this.assignLevelsIterative(root, 0);
+            this.calculateSubtreeHeightIterative(root);
+            startY = this.calculateNodePositionsIterative(root, startY);
+            startY += this.paddingY * 2; // 独立したツリー間に余白をさらに追加
+        }
+        
         this.assignHorizontalPositions();
-        
-        // ノード位置を更新
         this.updateNodePositions();
         
         return this.graphData;
     }
 
-    /**
-     * ノードマップを初期化
-     */
+    private getNodeThickness(nodeInfo: NodeInfo): number {
+        return (this.direction === 'upper' || this.direction === 'lower') ? nodeInfo.width : nodeInfo.height;
+    }
+
+    private getNodeLength(nodeInfo: NodeInfo): number {
+        return (this.direction === 'upper' || this.direction === 'lower') ? nodeInfo.height : nodeInfo.width;
+    }
+
     private initializeNodeMap(): void {
         this.nodeMap.clear();
         this.graphData.nodes.forEach(node => {
@@ -115,8 +111,8 @@ export class TreeLayout {
                 node,
                 children: [],
                 level: 0,
-                width: node.size_x || 120,
-                height: node.size_y || 40,
+                width: node.size_x || 200,
+                height: node.size_y || 80,
                 subtreeHeight: 0,
                 minY: Infinity,
                 maxY: -Infinity,
@@ -126,21 +122,16 @@ export class TreeLayout {
         });
     }
 
-    /**
-     * 親子関係を作成
-     */
     private createParentChildRelationships(): void {
-        // ノードが既に親を持っているかをトラッキングするためのセット
         const nodesWithParents = new Set<number>();
         
         this.graphData.links.forEach(link => {
-            const sourceId = link.source.id;
-            const targetId = link.target.id;
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
             const sourceInfo = this.nodeMap.get(sourceId);
             const targetInfo = this.nodeMap.get(targetId);
             
             if (sourceInfo && targetInfo) {
-                // ターゲットノードが既に親を持っていない場合のみ親子関係を追加
                 if (!nodesWithParents.has(targetId)) {
                     sourceInfo.children.push(targetInfo);
                     nodesWithParents.add(targetId);
@@ -149,167 +140,213 @@ export class TreeLayout {
         });
     }
 
-    /**
-     * ルートノードを検索
-     */
-    private findRootNode(): void {
-        // 親を持たないノードを探す
-        let rootNodes: NodeInfo[] = [];
-        this.nodeMap.forEach(nodeInfo => {
-            const hasParent = Array.from(this.nodeMap.values()).some(info => 
-                info.children.some(child => child.node.id === nodeInfo.node.id)
-            );
-            
-            if (!hasParent) {
-                rootNodes.push(nodeInfo);
+    private findRootNodes(): void {
+        let roots: NodeInfo[] = [];
+        
+        const hasParentSet = new Set<number>();
+        this.nodeMap.forEach(info => {
+            info.children.forEach(child => hasParentSet.add(child.node.id));
+        });
+        
+        this.nodeMap.forEach(info => {
+            if (!hasParentSet.has(info.node.id)) {
+                roots.push(info);
             }
         });
         
-        // ルートノードが見つからない場合は最初のノードを使用
-        if (rootNodes.length === 0 && this.graphData.nodes.length > 0) {
-            rootNodes = [this.nodeMap.get(this.graphData.nodes[0].id)!];
-        } 
-        // 複数のルートノードがある場合は、子孫の数が最も多いノードを選択
-        else if (rootNodes.length > 1) {
-            rootNodes.sort((a, b) => {
-                const countDescendants = (nodeInfo: NodeInfo): number => {
-                    let count = 0;
-                    const queue = [...nodeInfo.children];
-                    while (queue.length > 0) {
-                        const current = queue.shift()!;
-                        count++;
-                        queue.push(...current.children);
-                    }
-                    return count;
-                };
+        if (roots.length === 0 && this.graphData.nodes.length > 0) {
+            roots = [this.nodeMap.get(this.graphData.nodes[0].id)!];
+        }
+        
+        roots.sort((a, b) => b.children.length - a.children.length);
+        this.rootNodes = roots;
+    }
+
+    private assignLevelsIterative(rootInfo: NodeInfo, startLevel: number): void {
+        const queue: { node: NodeInfo, level: number }[] = [{ node: rootInfo, level: startLevel }];
+        while (queue.length > 0) {
+            const { node, level } = queue.shift()!;
+            node.level = level;
+            for (const child of node.children) {
+                queue.push({ node: child, level: level + 1 });
+            }
+        }
+    }
+
+    private calculateSubtreeHeightIterative(rootInfo: NodeInfo): number {
+        const postOrderList: NodeInfo[] = [];
+        const stack: NodeInfo[] = [rootInfo];
+        const visited = new Set<number>();
+        
+        while (stack.length > 0) {
+            const current = stack[stack.length - 1];
+            
+            let allChildrenVisited = true;
+            for (const child of current.children) {
+                if (!visited.has(child.node.id)) {
+                    allChildrenVisited = false;
+                    stack.push(child);
+                    break; 
+                }
+            }
+            
+            if (allChildrenVisited) {
+                stack.pop();
+                postOrderList.push(current);
+                visited.add(current.node.id);
+            }
+        }
+        
+        for (const node of postOrderList) {
+            const thickness = this.getNodeThickness(node);
+            if (node.children.length === 0) {
+                node.subtreeHeight = thickness + this.paddingY;
+            } else {
+                let totalChildrenHeight = 0;
+                for (const child of node.children) {
+                    totalChildrenHeight += child.subtreeHeight;
+                }
+                node.subtreeHeight = Math.max(thickness + this.paddingY, totalChildrenHeight);
+            }
+        }
+        
+        return rootInfo.subtreeHeight;
+    }
+
+    private calculateNodePositionsIterative(rootInfo: NodeInfo, initialStartY: number): number {
+        const stack: {
+            node: NodeInfo;
+            startY: number;
+            childIndex: number;
+            currentY: number;
+            minChildY: number;
+            maxChildY: number;
+        }[] = [{
+            node: rootInfo,
+            startY: initialStartY,
+            childIndex: 0,
+            currentY: initialStartY,
+            minChildY: Infinity,
+            maxChildY: -Infinity
+        }];
+
+        let finalNextY = initialStartY;
+
+        while (stack.length > 0) {
+            const frame = stack[stack.length - 1];
+            const nodeInfo = frame.node;
+            const thickness = this.getNodeThickness(nodeInfo);
+
+            if (nodeInfo.children.length === 0) {
+                nodeInfo.y = frame.startY;
+                nodeInfo.minY = nodeInfo.y - thickness / 2;
+                nodeInfo.maxY = nodeInfo.y + thickness / 2;
                 
-                return countDescendants(b) - countDescendants(a);
-            });
+                const nextY = frame.startY + thickness + this.paddingY;
+                
+                stack.pop();
+                
+                if (stack.length > 0) {
+                    const parentFrame = stack[stack.length - 1];
+                    parentFrame.currentY = nextY;
+                    parentFrame.minChildY = Math.min(parentFrame.minChildY, nodeInfo.minY);
+                    parentFrame.maxChildY = Math.max(parentFrame.maxChildY, nodeInfo.maxY);
+                } else {
+                    finalNextY = nextY;
+                }
+            } else {
+                if (frame.childIndex < nodeInfo.children.length) {
+                    const child = nodeInfo.children[frame.childIndex];
+                    frame.childIndex++;
+                    
+                    stack.push({
+                        node: child,
+                        startY: frame.currentY,
+                        childIndex: 0,
+                        currentY: frame.currentY,
+                        minChildY: Infinity,
+                        maxChildY: -Infinity
+                    });
+                } else {
+                    if (nodeInfo.children.length === 1) {
+                        const childInfo = nodeInfo.children[0];
+                        nodeInfo.y = childInfo.y;
+                        nodeInfo.minY = childInfo.minY;
+                        nodeInfo.maxY = childInfo.maxY;
+                    } else {
+                        nodeInfo.y = (frame.minChildY + frame.maxChildY) / 2;
+                        nodeInfo.minY = frame.minChildY;
+                        nodeInfo.maxY = frame.maxChildY;
+                    }
+                    
+                    const nextY = frame.currentY;
+                    
+                    stack.pop();
+                    
+                    if (stack.length > 0) {
+                        const parentFrame = stack[stack.length - 1];
+                        parentFrame.currentY = nextY;
+                        parentFrame.minChildY = Math.min(parentFrame.minChildY, nodeInfo.minY);
+                        parentFrame.maxChildY = Math.max(parentFrame.maxChildY, nodeInfo.maxY);
+                    } else {
+                        finalNextY = nextY;
+                    }
+                }
+            }
         }
-        
-        this.rootNode = rootNodes[0] || null;
+        return finalNextY;
     }
 
-    /**
-     * ノードに階層レベルを割り当て
-     * @param nodeInfo 処理するノード情報
-     * @param level 階層レベル
-     */
-    private assignLevels(nodeInfo: NodeInfo, level: number): void {
-        nodeInfo.level = level;
-        nodeInfo.children.forEach(child => this.assignLevels(child, level + 1));
-    }
-
-    /**
-     * サブツリーの高さを計算
-     * @param nodeInfo 処理するノード情報
-     * @returns サブツリーの高さ
-     */
-    private calculateSubtreeHeight(nodeInfo: NodeInfo): number {
-        if (nodeInfo.children.length === 0) {
-            nodeInfo.subtreeHeight = nodeInfo.height + 40; // 自身の高さ + 余白
-            return nodeInfo.subtreeHeight;
-        }
-        
-        // 子ノードのサブツリーの高さを合計
-        let totalChildrenHeight = 0;
-        nodeInfo.children.forEach(child => {
-            totalChildrenHeight += this.calculateSubtreeHeight(child);
-        });
-        
-        // 自身のノード高さと子ノードの合計高さの大きい方を採用
-        nodeInfo.subtreeHeight = Math.max(nodeInfo.height + 40, totalChildrenHeight);
-        return nodeInfo.subtreeHeight;
-    }
-
-    /**
-     * 垂直位置を計算
-     * @param nodeInfo 処理するノード情報
-     * @param startY 開始Y座標
-     * @returns 次のノードのY座標
-     */
-    private calculateNodePositions(nodeInfo: NodeInfo, startY: number): number {
-        // 子ノードがない場合は単純に自分の位置を設定
-        if (nodeInfo.children.length === 0) {
-            nodeInfo.y = startY;
-            nodeInfo.minY = nodeInfo.y - nodeInfo.height / 2;
-            nodeInfo.maxY = nodeInfo.y + nodeInfo.height / 2;
-            return startY + nodeInfo.height + 40; // 次のノードのY座標
-        }
-        
-        // 子ノードがある場合
-        if (nodeInfo.children.length === 1) {
-            // 子ノードが1つの場合は、同じY座標を設定
-            const nextY = this.calculateNodePositions(nodeInfo.children[0], startY);
-            const childInfo = nodeInfo.children[0];
-            nodeInfo.y = childInfo.y;
-            nodeInfo.minY = childInfo.minY;
-            nodeInfo.maxY = childInfo.maxY;
-            return nextY;
-        } else {
-            // 子ノードが複数ある場合
-            let currentY = startY;
-            let minChildY = Infinity;
-            let maxChildY = -Infinity;
-            
-            // まず子ノードの位置を決定
-            nodeInfo.children.forEach(child => {
-                const nextY = this.calculateNodePositions(child, currentY);
-                minChildY = Math.min(minChildY, child.minY);
-                maxChildY = Math.max(maxChildY, child.maxY);
-                currentY = nextY;
-            });
-            
-            // 親ノードを子ノード範囲の中央に配置
-            nodeInfo.y = (minChildY + maxChildY) / 2;
-            nodeInfo.minY = minChildY;
-            nodeInfo.maxY = maxChildY;
-            
-            return currentY;
-        }
-    }
-
-    /**
-     * 水平位置を割り当て
-     */
     private assignHorizontalPositions(): void {
-        // レベルごとにノードをグループ化
         const nodesByLevel = new Map<number, NodeInfo[]>();
+        let maxLevel = 0;
         this.nodeMap.forEach(nodeInfo => {
             if (!nodesByLevel.has(nodeInfo.level)) {
                 nodesByLevel.set(nodeInfo.level, []);
             }
             nodesByLevel.get(nodeInfo.level)!.push(nodeInfo);
+            maxLevel = Math.max(maxLevel, nodeInfo.level);
         });
 
-        // レベルに基づいて水平位置を割り当て
+        const levelOffsets = new Map<number, number>();
+        let currentOffset = 0;
+        
+        for (let level = 0; level <= maxLevel; level++) {
+            levelOffsets.set(level, currentOffset);
+            
+            let maxLength = 0;
+            const nodes = nodesByLevel.get(level) || [];
+            nodes.forEach(nodeInfo => {
+                maxLength = Math.max(maxLength, this.getNodeLength(nodeInfo));
+            });
+            
+            // 各レベル間の間隔は、そのレベルでのノードの最大長さ + paddingX
+            currentOffset += maxLength + this.paddingX;
+        }
+
         nodesByLevel.forEach((nodesInLevel, level) => {
             nodesInLevel.forEach(nodeInfo => {
+                const offset = levelOffsets.get(level) || 0;
                 switch (this.direction) {
                     case 'right':
-                        nodeInfo.x = level * this.levelSpacing;
+                        nodeInfo.x = offset;
                         break;
                     case 'left':
-                        nodeInfo.x = -level * this.levelSpacing;
+                        nodeInfo.x = -offset;
                         break;
                     case 'upper':
-                        // upper/lowerの場合はx/y座標を入れ替える
                         nodeInfo.x = nodeInfo.y;
-                        nodeInfo.y = -level * this.levelSpacing;
+                        nodeInfo.y = -offset;
                         break;
                     case 'lower':
-                        // upper/lowerの場合はx/y座標を入れ替える
                         nodeInfo.x = nodeInfo.y;
-                        nodeInfo.y = level * this.levelSpacing;
+                        nodeInfo.y = offset;
                         break;
                 }
             });
         });
     }
 
-    /**
-     * ノードの位置を更新
-     */
     private updateNodePositions(): void {
         this.nodeMap.forEach(nodeInfo => {
             nodeInfo.node.fx = nodeInfo.x;
@@ -318,10 +355,6 @@ export class TreeLayout {
         });
     }
 
-    /**
-     * グラフの範囲を計算
-     * @returns {minX, maxX, minY, maxY} 範囲
-     */
     public getGraphBounds(): {minX: number, maxX: number, minY: number, maxY: number} {
         let minX = Infinity, maxX = -Infinity;
         let minY = Infinity, maxY = -Infinity;
