@@ -102,12 +102,31 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         scale?: number;     // 3Dオブジェクトのスケール (0.3 to 2.0)
         size_x?: number;    // ノードの幅
         size_y?: number;    // ノードの高さ
+        rot_x?: number;
+        rot_y?: number;
     }
 
     interface GraphData {
         nodes: NodeData[];
         links: any[];
     }
+
+    const isShiftDown = useRef<boolean>(false);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Shift') isShiftDown.current = true;
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === 'Shift') isShiftDown.current = false;
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
 
     const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
     const [backgroundColor, setBackgroundColor] = useState<string>("rgba(0,0,0,0)");
@@ -836,6 +855,37 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         }
         isDraggingNode.current = true;
     
+        // Shiftキーが押されている場合は、3Dオブジェクトの回転モード
+        if (isShiftDown.current && dragNode.type === "3dobject") {
+            if (dragNode.px !== undefined) {
+                let dx = dragNode.x - dragNode.px;
+                let dy = dragNode.y - dragNode.py;
+                
+                dragNode.rot_y = (dragNode.rot_y || 0) + dx * 0.005;
+                dragNode.rot_x = (dragNode.rot_x || 0) + dy * 0.005;
+
+                if (dragNode.__threeObj) {
+                    const innerGroup = dragNode.__threeObj.children.find((c:any) => c.name === "rotation_group");
+                    if (innerGroup) {
+                        innerGroup.rotation.y = dragNode.rot_y;
+                        innerGroup.rotation.x = dragNode.rot_x;
+                    }
+                }
+
+                // 座標を元に戻す (移動させない)
+                dragNode.x = dragNode.px;
+                dragNode.y = dragNode.py;
+                dragNode.z = dragNode.pz;
+                dragNode.fx = dragNode.px;
+                dragNode.fy = dragNode.py;
+                dragNode.fz = dragNode.pz;
+            }
+            dragNode.px = dragNode.x;
+            dragNode.py = dragNode.y;
+            dragNode.pz = dragNode.z;
+            return;
+        }
+
         // ドラッグ中のノードが複数選択リストに含まれている場合、他の選択ノードも同じ移動量で移動させる
         if (selectedNodeList.some(node => node.id === dragNode.id)) {
             if (dragNode.px !== undefined) {
@@ -1062,47 +1112,89 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         }
 
         if (node.type === "3dobject") {
+            const group = new THREE.Group();
+            const innerGroup = new THREE.Group();
+            innerGroup.name = "rotation_group";
+            if (node.rot_x) innerGroup.rotation.x = node.rot_x;
+            if (node.rot_y) innerGroup.rotation.y = node.rot_y;
+            group.add(innerGroup);
+
+            let added = false;
+
             if (node.style_id === 1) {  // Horse.glbモデル
                 const scene = horseModel.scene.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1;  
                 scene.scale.set(scale * 0.7, scale * 0.7, scale * 0.7);
                 scene.rotation.y = Math.PI/2;
-                return scene;
+                innerGroup.add(scene);
+                added = true;
             } else if (node.style_id === 2 && watchModel) {  // watchモデル
                 const scene = watchModel.scene.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1; 
                 scene.scale.set(scale* 0.1, scale * 0.1, scale* 0.1);
                 scene.rotation.y = Math.PI/12;
-                return scene;
+                innerGroup.add(scene);
+                added = true;
             } else if (node.style_id === 3 && catModel) {  // Cat.objモデル
                 const scene = catModel.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1; 
                 scene.scale.set(scale * 2, scale * 2, scale * 2);
                 scene.rotation.x = -Math.PI/2;
                 scene.rotation.z = -Math.PI/6;
-                return scene;
+                innerGroup.add(scene);
+                added = true;
             } else if (node.style_id === 4 && birdModel) {  // Bird.objモデル
                 const scene = birdModel.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1  
                 scene.scale.set(scale * 5, scale * 5, scale * 5);
                 scene.rotation.x = -Math.PI/2;
                 scene.rotation.z = Math.PI/6;
-                return scene;
+                innerGroup.add(scene);
+                added = true;
             } else if (node.style_id === 5 && bird2Model) {  // Bird2.objモデル
                 const scene = bird2Model.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1;  
                 scene.scale.set(scale, scale, scale);
                 scene.rotation.x = -Math.PI/2;
                 scene.rotation.z = Math.PI/6;
-                return scene;
+                innerGroup.add(scene);
+                added = true;
             } else if (node.style_id === 6 && airplaneModel) {  // Airplane.objモデル
                 const scene = airplaneModel.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1;  // デフォルトスケール0.05
                 scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
                 scene.rotation.x = -Math.PI/3;
                 scene.rotation.z = Math.PI/6;
-                return scene;
+                innerGroup.add(scene);
+                added = true;
             }
+
+            if (added) {
+                // モデルのバウンディングボックスから適切なサイズのヒットボックスを作成
+                const box = new THREE.Box3().setFromObject(group);
+                const sphere = new THREE.Sphere();
+                box.getBoundingSphere(sphere);
+                
+                // Horseモデル等、内部のアニメーション用ボーンなどでバウンディングボックスが極端に大きくなる場合があるため上限を設ける
+                const maxRadius = 40 * (node.scale || 1);
+                const radius = Math.min(Math.max(sphere.radius, 15), maxRadius);
+                
+                // ドラッグやクリックの判定を正しく中心で受けるための透明なヒットボックス
+                const hitBox = new THREE.Mesh(
+                    new THREE.SphereGeometry(radius), 
+                    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+                );
+                // モデルの見た目上の中心にヒットボックスを合わせる
+                hitBox.position.copy(sphere.center);
+                group.add(hitBox);
+            }
+            return group;
         }
         const imgTexture = new THREE.TextureLoader().load(`./assets/${node['img']}`);
         imgTexture.colorSpace = THREE.SRGBColorSpace;
