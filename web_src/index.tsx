@@ -211,9 +211,9 @@ const App = () => {
         addLink: (source: any, target: any) => void;
         setFuncMode: (mode: boolean) => void;
         canUndo: () => boolean;
-        undo: () => void;
+        undo: () => boolean;
         canRedo: () => boolean;
-        redo: () => void;
+        redo: () => boolean;
         arrangeNodes: (layout: string) => void;
         getCameraState: () => any;
     }
@@ -456,6 +456,9 @@ const App = () => {
         mindMapGraphRef.current.selectNode(node);
     }, []);
 
+    const lastKeyActionTime = useRef<{undo: number, redo: number}>({undo: 0, redo: 0});
+    const KEY_DEBOUNCE_MS = 300;
+
     const keyFunction = useCallback((event:any) => {
         if (isNodeEditorOpen || isLinkEditorOpen) return;
         if(event.ctrlKey) {
@@ -463,24 +466,34 @@ const App = () => {
                 event.preventDefault();
                 handleSave();
             }
-            else if(event.code === "KeyZ"){
+            else if(event.code === "KeyZ" && !event.repeat){
                 event.preventDefault();
+                const now = Date.now();
+                if (now - lastKeyActionTime.current.undo < KEY_DEBOUNCE_MS) {
+                    console.log("Undo debounced, ignoring duplicate event");
+                    return;
+                }
+                lastKeyActionTime.current.undo = now;
                 if(mindMapGraphRef.current) {
-                    if(mindMapGraphRef.current.canUndo()) {
-                        mindMapGraphRef.current.undo();
-                        console.log("Undo operation via Ctrl+Z");
-                    } else {
+                    const result = mindMapGraphRef.current.undo();
+                    console.log("Undo operation via Ctrl+Z, result:", result);
+                    if(!result) {
                         message.info('元に戻せる操作がありません');
                     }
                 }
             }
-            else if(event.code === "KeyY"){
+            else if(event.code === "KeyY" && !event.repeat){
                 event.preventDefault();
+                const now = Date.now();
+                if (now - lastKeyActionTime.current.redo < KEY_DEBOUNCE_MS) {
+                    console.log("Redo debounced, ignoring duplicate event");
+                    return;
+                }
+                lastKeyActionTime.current.redo = now;
                 if(mindMapGraphRef.current) {
-                    if(mindMapGraphRef.current.canRedo()) {
-                        mindMapGraphRef.current.redo();
-                        console.log("Redo operation via Ctrl+Y");
-                    } else {
+                    const result = mindMapGraphRef.current.redo();
+                    console.log("Redo operation via Ctrl+Y, result:", result);
+                    if(!result) {
                         message.info('やり直せる操作がありません');
                     }
                 }
@@ -704,16 +717,18 @@ const App = () => {
                             } else if (key === 'save_as') {
                                 handleSaveAs();
                             } else if (key === 'undo') {
-                                if (mindMapGraphRef.current && mindMapGraphRef.current.canUndo()) {
-                                    mindMapGraphRef.current.undo();
-                            } else {
-                                message.info('元に戻せる操作がありません');
-                            }
-                        } else if (key === 'redo') {
-                            if (mindMapGraphRef.current && mindMapGraphRef.current.canRedo()) {
-                                mindMapGraphRef.current.redo();
-                            }
-                        } else if (key === 'copy') {
+                                if (mindMapGraphRef.current) {
+                                    if (!mindMapGraphRef.current.undo()) {
+                                        message.info('元に戻せる操作がありません');
+                                    }
+                                }
+                            } else if (key === 'redo') {
+                                if (mindMapGraphRef.current) {
+                                    if (!mindMapGraphRef.current.redo()) {
+                                        message.info('やり直せる操作がありません');
+                                    }
+                                }
+                            } else if (key === 'copy') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.copyNode();
                             }
@@ -791,6 +806,7 @@ const App = () => {
             
         <div style={{ position: 'relative' }}>
             <Dropdown 
+                transitionName=""
                 menu={{
                     items: menuItems,
                     onClick: () => {

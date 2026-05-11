@@ -418,8 +418,9 @@ def generate_image(node):
 
     if 'isNew' not in node or node['isNew'] == False:
         if node['img'] != "logo.png":
-            if os.path.exists(f"./web_src/assets/{node['img']}"):
-                os.remove(f"./web_src/assets/{node['img']}")
+            # if os.path.exists(f"./web_src/assets/{node['img']}"):
+            #     os.remove(f"./web_src/assets/{node['img']}")
+            pass
 
     if os.name == 'nt':
         wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')

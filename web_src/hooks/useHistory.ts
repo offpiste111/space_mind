@@ -11,6 +11,9 @@ export const useHistory = () => {
     const historyRef = useRef<HistoryItem[]>([]);
     const historyIndexRef = useRef<number>(-1);
     const [_, forceUpdate] = useState({});
+    const lastUndoTime = useRef<number>(0);
+    const lastRedoTime = useRef<number>(0);
+    const DEBOUNCE_MS = 100;
 
     const addToHistory = useCallback((action: HistoryItem['action'], data: any) => {
         // 必要な部分のみをクローン
@@ -38,7 +41,12 @@ export const useHistory = () => {
         deleteLink: (link: any) => void;
         setGraphData: (data: any) => void;
         refreshLink: (link: any) => void;
-    }) => {
+    }): boolean => {
+        const now = Date.now();
+        if (now - lastUndoTime.current < DEBOUNCE_MS) {
+            return false; // ignore rapid repeated calls
+        }
+        lastUndoTime.current = now;
         if (historyIndexRef.current >= 0) {
             const item = historyRef.current[historyIndexRef.current];
             
@@ -68,16 +76,25 @@ export const useHistory = () => {
                     // ノード編集を元に戻す
                     const nodeToRestore = graphData.nodes.find((n: any) => n.id === item.data.before.id);
                     if (nodeToRestore) {
-                        const nodeIndex = graphData.nodes.findIndex((n: any) => n.id === item.data.before.id);
-                        if (nodeIndex !== -1) {
-                            graphData.nodes[nodeIndex] = item.data.before;
-                        }
+                        // 内部プロパティを破壊しないように、必要なプロパティのみを上書きする
+                        const keysToRestore = ['name', 'group', 'style_id', 'deadline', 'priority', 'urgency', 'disabled', 'icon_img', 'icon_size', 'type', 'url', 'file_path', 'folder_path', 'scale', 'background'];
+                        keysToRestore.forEach(key => {
+                            if (item.data.before[key] !== undefined) {
+                                nodeToRestore[key] = item.data.before[key];
+                            } else {
+                                delete nodeToRestore[key];
+                            }
+                        });
+                        if (item.data.before.size_x !== undefined) nodeToRestore.size_x = item.data.before.size_x;
+                        if (item.data.before.size_y !== undefined) nodeToRestore.size_y = item.data.before.size_y;
+                        if (item.data.before.img !== undefined) nodeToRestore.img = item.data.before.img;
+
                         graphData.links.forEach((link: any) => {
                             if (link.source.id === item.data.before.id) {
-                                link.source = item.data.before;
+                                link.source = nodeToRestore;
                             }
                             if (link.target.id === item.data.before.id) {
-                                link.target = item.data.before;
+                                link.target = nodeToRestore;
                             }
                         });
                     }
@@ -95,6 +112,11 @@ export const useHistory = () => {
                             graphData.nodes[nodeIndex].fx = item.data.fx;
                             graphData.nodes[nodeIndex].fy = item.data.fy;
                             graphData.nodes[nodeIndex].fz = item.data.fz;
+                            
+                            // 見た目も即座に反映
+                            if (item.data.fx !== undefined) graphData.nodes[nodeIndex].x = item.data.fx;
+                            if (item.data.fy !== undefined) graphData.nodes[nodeIndex].y = item.data.fy;
+                            if (item.data.fz !== undefined) graphData.nodes[nodeIndex].z = item.data.fz;
                         }
                     }
                     break;
@@ -118,12 +140,17 @@ export const useHistory = () => {
                     break;
             }
 
-            // setTimeout を使用して状態更新を遅延させる
+            // 同期的にインデックスを更新
+            historyIndexRef.current--;
+            
+            // UIの再描画は非同期で実行
             setTimeout(() => {
-                historyIndexRef.current--;
                 forceUpdate({});
             }, 0);
+            
+            return true;
         }
+        return false;
     }, []);
 
     const redo = useCallback((graphData: any, callbacks: {
@@ -131,7 +158,12 @@ export const useHistory = () => {
         deleteLink: (link: any) => void;
         setGraphData: (data: any) => void;
         refreshLink: (link: any) => void;
-    }) => {
+    }): boolean => {
+        const now = Date.now();
+        if (now - lastRedoTime.current < DEBOUNCE_MS) {
+            return false; // ignore rapid repeated calls
+        }
+        lastRedoTime.current = now;
         if (historyIndexRef.current < historyRef.current.length - 1) {
             const item = historyRef.current[historyIndexRef.current + 1];
             
@@ -154,16 +186,24 @@ export const useHistory = () => {
                     // ノード編集をやり直す
                     const nodeToEdit = graphData.nodes.find((n: any) => n.id === item.data.after.id);
                     if (nodeToEdit) {
-                        const nodeIndex = graphData.nodes.findIndex((n: any) => n.id === item.data.after.id);
-                        if (nodeIndex !== -1) {
-                            graphData.nodes[nodeIndex] = item.data.after;
-                        }
+                        const keysToRestore = ['name', 'group', 'style_id', 'deadline', 'priority', 'urgency', 'disabled', 'icon_img', 'icon_size', 'type', 'url', 'file_path', 'folder_path', 'scale', 'background'];
+                        keysToRestore.forEach(key => {
+                            if (item.data.after[key] !== undefined) {
+                                nodeToEdit[key] = item.data.after[key];
+                            } else {
+                                delete nodeToEdit[key];
+                            }
+                        });
+                        if (item.data.after.size_x !== undefined) nodeToEdit.size_x = item.data.after.size_x;
+                        if (item.data.after.size_y !== undefined) nodeToEdit.size_y = item.data.after.size_y;
+                        if (item.data.after.img !== undefined) nodeToEdit.img = item.data.after.img;
+
                         graphData.links.forEach((link: any) => {
                             if (link.source.id === item.data.after.id) {
-                                link.source = item.data.after;
+                                link.source = nodeToEdit;
                             }
                             if (link.target.id === item.data.after.id) {
-                                link.target = item.data.after;
+                                link.target = nodeToEdit;
                             }
                         });
                     }
@@ -177,6 +217,11 @@ export const useHistory = () => {
                             graphData.nodes[nodeIndex].fx = item.data.px;
                             graphData.nodes[nodeIndex].fy = item.data.py;
                             graphData.nodes[nodeIndex].fz = item.data.pz;
+                            
+                            // 見た目も即座に反映
+                            if (item.data.px !== undefined) graphData.nodes[nodeIndex].x = item.data.px;
+                            if (item.data.py !== undefined) graphData.nodes[nodeIndex].y = item.data.py;
+                            if (item.data.pz !== undefined) graphData.nodes[nodeIndex].z = item.data.pz;
                         }
                     }
                     break;
@@ -200,12 +245,17 @@ export const useHistory = () => {
                     break;
             }
 
-            // setTimeout を使用して状態更新を遅延させる
+            // 同期的にインデックスを更新
+            historyIndexRef.current++;
+            
+            // UIの再描画は非同期で実行
             setTimeout(() => {
-                historyIndexRef.current++;
                 forceUpdate({});
             }, 0);
+            
+            return true;
         }
+        return false;
     }, []);
 
     return {

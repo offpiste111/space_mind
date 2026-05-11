@@ -440,14 +440,18 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             props.onNodeEdit(newNode);
         },
         canUndo,
-        undo: () => {
-            undo(graphData, {
+        canRedo,
+        undo: (): boolean => {
+            const result = undo(graphData, {
                 deleteNode,
                 deleteLink,
                 setGraphData,
                 refreshLink
             });
-            fgRef.current.refresh();
+            if (result) {
+                fgRef.current.refresh();
+            }
+            return result;
         },
         arrangeNodes: (layout: string) => {
             // 連結成分を特定する関数
@@ -616,14 +620,17 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 setCameraOrientation();
             }
         },
-        redo: () => {
-            redo(graphData, {
+        redo: (): boolean => {
+            const result = redo(graphData, {
                 deleteNode,
                 deleteLink,
                 setGraphData,
                 refreshLink
             });
-            fgRef.current.refresh();
+            if (result) {
+                fgRef.current.refresh();
+            }
+            return result;
         },
         getCameraState: () => {
             if (!fgRef.current) return null;
@@ -1445,7 +1452,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     // extend link with text sprite
                     let link_name = link.name;
                     if (link_name === "") {
-                        link_name = `${link.source.name || ''} to ${link.target.name || ''}`;
+                        link_name = ``;
                     }
                     const sprite = new SpriteText(`${link_name}`);
                     sprite.color = 'lightgrey';
@@ -1511,6 +1518,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         }
                     }
 
+                    isDraggingNode.current = false;
                 }}
                 />
             </div>
