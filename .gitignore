@@ -16,6 +16,9 @@ dist-ssr
 *.local
 env
 
+# Generated node images
+web_src/assets/node_img/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
