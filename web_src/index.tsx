@@ -654,7 +654,7 @@ const App = () => {
       );
 
     return (
-        <Spin spinning={loading} tip="ファイルを読み込み中...">
+        <Spin spinning={loading} tip="ファイルを読み込み中..." wrapperClassName="full-height-spin" style={{ height: '100%', width: '100%' }}>
             <Button 
                 icon={<MenuOutlined rev={undefined} />}
                 onClick={() => setDrawerVisible(!drawerVisible)}

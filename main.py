@@ -30,6 +30,26 @@ from jinja2 import Environment, FileSystemLoader
 # Import imgkit at module level to avoid repeated imports across threads
 import imgkit
 
+def get_resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    # Try several common locations
+    locations = [
+        os.path.join(base_path, relative_path),
+        os.path.join(base_path, "web_src", relative_path),
+        os.path.join(base_path, "dist_vite", relative_path)
+    ]
+    
+    for loc in locations:
+        if os.path.exists(loc):
+            return loc
+    return os.path.join(base_path, relative_path)
+
 env = Environment(loader=FileSystemLoader('templates'))
 node_template = env.get_template('node_template.html')
 
@@ -306,10 +326,29 @@ def load_data(node_data):
     return node_data
 
 def generate_images(node_data):
-    node_img_dir_name = "web_src/assets/node_img"
+    # Determine the actual writable assets directory
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    # Prioritize the directory being served by Eel
+    if os.path.exists(os.path.join(base_path, "web_src/assets")):
+        node_img_dir_name = os.path.join(base_path, "web_src/assets/node_img")
+    elif os.path.exists(os.path.join(base_path, "dist_vite/assets")):
+        node_img_dir_name = os.path.join(base_path, "dist_vite/assets/node_img")
+    else:
+        node_img_dir_name = os.path.join(base_path, "assets/node_img")
+
+    print(f"--- Target node_img directory: {node_img_dir_name}")
+    
     if os.path.exists(node_img_dir_name):
-        shutil.rmtree(node_img_dir_name)
-    os.makedirs(node_img_dir_name)  
+        try:
+            shutil.rmtree(node_img_dir_name)
+        except Exception as e:
+            print(f"Could not remove old node_img dir: {e}")
+    
+    os.makedirs(node_img_dir_name, exist_ok=True)
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         executor.map(generate_image, node_data.get("nodes", []))
@@ -376,22 +415,22 @@ def generate_image(node):
         styles = node_issue_styles
 
         if node["style_id"] == 1:
-            with open('web_src/assets/frame_bushes.png', 'rb') as img_file:
+            with open(get_resource_path('assets/frame_bushes.png'), 'rb') as img_file:
                 frame_bushes_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 2:
-            with open('web_src/assets/frame_bushes2.png', 'rb') as img_file:
+            with open(get_resource_path('assets/frame_bushes2.png'), 'rb') as img_file:
                 frame_bushes2_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 3:
-            with open('web_src/assets/frame_bushes3.png', 'rb') as img_file:
+            with open(get_resource_path('assets/frame_bushes3.png'), 'rb') as img_file:
                 frame_bushes3_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 4:
-            with open('web_src/assets/frame_bushes4.png', 'rb') as img_file:
+            with open(get_resource_path('assets/frame_bushes4.png'), 'rb') as img_file:
                 frame_bushes4_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 5:
-            with open('web_src/assets/frame_bushes5.png', 'rb') as img_file:
+            with open(get_resource_path('assets/frame_bushes5.png'), 'rb') as img_file:
                 frame_bushes5_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 6:
-            with open('web_src/assets/frame_bushes6.png', 'rb') as img_file:
+            with open(get_resource_path('assets/frame_bushes6.png'), 'rb') as img_file:
                 frame_bushes6_base64 = base64.b64encode(img_file.read()).decode('utf-8')
 
     html_content = node_template.render(
@@ -409,8 +448,25 @@ def generate_image(node):
         frame_bushes6_base64=frame_bushes6_base64
     )
 
+    # Determine where to store and load generated images
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    if os.path.exists(os.path.join(base_path, "web_src/assets")):
+        assets_base = os.path.join(base_path, "web_src/assets")
+    elif os.path.exists(os.path.join(base_path, "dist_vite/assets")):
+        assets_base = os.path.join(base_path, "dist_vite/assets")
+    else:
+        assets_base = os.path.join(base_path, "assets")
+
     now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    output_path = f"./web_src/assets/node_img/{node['id']}_{now}.png"
+    output_path = os.path.join(assets_base, f"node_img/{node['id']}_{now}.png")
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
     options = {
         'width': '1200',
         'height': '1200'
@@ -418,24 +474,31 @@ def generate_image(node):
 
     if 'isNew' not in node or node['isNew'] == False:
         if node['img'] != "logo.png":
-            # if os.path.exists(f"./web_src/assets/{node['img']}"):
-            #     os.remove(f"./web_src/assets/{node['img']}")
+            # if os.path.exists(os.path.join(assets_base, node['img'])):
+            #     os.remove(os.path.join(assets_base, node['img']))
             pass
 
     if os.name == 'nt':
         wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
         imgkit.from_string(html_content, output_path, config=wkhtmltoimage_config, options=options)
     else:
-        imgkit.from_string(html_content, output_path, options=options)
+        # On Linux, try system path first
+        wk_path = '/usr/bin/wkhtmltoimage'
+        if not os.path.exists(wk_path):
+            # Fallback to 'wkhtmltoimage' in PATH
+            imgkit.from_string(html_content, output_path, options=options)
+        else:
+            wkhtmltoimage_config = imgkit.config(wkhtmltoimage=wk_path)
+            imgkit.from_string(html_content, output_path, config=wkhtmltoimage_config, options=options)
     
     node['img'] = f"node_img/{node['id']}_{now}.png"
 
-    img = Image.open(f"./web_src/assets/{node['img']}").convert("RGB")
+    img = Image.open(output_path).convert("RGB")
     img = ImageOps.invert(img)
     img = img.crop(img.getbbox())
     img = ImageOps.invert(img)
 
-    img.save(f"./web_src/assets/{node['img']}_", 'PNG')
+    img.save(output_path + "_", 'PNG')
 
     if styles[node['style_id']-1]['background_trasparent']:
         img = img.convert("RGBA")
@@ -450,7 +513,7 @@ def generate_image(node):
         mask_draw.rounded_rectangle((0, 0, img.width, img.height), styles[node['style_id']-1]['rounded_rectangle_radius'], fill=255)
         img.putalpha(mask)
         
-    img.save(f"./web_src/assets/{node['img']}", 'PNG')
+    img.save(output_path, 'PNG')
     node['size_x'] = img.size[0]
     node['size_y'] = img.size[1]
     print(node['img'])
@@ -533,10 +596,22 @@ def start_eel(develop):
         # find a unused port to host the eel server/websocket
         eel_port = find_unused_port()
 
+        # Determine path to build files for replacement
+        try:
+            base_path = sys._MEIPASS
+        except Exception:
+            base_path = os.path.abspath(".")
+
         # replace the port in the web files
-        replace_file = findFileRe("./dist_vite/assets", "index.*.js")
-        replaceInfile(f"./dist_vite/assets/{replace_file}", 'ws://localhost:....', f"ws://localhost:{eel_port}")
-        replaceInfile("./dist_vite/index.html", 'http://localhost:.....eel.js', f"http://localhost:{eel_port}/eel.js")
+        assets_dir = os.path.join(base_path, "dist_vite/assets")
+        index_file = os.path.join(base_path, "dist_vite/index.html")
+        
+        replace_file = findFileRe(assets_dir, "index.*.js")
+        if replace_file:
+            replaceInfile(os.path.join(assets_dir, replace_file), 'ws://localhost:....', f"ws://localhost:{eel_port}")
+        
+        if os.path.exists(index_file):
+            replaceInfile(index_file, 'http://localhost:.....eel.js', f"http://localhost:{eel_port}/eel.js")
 
     eel.init(directory, ['.tsx', '.ts', '.jsx', '.js', '.html'])
 

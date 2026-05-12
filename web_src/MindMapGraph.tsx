@@ -129,6 +129,22 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     }, []);
 
     const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
+
+    const [windowDimensions, setWindowDimensions] = useState({
+        width: window.innerWidth,
+        height: window.innerHeight
+    });
+
+    useEffect(() => {
+        const handleResize = () => {
+            setWindowDimensions({
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     const [backgroundColor, setBackgroundColor] = useState<string>("rgba(0,0,0,0)");
     const setRotateVecFunc = () => {
         return new THREE.Vector3(0,0,3000);
@@ -1406,6 +1422,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 zIndex: 1 
             }}>
                 <ForceGraph3D
+                width={windowDimensions.width}
+                height={windowDimensions.height}
                 ref={fgRef}
                 graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
                 nodeThreeObject={(node) => {
