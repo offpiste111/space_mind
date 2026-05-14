@@ -53,4 +53,51 @@ Critical files for this demo
   <!-- Load eel.js from the port specified in the eel.start options -->
   <script type="text/javascript" src="http://localhost:5169/eel.js"></script>
   ```
-  
+
+## Releasing for Windows and Linux
+
+To build a standalone executable from this project, first ensure the frontend is built:
+
+```bash
+npm run build
+```
+
+### Windows
+
+1. **Activate the virtual environment and run PyInstaller:**
+   ```powershell
+   .\env\Scripts\activate
+   python -m eel main.py dist_vite --onefile --splash splashfile.png --path env/lib/site-packages --noconsole --name space-mind-windows-v0.1.0
+   ```
+
+2. **Locate the executable:**
+   The final executable will be generated in the `dist\` directory:
+   ```
+   dist\space-mind-windows-v0.1.0.exe
+   ```
+
+### Linux
+
+1. **Activate the virtual environment and run PyInstaller:**
+   ```bash
+   source env/bin/activate
+   python -m eel main.py dist_vite --onefile --noconsole -n space-mind-linux-v0.1.0
+   ```
+
+2. **Locate the executable:**
+   The final executable will be generated in the `dist/` directory:
+   ```
+   dist/space-mind-linux-v0.1.0
+   ```
+   You may need to make it executable:
+   ```bash
+   chmod +x dist/space-mind-linux-v0.1.0
+   ```
+
+**Notes for packaging:**
+- `--onefile`: Creates a single bundled executable.
+- `--splash` (Windows only): Displays a splash screen (`splashfile.png`) while the app is loading.
+- `--noconsole`: Suppresses the console window in the final GUI application.
+- `--name`/`-n`: Specifies the output filename.
+- If you encounter issues related to the `bottle` library when running `noconsole`, ensure the development version of `bottle` (`0.13-dev`) is installed in your virtual environment, as noted in the Quick Start section above.
+
