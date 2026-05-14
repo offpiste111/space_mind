@@ -30,6 +30,8 @@ from jinja2 import Environment, FileSystemLoader
 # Import imgkit at module level to avoid repeated imports across threads
 import imgkit
 
+NODE_HTML_SCALE_FACTOR = 2.0
+
 def get_resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
@@ -240,7 +242,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","baackground", "size_x", "size_y", "rot_x", "rot_y"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","background", "size_x", "size_y", "rot_x", "rot_y"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -295,9 +297,9 @@ node_folder_styles = [
 ]
 
 node_issue_styles = [
-    {"class": "issue_1", "rounded_rectangle_radius": 0, "background_trasparent": True}, 
-    {"class": "issue_2", "rounded_rectangle_radius": 8, "background_trasparent": True}, 
-    {"class": "issue_3", "rounded_rectangle_radius": 0, "background_trasparent": True},
+    {"class": "issue_1", "rounded_rectangle_radius": 20, "background_trasparent": False}, 
+    {"class": "issue_2", "rounded_rectangle_radius": 20, "background_trasparent": True}, 
+    {"class": "issue_3", "rounded_rectangle_radius": 20, "background_trasparent": True},
     {"class": "issue_4", "rounded_rectangle_radius": 8, "background_trasparent": True},
     {"class": "issue_5", "rounded_rectangle_radius": 8, "background_trasparent": False}, 
     {"class": "issue_6", "rounded_rectangle_radius": 8, "background_trasparent": True},
@@ -395,12 +397,12 @@ def generate_image(node):
         img.save(buffered, format="PNG")
         icon_base64 = base64.b64encode(buffered.getvalue()).decode()
 
-    frame_bushes_base64 = ""
-    frame_bushes2_base64 = ""
-    frame_bushes3_base64 = ""
-    frame_bushes4_base64 = ""
-    frame_bushes5_base64 = ""
-    frame_bushes6_base64 = ""
+    issue1_base64 = ""
+    issue2_base64 = ""
+    issue3_base64 = ""
+    issue4_base64 = ""
+    issue5_base64 = ""
+    issue6_base64 = ""
 
     styles = node_styles
     if "type" in node and node["type"] == "link":
@@ -415,23 +417,23 @@ def generate_image(node):
         styles = node_issue_styles
 
         if node["style_id"] == 1:
-            with open(get_resource_path('assets/frame_bushes.png'), 'rb') as img_file:
-                frame_bushes_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+            with open(get_resource_path('assets/issue1.png'), 'rb') as img_file:
+                issue1_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 2:
-            with open(get_resource_path('assets/frame_bushes2.png'), 'rb') as img_file:
-                frame_bushes2_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+            with open(get_resource_path('assets/issue2.png'), 'rb') as img_file:
+                issue2_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 3:
-            with open(get_resource_path('assets/frame_bushes3.png'), 'rb') as img_file:
-                frame_bushes3_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+            with open(get_resource_path('assets/issue3.png'), 'rb') as img_file:
+                issue3_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 4:
-            with open(get_resource_path('assets/frame_bushes4.png'), 'rb') as img_file:
-                frame_bushes4_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+            with open(get_resource_path('assets/issue4.png'), 'rb') as img_file:
+                issue4_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 5:
-            with open(get_resource_path('assets/frame_bushes5.png'), 'rb') as img_file:
-                frame_bushes5_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+            with open(get_resource_path('assets/issue5.png'), 'rb') as img_file:
+                issue5_base64 = base64.b64encode(img_file.read()).decode('utf-8')
         if node["style_id"] == 6:
-            with open(get_resource_path('assets/frame_bushes6.png'), 'rb') as img_file:
-                frame_bushes6_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+            with open(get_resource_path('assets/issue6.png'), 'rb') as img_file:
+                issue6_base64 = base64.b64encode(img_file.read()).decode('utf-8')
 
     html_content = node_template.render(
         style_class=styles[node['style_id']-1]['class'],
@@ -440,12 +442,13 @@ def generate_image(node):
         deadline=node.get('deadline', '').strip() if 'deadline' in node and node['deadline'] else None,
         priority=node.get('priority'),
         urgency=node.get('urgency'),
-        frame_bushes_base64=frame_bushes_base64,
-        frame_bushes2_base64=frame_bushes2_base64,
-        frame_bushes3_base64=frame_bushes3_base64,
-        frame_bushes4_base64=frame_bushes4_base64,
-        frame_bushes5_base64=frame_bushes5_base64,
-        frame_bushes6_base64=frame_bushes6_base64
+        issue1_base64=issue1_base64,
+        issue2_base64=issue2_base64,
+        issue3_base64=issue3_base64,
+        issue4_base64=issue4_base64,
+        issue5_base64=issue5_base64,
+        issue6_base64=issue6_base64,
+        scale_factor=NODE_HTML_SCALE_FACTOR
     )
 
     # Determine where to store and load generated images
@@ -503,22 +506,37 @@ def generate_image(node):
     if styles[node['style_id']-1]['background_trasparent']:
         img = img.convert("RGBA")
         np_img = np.array(img)
-        alpha_mask = np.all(np_img[:, :, :3] > 240, axis=-1)
-        np_img[:, :, 3] = np.where(alpha_mask, 0, np_img[:, :, 3])
+        # 透過処理の改善：
+        # 背景（完全な白やそれに近い色）を抜きつつ、アンチエイリアスの境界線（グレー等）は
+        # 徐々にアルファ（透明度）を下げることで、ジャミジャミを防ぐ。
+        gray_scale = np.mean(np_img[:, :, :3], axis=-1)
+        # 明るさが230以上の部分について、230を完全不透明(255)、255を完全透明(0)とする線形補間を行う
+        new_alpha = np.where(
+            gray_scale > 245, 
+            np.clip(255 - (gray_scale - 230) * (255.0 / 25.0), 0, 255), 
+            255
+        ).astype(np.uint8)
+        
+        # 元のアルファ値（存在する場合）と比較して小さい方を適用
+        np_img[:, :, 3] = np.minimum(np_img[:, :, 3], new_alpha)
         img = Image.fromarray(np_img)
 
     if styles[node['style_id']-1]['rounded_rectangle_radius'] > 0:
         mask = Image.new("L", img.size, 0)
         mask_draw = ImageDraw.Draw(mask)
-        mask_draw.rounded_rectangle((0, 0, img.width, img.height), styles[node['style_id']-1]['rounded_rectangle_radius'], fill=255)
+        # スケールに合わせて角丸の半径も2倍にする
+        scaled_radius = styles[node['style_id']-1]['rounded_rectangle_radius'] * 2
+        mask_draw.rounded_rectangle((0, 0, img.width, img.height), scaled_radius, fill=255)
         img.putalpha(mask)
         
     img.save(output_path, 'PNG')
-    node['size_x'] = img.size[0]
-    node['size_y'] = img.size[1]
+    
+    scale_factor = NODE_HTML_SCALE_FACTOR
+    node['size_x'] = img.size[0] / scale_factor
+    node['size_y'] = img.size[1] / scale_factor
     print(node['img'])
         
-    return node['img'], img.size
+    return node['img'], (node['size_x'], node['size_y'])
 
 @eel.expose
 def save_data(data):

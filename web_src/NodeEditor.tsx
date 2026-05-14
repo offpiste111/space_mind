@@ -24,7 +24,6 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [urgency, setUrgency] = useState<number | null>(null); // デフォルト: 未選択
     const [imageSize, setImageSize] = useState<number>(300); // デフォルト画像サイズ: 300px
     const [nodeType, setNodeType] = useState<string>("normal"); // デフォルト: ノーマル
-    const [background, setBackground] = useState<string>("#010101"); // デフォルト: 白
     const [url, setUrl] = useState<string>(""); // リンクタイプ用のURL
     const [filePath, setFilePath] = useState<string>(""); // ファイルタイプ用のファイルパス
     const [folderPath, setFolderPath] = useState<string>(""); // フォルダタイプ用のフォルダパス
@@ -44,7 +43,6 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         file_path?: string;
         folder_path?: string;
         scale?: number;  // 3Dオブジェクトのスケール
-        background?: string; // 背景色
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
@@ -85,7 +83,6 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setIconImg(node.icon_img || "");
             setImageSize(node.icon_size || 300); // 保存されていたサイズがあれば取得、なければデフォルト値
             setNodeType(node.type || "normal"); // 保存されていたタイプがあれば取得、なければデフォルト値
-            setBackground(node.background || "#010101"); // 保存されていた背景色があれば取得、なければデフォルト値
             setUrl(node.url || ""); // リンク用URL
             setFilePath(node.file_path || ""); // ファイルパス
             setFolderPath(node.folder_path || ""); // フォルダパス
@@ -114,11 +111,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
                     delete nodeToUpdate.folder_path;
-                    delete nodeToUpdate.background;
+                    delete (nodeToUpdate as any).background;
                     break;
                 case "issue":
                     nodeToUpdate.style_id = styleId;
-                    nodeToUpdate.background = background;
+                    delete (nodeToUpdate as any).background;
                     // issueタイプでは不要な属性を削除
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
@@ -228,15 +225,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             case "normal":
                 return null;
             case "issue":
-                return (
-                    <Flex gap="middle" align="center">
-                        <div style={{ width: '80px' }}>背景色</div>
-                        <ColorPicker
-                            value={background}
-                            onChange={(color) => setBackground(color.toHexString())}
-                        />
-                    </Flex>
-                );
+                return null;
             case "task":
                 return (
                     <>
@@ -457,7 +446,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             {/* スタイル選択 */}
             {(nodeType === "normal" || nodeType === "issue") ? (
               <Flex gap="middle" align="center">
-                <div style={{ width: '80px' }}>スタイル</div>
+                <div style={{ width: '80px' }}>{nodeType === "issue" ? "フレーム" : "スタイル"}</div>
                 <Select
                   style={{ flex: 1 }}
                   value={styleId}

@@ -13,6 +13,9 @@
         min-height: 60px;
         min-width: 60px;
         padding: 10px;
+        transform: scale({{ scale_factor }});
+        transform-origin: top left;
+        font-size: 20px;
     }
 
     .normal_1 {
@@ -72,13 +75,14 @@
     .issue_1 {
         margin: 20px auto;
         padding: 20px;
-        height: 200px;
-        width: 300px;
-        background-image: url('data:image/png;base64,{{ frame_bushes_base64 }}');
+        height: 224px;
+        width: 400px;
+        background-image: url('data:image/png;base64,{{ issue1_base64 }}');
         background-size:100%; /*背景画像のサイズ指定*/
         background-size: cover;
         background-position: center;
         color: #000000;
+        -webkit-text-stroke: 1.5px #ffffff;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -88,12 +92,13 @@
     .issue_2 {
         margin: 20px auto;
         padding: 20px;
-        height: 200px;
-        width: 300px;
-        background-image: url('data:image/png;base64,{{ frame_bushes2_base64 }}');
+        height: 224px;
+        width: 400px;
+        background-image: url('data:image/png;base64,{{ issue2_base64 }}');
         background-size:100%; /*背景画像のサイズ指定*/
         background-position: center;
         color: #000000;
+        -webkit-text-stroke: 1.5px #ffffff;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -103,27 +108,35 @@
     .issue_3 {
         margin: 20px auto;
         padding: 20px;
-        height: 300px;
-        width: 300px;
-        background-image: url('data:image/png;base64,{{ frame_bushes3_base64 }}');
-        background-size:100%; /*背景画像のサイズ指定*/
+        height: 224px;
+        width: 400px;
+        background-image: url('data:image/png;base64,{{ issue3_base64 }}');
+        background-size: 100% 100%;
         background-position: center;
-        color: #000000;
+        background-repeat: no-repeat;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: high-quality;
+        color: #fff0f0;
+        -webkit-text-stroke: 1.5px #000000;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
+        overflow: hidden;
+        font-size: 35px;
+        font-weight: bold;
     }
     .issue_4 {
         margin: 20px auto;
         padding: 20px;
         height: 200px;
         width: 300px;
-        background-image: url('data:image/png;base64,{{ frame_bushes4_base64 }}');
+        background-image: url('data:image/png;base64,{{ issue4_base64 }}');
         background-size:100%; /*背景画像のサイズ指定*/
         background-position: center;
         color: #000000;
+        -webkit-text-stroke: 1.5px #ffffff;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -135,10 +148,11 @@
         padding: 20px;
         height: 200px;
         width: 300px;
-        background-image: url('data:image/png;base64,{{ frame_bushes5_base64 }}');
+        background-image: url('data:image/png;base64,{{ issue5_base64 }}');
         background-size:100%; /*背景画像のサイズ指定*/
         background-position: center;
         color: #000000;
+        -webkit-text-stroke: 1.5px #ffffff;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -150,10 +164,11 @@
         padding: 20px;
         height: 200px;
         width: 300px;
-        background-image: url('data:image/png;base64,{{ frame_bushes6_base64 }}');
+        background-image: url('data:image/png;base64,{{ issue6_base64 }}');
         background-size:100%; /*背景画像のサイズ指定*/
         background-position: center;
         color: #000000;
+        -webkit-text-stroke: 1.5px #ffffff;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -198,7 +213,7 @@
         {% if icon_base64 %}
         <img src="data:image/png;base64,{{ icon_base64 }}" style="max-width: 100%; margin-bottom: 10px; display: block;">
         {% endif %}
-        <div style="font-size: 20px; white-space: pre-wrap;">{{ node_name }}</div>
+        <div style="white-space: pre-wrap;">{{ node_name }}</div>
         {% if deadline %}
         <div style="font-size: 14px; color: #ff4d4f; margin-top: 5px;">期限: {{ deadline }}</div>
         {% endif %}

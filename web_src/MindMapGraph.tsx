@@ -30,6 +30,7 @@ import { executeCircleLayout } from './layouts/CircleLayout';
 
 import './index.css'
 import { useHistory } from './hooks/useHistory';
+import { NODE_CONSTANTS } from './constants';
 
 
 const { useRef, useEffect } = React;
@@ -55,6 +56,9 @@ const useBatchUpdate = () => {
 };
 
 import { SpaceScene } from './components/SpaceScene';
+import { SkyScene } from './components/SkyScene';
+import { SnowScene } from './components/SnowScene';
+import { SunsetScene } from './components/SunsetScene';
 
 const MindMapGraph = forwardRef((props: any, ref:any) => {
     const fgRef = useRef<any>();
@@ -109,6 +113,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     interface GraphData {
         nodes: NodeData[];
         links: any[];
+        globalBackground?: string;
     }
 
     const isShiftDown = useRef<boolean>(false);
@@ -162,6 +167,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             //const jsonData = JSON.stringify(graphData, null, 2);
             return graphData;
         },
+        setGlobalBackground: (bg: string) => {
+            setGraphData(prev => ({ ...prev, globalBackground: bg }));
+        },
         setFuncMode: (mode: boolean) => {
             console.log('setFuncMode', mode);
             setFuncMode(mode);
@@ -183,8 +191,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     fx: coords.x, 
                     fy: coords.y, 
                     fz: coords.z, 
-                    size_x: 120,
-                    size_y: 40,
+                    size_x: NODE_CONSTANTS.DEFAULT_LOGO_SIZE_X,
+                    size_y: NODE_CONSTANTS.DEFAULT_LOGO_SIZE_Y,
                     name: "SpaceMind",
                     createdAt: now,
                     updatedAt: now
@@ -435,8 +443,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 fx: (selectedNode.fx || selectedNode.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
                 fy: (selectedNode.fy || selectedNode.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
                 fz: selectedNode.fz,
-                size_x: 240,
-                size_y: 80,
+                size_x: NODE_CONSTANTS.DEFAULT_NEW_NODE_SIZE_X,
+                size_y: NODE_CONSTANTS.DEFAULT_NEW_NODE_SIZE_Y,
                 name: "",
                 isNew: true,
                 createdAt: now,
@@ -761,11 +769,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     // ノードのダブルクリックを処理する関数
     const handleDoubleClick = (node: any) => {
         console.log('Node double clicked:', node);
-        
-        // issueタイプのノードの場合、背景色を更新
-        if (node.type === "issue" && node.background) {
-            setBackgroundColor(node.background);
-        }
         
         // リンクタイプのノードの場合、URLを開く
         if (node.type === "link" && node.url) {
@@ -1219,12 +1222,41 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             }
             return group;
         }
-        const imgTexture = new THREE.TextureLoader().load(`./assets/${node['img']}`);
+        const imgTexture = new THREE.TextureLoader().load(`./assets/${node['img']}`, (texture) => {
+            if (texture.image && texture.image.width && texture.image.height) {
+                const imageAspect = texture.image.width / texture.image.height;
+                let displaySizeX = node.size_x;
+                let displaySizeY = node.size_x / imageAspect;
+                
+                if (node.type === "issue") {
+                    const maxSide = Math.max(displaySizeX, displaySizeY);
+                    if (maxSide > 0) {
+                        const ratio = NODE_CONSTANTS.ISSUE_MAX_LONG_SIDE / maxSide;
+                        displaySizeX *= ratio;
+                        displaySizeY *= ratio;
+                    }
+                }
+                sprite.scale.set(displaySizeX, displaySizeY, 1);
+            }
+        });
         imgTexture.colorSpace = THREE.SRGBColorSpace;
         const material = new THREE.SpriteMaterial({ map: imgTexture });
         const sprite = new THREE.Sprite(material);
         const aspectRatio = node.size_x / node.size_y;
-        sprite.scale.set(node.size_x, node.size_x / aspectRatio, 1);
+        
+        let initSizeX = node.size_x;
+        let initSizeY = node.size_x / aspectRatio;
+        
+        if (node.type === "issue") {
+            const maxSide = Math.max(initSizeX, initSizeY);
+            if (maxSide > 0) {
+                const ratio = NODE_CONSTANTS.ISSUE_MAX_LONG_SIDE / maxSide;
+                initSizeX *= ratio;
+                initSizeY *= ratio;
+            }
+        }
+        
+        sprite.scale.set(initSizeX, initSizeY, 1);
         return sprite;
     }, [horseModel,watchModel,catModel,birdModel,bird2Model,airplaneModel]);
 
@@ -1552,10 +1584,19 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 pointerEvents: "none" 
             }}>
                 <Canvas
-                    style={{ background: "black" }}
+                    style={{ 
+                        background: 
+                            graphData.globalBackground === 'sky' ? '#87CEEB' : 
+                            graphData.globalBackground === 'snow' ? '#e0f7fa' :
+                            graphData.globalBackground === 'sunset' ? '#ff9e5e' :
+                            'black' 
+                    }}
                     camera={{ position: [0, 0, 40], near: 0.1, far: 1000 }}
                 >
-                    <SpaceScene />
+                    {graphData.globalBackground === 'sky' ? <SkyScene /> : 
+                     graphData.globalBackground === 'snow' ? <SnowScene /> :
+                     graphData.globalBackground === 'sunset' ? <SunsetScene /> :
+                     <SpaceScene />}
                     {/* <OrbitControls enableZoom={true} enablePan={false} enableDamping dampingFactor={0.2} autoRotate={true} rotateSpeed={-0.001} />
                     <Portals />
                     <ambientLight intensity={0.5} />

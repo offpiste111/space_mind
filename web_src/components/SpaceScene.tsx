@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback, useEffect, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars } from '@react-three/drei';
+import { Stars, Cloud } from '@react-three/drei';
 import { DoubleSide } from 'three';
 import * as THREE from 'three';
 
@@ -10,7 +10,7 @@ interface GalaxyProps {
 }
 
 const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
-    const galaxyRef = useRef<THREE.Points>(null);
+    const galaxyRef = useRef<THREE.Group>(null);
     
     // 銀河のパラメータ
     const params = useMemo(() => ({
@@ -23,11 +23,11 @@ const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
         randomnessPower: 2.5,   // ランダム性の指数を調整
         insideColor: new THREE.Color(Math.random() < 0.5 ? '#ff6030' : '#ffae30'), // 内側の色
         outsideColor: new THREE.Color(Math.random() < 0.5 ? '#1b3984' : '#50a5dd'), // 外側の色
-        // 銀河の位置（より近くに配置）
+        // 銀河の位置（遠くに配置）
         position: new THREE.Vector3(
-            (Math.random() - 0.5) * 100, 
-            (Math.random() - 0.5) * 100, 
-            -50 - Math.random() * 50
+            (Math.random() - 0.5) * 400, 
+            (Math.random() - 0.5) * 200, 
+            -300 - Math.random() * 200
         ),
         // 銀河の回転（ランダムな向き）
         rotation: new THREE.Euler(
@@ -35,8 +35,8 @@ const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
             Math.random() * Math.PI, 
             Math.random() * Math.PI
         ),
-        // スケール（より小さく）
-        scale: 0.3 + Math.random() * 0.5
+        // スケール（大きく）
+        scale: 1.5 + Math.random() * 1.0
     }), []);
     
     // 銀河の星の位置、色、サイズを生成
@@ -91,54 +91,91 @@ const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
         return [positions, colors, sizes];
     }, [params]);
     
-    // 銀河をゆっくり回転させる
+    // 銀河をゆっくり回転・移動させる
     useFrame(({ clock }) => {
         if (galaxyRef.current) {
+            const time = clock.getElapsedTime();
             // より遅い回転速度
-            galaxyRef.current.rotation.y = clock.getElapsedTime() * 0.002;
+            galaxyRef.current.rotation.y = time * 0.002;
+            galaxyRef.current.rotation.x = time * 0.001;
+            
+            // 少しずつ移動する（遠景でのゆっくりとした漂い）
+            galaxyRef.current.position.x = params.position.x + Math.sin(time * 0.05) * 20;
+            galaxyRef.current.position.y = params.position.y + Math.cos(time * 0.03) * 15;
+            galaxyRef.current.position.z = params.position.z + Math.sin(time * 0.02) * 10;
         }
     });
     
     return (
-        <points 
+        <group 
             ref={galaxyRef} 
             position={[params.position.x, params.position.y, params.position.z]}
             rotation={[params.rotation.x, params.rotation.y, params.rotation.z]}
             scale={params.scale}
         >
-            <bufferGeometry>
-                <bufferAttribute
-                    attach="attributes-position"
-                    args={[positions, 3]}
-                    count={positions.length / 3}
-                    array={positions}
-                    itemSize={3}
+            <points>
+                <bufferGeometry>
+                    <bufferAttribute
+                        attach="attributes-position"
+                        args={[positions, 3]}
+                        count={positions.length / 3}
+                        array={positions}
+                        itemSize={3}
+                    />
+                    <bufferAttribute
+                        attach="attributes-color"
+                        args={[colors, 3]}
+                        count={colors.length / 3}
+                        array={colors}
+                        itemSize={3}
+                    />
+                    <bufferAttribute
+                        attach="attributes-size"
+                        args={[sizes, 1]}
+                        count={sizes.length}
+                        array={sizes}
+                        itemSize={1}
+                    />
+                </bufferGeometry>
+                <pointsMaterial
+                    sizeAttenuation={true}
+                    depthWrite={false}
+                    vertexColors={true}
+                    blending={THREE.AdditiveBlending}
+                    transparent={true}
+                    opacity={opacity * 0.4} // 星を少し明るく
+                    alphaTest={0.001}
                 />
-                <bufferAttribute
-                    attach="attributes-color"
-                    args={[colors, 3]}
-                    count={colors.length / 3}
-                    array={colors}
-                    itemSize={3}
-                />
-                <bufferAttribute
-                    attach="attributes-size"
-                    args={[sizes, 1]}
-                    count={sizes.length}
-                    array={sizes}
-                    itemSize={1}
-                />
-            </bufferGeometry>
-            <pointsMaterial
-                sizeAttenuation={true}
-                depthWrite={false}
-                vertexColors={true}
-                blending={THREE.AdditiveBlending}
-                transparent={true}
-                opacity={opacity * 0.25} // より薄く
-                alphaTest={0.001} // 透明度の閾値を設定
+            </points>
+            {/* 雲のようなネビュラ（星雲）表現 */}
+            <Cloud
+                opacity={opacity * 0.5}
+                speed={0.1} // ゆっくり動くガス
+                bounds={[params.radius * 0.8, params.radius * 0.2, params.radius * 0.8]}
+                volume={params.radius * 0.5}
+                segments={40}
+                color="#8a2be2" // 深い紫
+                position={[0, 0, 0]}
             />
-        </points>
+            <Cloud
+                opacity={opacity * 0.4}
+                speed={0.15}
+                bounds={[params.radius * 0.6, params.radius * 0.3, params.radius * 0.6]}
+                volume={params.radius * 0.4}
+                segments={30}
+                color="#ff1493" // 鮮やかなピンク
+                position={[params.radius * 0.2, 0, params.radius * 0.1]}
+            />
+            <Cloud
+                opacity={opacity * 0.3}
+                speed={0.05}
+                bounds={[params.radius * 0.7, params.radius * 0.4, params.radius * 0.7]}
+                volume={params.radius * 0.6}
+                segments={35}
+                color="#1e90ff" // 深い青
+                position={[-params.radius * 0.2, params.radius * 0.1, -params.radius * 0.1]}
+            />
+        </group>
     );
 };
 
@@ -184,6 +221,9 @@ const Earth = () => {
     const orbitRadius = 150;
     const orbitSpeed = 0.02;
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 6, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 6, []);
+    
     useFrame(({ clock }) => {
         if (earthRef.current) {
             // 自転 (Y軸周り)
@@ -200,7 +240,7 @@ const Earth = () => {
     });
   
     return (
-        <>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
             <mesh ref={earthRef}>
                 <sphereGeometry args={[2, 64, 64]} />
                 <meshStandardMaterial
@@ -210,7 +250,7 @@ const Earth = () => {
                 />
             </mesh>
             <Moon parentPosition={earthPosition.current} />
-        </>
+        </group>
     );
 };
 
@@ -345,6 +385,8 @@ const Venus = () => {
     const orbitRadius = 75; // 太陽からの距離（水星と地球の間）
     const orbitSpeed = 0.1725; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 4, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 4, []);
     
     useFrame(({ clock }) => {
         if (venusRef.current) {
@@ -361,14 +403,16 @@ const Venus = () => {
     });
     
     return (
-        <mesh ref={venusRef}>
-            <sphereGeometry args={[1.9, 64, 64]} />
-            <meshStandardMaterial
-                map={texture}
-                metalness={0.4}
-                roughness={0.7}
-            />
-        </mesh>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
+            <mesh ref={venusRef}>
+                <sphereGeometry args={[1.9, 64, 64]} />
+                <meshStandardMaterial
+                    map={texture}
+                    metalness={0.4}
+                    roughness={0.7}
+                />
+            </mesh>
+        </group>
     );
 };
 
@@ -380,32 +424,34 @@ const Jupiter = () => {
     const orbitRadius = 175; // 太陽からの距離（火星と土星の間）
     const orbitSpeed = 0.075; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 5, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 5, []);
     
     useFrame(({ clock }) => {
         if (jupiterRef.current) {
             // 自転（木星は高速自転）
             jupiterRef.current.rotation.y = clock.getElapsedTime() * 0.8;
             
-            // 公転（軌道面を少し傾ける）（初期角度を加算）
+            // 公転（初期角度を加算）
             const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
-            const orbitAngle = Math.PI / 30; // 6度の傾き
             const x = Math.cos(time) * orbitRadius;
-            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
-            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * orbitRadius;
             
-            jupiterRef.current.position.set(x, y, z);
+            jupiterRef.current.position.set(x, 0, z);
         }
     });
     
     return (
-        <mesh ref={jupiterRef}>
-            <sphereGeometry args={[2.8, 64, 64]} />
-            <meshStandardMaterial
-                map={texture}
-                metalness={0.4}
-                roughness={0.7}
-            />
-        </mesh>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
+            <mesh ref={jupiterRef}>
+                <sphereGeometry args={[2.8, 64, 64]} />
+                <meshStandardMaterial
+                    map={texture}
+                    metalness={0.4}
+                    roughness={0.7}
+                />
+            </mesh>
+        </group>
     );
 };
 
@@ -417,6 +463,8 @@ const Mercury = () => {
     const orbitRadius = 50; // 太陽からの距離（最も内側）
     const orbitSpeed = 0.2; // 公転速度（最も速い）
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 3, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 3, []);
     
     useFrame(({ clock }) => {
         if (mercuryRef.current) {
@@ -433,14 +481,16 @@ const Mercury = () => {
     });
     
     return (
-        <mesh ref={mercuryRef}>
-            <sphereGeometry args={[0.8, 64, 64]} />
-            <meshStandardMaterial
-                map={texture}
-                metalness={0.4}
-                roughness={0.7}
-            />
-        </mesh>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
+            <mesh ref={mercuryRef}>
+                <sphereGeometry args={[0.8, 64, 64]} />
+                <meshStandardMaterial
+                    map={texture}
+                    metalness={0.4}
+                    roughness={0.7}
+                />
+            </mesh>
+        </group>
     );
 };
 
@@ -486,6 +536,8 @@ const Mars = () => {
     const orbitRadius = 125; // 太陽からの距離（地球と木星の間）
     const orbitSpeed = 0.15; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 4.5, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 4.5, []);
     
     useFrame(({ clock }) => {
         if (marsRef.current) {
@@ -503,7 +555,7 @@ const Mars = () => {
     });
     
     return (
-        <>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
             <mesh ref={marsRef}>
                 <sphereGeometry args={[1.2, 64, 64]} />
                 <meshStandardMaterial
@@ -513,7 +565,7 @@ const Mars = () => {
                 />
             </mesh>
             <Phobos parentPosition={marsPosition.current} />
-        </>
+        </group>
     );
 };
 
@@ -525,32 +577,34 @@ const Pluto = () => {
     const orbitRadius = 300; // 太陽からの距離（最も外側）
     const orbitSpeed = 0.015; // 公転速度（最も遅い）
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 2.5, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 2.5, []);
     
     useFrame(({ clock }) => {
         if (plutoRef.current) {
             // 自転
             plutoRef.current.rotation.y = clock.getElapsedTime() * 0.2;
             
-            // 公転（軌道面を大きく傾ける）（初期角度を加算）
+            // 公転（初期角度を加算）
             const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
-            const orbitAngle = Math.PI / 10.5; // 約17度の傾き
             const x = Math.cos(time) * orbitRadius;
-            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
-            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * orbitRadius;
             
-            plutoRef.current.position.set(x, y, z);
+            plutoRef.current.position.set(x, 0, z);
         }
     });
     
     return (
-        <mesh ref={plutoRef}>
-            <sphereGeometry args={[0.4, 64, 64]} />
-            <meshStandardMaterial
-                map={texture}
-                metalness={0.4}
-                roughness={0.7}
-            />
-        </mesh>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
+            <mesh ref={plutoRef}>
+                <sphereGeometry args={[0.4, 64, 64]} />
+                <meshStandardMaterial
+                    map={texture}
+                    metalness={0.4}
+                    roughness={0.7}
+                />
+            </mesh>
+        </group>
     );
 };
 
@@ -562,32 +616,34 @@ const Uranus = () => {
     const orbitRadius = 225; // 太陽からの距離（土星と海王星の間）
     const orbitSpeed = 0.035; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 3, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 3, []);
     
     useFrame(({ clock }) => {
         if (uranusRef.current) {
             // 自転（横倒しになった自転）
             uranusRef.current.rotation.z = clock.getElapsedTime() * 0.3;
             
-            // 公転（大きく傾いた軌道）（初期角度を加算）
+            // 公転（初期角度を加算）
             const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
-            const orbitAngle = Math.PI / 1.84; // 約98度の傾き
             const x = Math.cos(time) * orbitRadius;
-            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
-            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * orbitRadius;
             
-            uranusRef.current.position.set(x, y, z);
+            uranusRef.current.position.set(x, 0, z);
         }
     });
     
     return (
-        <mesh ref={uranusRef} rotation={[0, 0, Math.PI / 2]}> // 初期姿勢を横倒しに
-            <sphereGeometry args={[1.7, 64, 64]} />
-            <meshStandardMaterial
-                map={texture}
-                metalness={0.4}
-                roughness={0.7}
-            />
-        </mesh>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
+            <mesh ref={uranusRef} rotation={[0, 0, Math.PI / 2]}> // 初期姿勢を横倒しに
+                <sphereGeometry args={[1.7, 64, 64]} />
+                <meshStandardMaterial
+                    map={texture}
+                    metalness={0.4}
+                    roughness={0.7}
+                />
+            </mesh>
+        </group>
     );
 };
 
@@ -599,32 +655,34 @@ const Neptune = () => {
     const orbitRadius = 250; // 太陽からの距離（最も外側）
     const orbitSpeed = 0.025; // 公転速度（最も遅い）
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 4, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 4, []);
     
     useFrame(({ clock }) => {
         if (neptuneRef.current) {
             // 自転
             neptuneRef.current.rotation.y = clock.getElapsedTime() * 0.3;
             
-            // 公転（軌道面を少し傾ける）（初期角度を加算）
+            // 公転（初期角度を加算）
             const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
-            const orbitAngle = Math.PI / 15; // 12度の傾き
             const x = Math.cos(time) * orbitRadius;
-            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
-            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * orbitRadius;
             
-            neptuneRef.current.position.set(x, y, z);
+            neptuneRef.current.position.set(x, 0, z);
         }
     });
     
     return (
-        <mesh ref={neptuneRef}>
-            <sphereGeometry args={[1.6, 64, 64]} />
-            <meshStandardMaterial
-                map={texture}
-                metalness={0.4}
-                roughness={0.7}
-            />
-        </mesh>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
+            <mesh ref={neptuneRef}>
+                <sphereGeometry args={[1.6, 64, 64]} />
+                <meshStandardMaterial
+                    map={texture}
+                    metalness={0.4}
+                    roughness={0.7}
+                />
+            </mesh>
+        </group>
     );
 };
 
@@ -638,6 +696,8 @@ const Saturn = () => {
     const orbitRadius = 200; // 太陽からの距離
     const orbitSpeed = 0.05; // 公転速度
     const initialAngle = useMemo(() => Math.random() * Math.PI * 2, []); // 0-2πのランダムな初期角度
+    const orbitTiltX = useMemo(() => (Math.random() - 0.5) * Math.PI / 4, []);
+    const orbitTiltZ = useMemo(() => (Math.random() - 0.5) * Math.PI / 4, []);
    
     useFrame(({ clock }) => {
         if (saturnRef.current && ringsRef.current) {
@@ -645,20 +705,18 @@ const Saturn = () => {
             saturnRef.current.rotation.y = clock.getElapsedTime() * 0.3;
             ringsRef.current.rotation.y = clock.getElapsedTime() * 0.3;
             
-            // 公転（軌道面を傾ける）（初期角度を加算）
+            // 公転（初期角度を加算）
             const time = clock.getElapsedTime() * orbitSpeed + initialAngle;
-            const orbitAngle = Math.PI / 12; // 15度の傾き
             const x = Math.cos(time) * orbitRadius;
-            const y = Math.sin(time) * Math.sin(orbitAngle) * orbitRadius;
-            const z = Math.sin(time) * Math.cos(orbitAngle) * orbitRadius;
+            const z = Math.sin(time) * orbitRadius;
             
-            saturnRef.current.position.set(x, y, z);
-            ringsRef.current.position.set(x, y, z);
+            saturnRef.current.position.set(x, 0, z);
+            ringsRef.current.position.set(x, 0, z);
         }
     });
     
     return (
-        <>
+        <group rotation={[orbitTiltX, 0, orbitTiltZ]}>
             <mesh ref={saturnRef}>
                 <sphereGeometry args={[1.8, 64, 64]} />
                 <meshStandardMaterial
@@ -676,7 +734,7 @@ const Saturn = () => {
                     opacity={0.8}
                 />
             </mesh>
-        </>
+        </group>
     );
 };
 
@@ -687,23 +745,30 @@ interface GalaxyInstance {
 
 const MovingGalaxies = ({ galaxyCount, opacity }: { galaxyCount: number; opacity: number }) => {
     const galaxiesRef = useRef<THREE.Group>(null);
-    const [galaxies, setGalaxies] = useState<GalaxyInstance[]>([]);
-    const spawnGalaxy = useCallback(() => {
-        const newId = Date.now();
-        setGalaxies(prev => {
-            const newGalaxies = [...prev, { id: newId, opacity }];
-            return newGalaxies.slice(-galaxyCount); // 最大数を維持
-        });
-    }, [galaxyCount, opacity]);
-
+    
+    // 最初は1つだけ生成
+    const [galaxies, setGalaxies] = useState<GalaxyInstance[]>([{
+        id: Date.now(),
+        opacity: opacity
+    }]);
+    
     useFrame(({ clock }) => {
         if (galaxiesRef.current) {
-            galaxiesRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.1) * 0.2;
-            galaxiesRef.current.rotation.y = clock.getElapsedTime() * 0.05;
+            // 全体的なゆっくりとした揺らぎ
+            galaxiesRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.05) * 0.1;
+            galaxiesRef.current.rotation.y = clock.getElapsedTime() * 0.02;
 
-            // ランダムな確率で銀河を生成（毎フレーム0.5%の確率）
-            if (Math.random() < 0.0001) {
-                spawnGalaxy();
+            // 最大数に達していない場合、ランダムなタイミングで新しい銀河を追加
+            if (galaxies.length < galaxyCount) {
+                // 毎フレームごく低確率（例: 0.1%の確率）で追加判定
+                if (Math.random() < 0.001) {
+                    setGalaxies(prev => {
+                        if (prev.length < galaxyCount) {
+                            return [...prev, { id: Date.now(), opacity: opacity }];
+                        }
+                        return prev;
+                    });
+                }
             }
         }
     });
@@ -725,6 +790,7 @@ export function SpaceScene() {
     return (
         <>
             <MovingStars />
+            <MovingGalaxies galaxyCount={galaxyCount} opacity={galaxyOpacity} />
             <Mercury />
             <Venus />
             <Earth />

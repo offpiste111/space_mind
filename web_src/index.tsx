@@ -14,6 +14,7 @@ import MindMapGraph from './MindMapGraph'
 import NodeEditor from './NodeEditor'
 import LinkEditor from './LinkEditor'
 import { FloatButton } from 'antd';
+import { NODE_CONSTANTS } from './constants';
 
 declare const window: any;
 export const eel = window.eel
@@ -113,6 +114,17 @@ const App = () => {
                 },
                 { label: 'Circle Layout', key: 'circle_layout' },
                 { label: 'Free Layout', key: 'free_layout' }
+            ],
+        },
+        {
+            label: 'Background',
+            key: 'background',
+            icon: <SettingOutlined rev={undefined} />,
+            children: [
+                { label: 'Space', key: 'bg_space' },
+                { label: 'Sky', key: 'bg_sky' },
+                { label: 'Snowy Morning', key: 'bg_snow' },
+                { label: 'Sunset', key: 'bg_sunset' }
             ],
         }
     ];
@@ -216,6 +228,7 @@ const App = () => {
         redo: () => boolean;
         arrangeNodes: (layout: string) => void;
         getCameraState: () => any;
+        setGlobalBackground: (bg: string) => void;
     }
 
     interface ModalRef {
@@ -244,8 +257,8 @@ const App = () => {
                     fx: 0,
                     fy: 0,
                     fz: -300,
-                    size_x: 120,
-                    size_y: 40,
+                    size_x: NODE_CONSTANTS.DEFAULT_LOGO_SIZE_X,
+                    size_y: NODE_CONSTANTS.DEFAULT_LOGO_SIZE_Y,
                     name: "SpaceMind",
                     createdAt: now,
                     updatedAt: now
@@ -787,6 +800,22 @@ const App = () => {
                         } else if (key === 'free_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('free');
+                            }
+                        } else if (key === 'bg_space') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.setGlobalBackground('space');
+                            }
+                        } else if (key === 'bg_sky') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.setGlobalBackground('sky');
+                            }
+                        } else if (key === 'bg_snow') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.setGlobalBackground('snow');
+                            }
+                        } else if (key === 'bg_sunset') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.setGlobalBackground('sunset');
                             }
                         }
                     }}
