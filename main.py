@@ -311,8 +311,7 @@ node_issue_styles = [
 @eel.expose  # Expose function to JavaScript
 def say_hello_py(x):
     """Print message from JavaScript on app initialization, then call a JS function."""
-    print('Hello from %s' % x)  # noqa T001
-    eel.say_hello_js('Python {from within say_hello_py()}!')
+    eel.say_hello_js('')
 
 @eel.expose
 def load_json(path):
@@ -505,19 +504,8 @@ def generate_image(node):
     if styles[node['style_id']-1]['background_trasparent']:
         img = img.convert("RGBA")
         np_img = np.array(img)
-        # 透過処理の改善：
-        # 背景（完全な白やそれに近い色）を抜きつつ、アンチエイリアスの境界線（グレー等）は
-        # 徐々にアルファ（透明度）を下げることで、ジャミジャミを防ぐ。
-        gray_scale = np.mean(np_img[:, :, :3], axis=-1)
-        # 明るさが230以上の部分について、230を完全不透明(255)、255を完全透明(0)とする線形補間を行う
-        new_alpha = np.where(
-            gray_scale > 245, 
-            np.clip(255 - (gray_scale - 230) * (255.0 / 25.0), 0, 255), 
-            255
-        ).astype(np.uint8)
-        
-        # 元のアルファ値（存在する場合）と比較して小さい方を適用
-        np_img[:, :, 3] = np.minimum(np_img[:, :, 3], new_alpha)
+        alpha_mask = np.all(np_img[:, :, :3] > 240, axis=-1)
+        np_img[:, :, 3] = np.where(alpha_mask, 0, np_img[:, :, 3])
         img = Image.fromarray(np_img)
 
     if styles[node['style_id']-1]['rounded_rectangle_radius'] > 0:
@@ -579,7 +567,7 @@ def expand_user(folder):
 
 @eel.expose
 def init():
-    print('Hello! Initalized')
+    print('Initalized')
     global g_current_file_path
     g_current_file_path = None
 
@@ -639,8 +627,8 @@ def start_eel(develop):
         pyi_splash.close()
 
     # These will be queued until the first connection is made, but won't be repeated on a page reload
-    say_hello_py('Python World!')
-    eel.say_hello_js('Python World!')   # Call a JavaScript function (must be after `eel.init()`)
+    say_hello_py('')
+    eel.say_hello_js('')   # Call a JavaScript function (must be after `eel.init()`)
 
     #eel.show_log('https://github.com/samuelhwilliams/Eel/issues/363 (show_log)')
 
