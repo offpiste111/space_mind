@@ -52,7 +52,8 @@ def get_resource_path(relative_path):
             return loc
     return os.path.join(base_path, relative_path)
 
-env = Environment(loader=FileSystemLoader('templates'))
+templates_dir = get_resource_path('templates')
+env = Environment(loader=FileSystemLoader(templates_dir))
 node_template = env.get_template('node_template.html')
 
 g_current_file_path = None  # 現在開いているファイルのパスを保持
@@ -305,10 +306,7 @@ node_issue_styles = [
     {"class": "issue_6", "rounded_rectangle_radius": 8, "background_trasparent": True},
 ]
 
-if '_PYIBoot_SPLASH' in os.environ and importlib.util.find_spec("pyi_splash"):
-    import pyi_splash
-    pyi_splash.update_text('UI Loaded ...')
-    pyi_splash.close()
+# Splash screen will be closed in start_eel() after the window is ready
 
 @eel.expose  # Expose function to JavaScript
 def say_hello_py(x):
@@ -482,7 +480,8 @@ def generate_image(node):
             pass
 
     if os.name == 'nt':
-        wkhtmltoimage_config = imgkit.config(wkhtmltoimage='./wkhtmltox/bin/wkhtmltoimage.exe')
+        wkhtmltoimage_path = get_resource_path('wkhtmltox/bin/wkhtmltoimage.exe')
+        wkhtmltoimage_config = imgkit.config(wkhtmltoimage=wkhtmltoimage_path)
         imgkit.from_string(html_content, output_path, config=wkhtmltoimage_config, options=options)
     else:
         # On Linux, try system path first
@@ -632,6 +631,12 @@ def start_eel(develop):
             replaceInfile(index_file, 'http://localhost:.....eel.js', f"http://localhost:{eel_port}/eel.js")
 
     eel.init(directory, ['.tsx', '.ts', '.jsx', '.js', '.html'])
+
+    # Close splash screen after initialization
+    if importlib.util.find_spec("pyi_splash"):
+        import pyi_splash
+        pyi_splash.update_text('UI Loaded ...')
+        pyi_splash.close()
 
     # These will be queued until the first connection is made, but won't be repeated on a page reload
     say_hello_py('Python World!')
