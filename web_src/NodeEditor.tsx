@@ -330,7 +330,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                     { value: 2, label: 'Watch' },
                                     { value: 3, label: 'Cat' },
                                     { value: 4, label: 'Bird' },
-                                    { value: 5, label: 'Bird2' },
+                                    { value: 5, label: 'Duck' },
                                     { value: 6, label: 'Airplane' },
                                 ]}
                             />
@@ -444,9 +444,9 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
               }}
             />
             {/* スタイル選択 */}
-            {(nodeType === "normal" || nodeType === "issue") ? (
+            {nodeType === "normal" ? (
               <Flex gap="middle" align="center">
-                <div style={{ width: '80px' }}>{nodeType === "issue" ? "フレーム" : "スタイル"}</div>
+                <div style={{ width: '80px' }}>{"スタイル"}</div>
                 <Select
                   style={{ flex: 1 }}
                   value={styleId}
@@ -461,13 +461,29 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                   ]}
                 />
               </Flex>
+            ) : nodeType === "issue" ? (
+              <Flex gap="middle" align="center">
+                <div style={{ width: '80px' }}>{"背景"}</div>
+                <Select
+                  style={{ flex: 1 }}
+                  value={styleId}
+                  onChange={(value) => setStyleId(value)}
+                  options={[
+                    { value: 1, label: '電球' },
+                    { value: 2, label: '土星' },
+                    { value: 3, label: '木' },
+                    { value: 4, label: '草花 1' },
+                    { value: 5, label: '草花 2' },
+                    { value: 6, label: '和紙' },
+                  ]}
+                />
+              </Flex>
             ) : nodeType !== "3dobject" && (
               <Flex gap="middle" align="center">
                 <div style={{ width: '80px' }}>スタイル</div>
-                <div style={{ flex: 1 }}>スタイル1 (固定)</div>
+                <div style={{ flex: 1 }}>固定</div>
               </Flex>
             )}
-
             {/* アイコン選択（3dobject以外で表示） */}
             {nodeType !== "3dobject" && (
               <Flex gap="middle" align="start">

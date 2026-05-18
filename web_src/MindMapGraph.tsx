@@ -186,6 +186,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 let new_node = { 
                     id: 1, 
                     img: "logo.png", 
+                    type: "issue",
                     group: 1, 
                     style_id: 1, 
                     fx: coords.x, 
@@ -1063,10 +1064,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
     const horseModel = useMemo(() => useGLTF('./assets/Horse.glb'), []);
     const watchModel = useMemo(() => useGLTF('./assets/watch-v1.glb'), []);
-    const [catModel, setCatModel] = useState<THREE.Group | null>(null);
-    const [birdModel, setBirdModel] = useState<THREE.Group | null>(null);
-    const [bird2Model, setBird2Model] = useState<THREE.Group | null>(null);
-    const [airplaneModel, setAirplaneModel] = useState<THREE.Group | null>(null);
+    const catModel = useRef<THREE.Group | null>(null);
+    const birdModel = useRef<THREE.Group | null>(null);
+    const bird2Model = useRef<THREE.Group | null>(null);
+    const airplaneModel = useRef<THREE.Group | null>(null);
 
     useEffect(() => {
         // // Load Tree model
@@ -1085,7 +1086,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             objLoader.setMaterials(materials);
             objLoader.setPath('./assets/cat/');
             objLoader.load('12221_Cat_v1_l3.obj', (object) => {
-                setCatModel(object);
+                catModel.current = object;
             });
         });
 
@@ -1099,7 +1100,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             objLoader.setMaterials(materials);
             objLoader.setPath('./assets/bird1/');
             objLoader.load('12213_Bird_v1_l3.obj', (object) => {
-                setBirdModel(object);
+                birdModel.current = object;
             });
         });
 
@@ -1113,7 +1114,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             objLoader.setMaterials(materials);
             objLoader.setPath('./assets/bird2/');
             objLoader.load('12249_Bird_v1_L2.obj', (object) => {
-                setBird2Model(object);
+                bird2Model.current = object;
             });
         });
 
@@ -1127,7 +1128,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             objLoader.setMaterials(materials);
             objLoader.setPath('./assets/airplane/');
             objLoader.load('11803_Airplane_v1_l1.obj', (object) => {
-                setAirplaneModel(object);
+                airplaneModel.current = object;
             });
         });
     }, []);
@@ -1163,8 +1164,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 scene.rotation.y = Math.PI/12;
                 innerGroup.add(scene);
                 added = true;
-            } else if (node.style_id === 3 && catModel) {  // Cat.objモデル
-                const scene = catModel.clone();
+            } else if (node.style_id === 3 && catModel.current) {  // Cat.objモデル
+                const scene = catModel.current.clone();
                 scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1; 
                 scene.scale.set(scale * 2, scale * 2, scale * 2);
@@ -1172,8 +1173,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 scene.rotation.z = -Math.PI/6;
                 innerGroup.add(scene);
                 added = true;
-            } else if (node.style_id === 4 && birdModel) {  // Bird.objモデル
-                const scene = birdModel.clone();
+            } else if (node.style_id === 4 && birdModel.current) {  // Bird.objモデル
+                const scene = birdModel.current.clone();
                 scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1  
                 scene.scale.set(scale * 5, scale * 5, scale * 5);
@@ -1181,8 +1182,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 scene.rotation.z = Math.PI/6;
                 innerGroup.add(scene);
                 added = true;
-            } else if (node.style_id === 5 && bird2Model) {  // Bird2.objモデル
-                const scene = bird2Model.clone();
+            } else if (node.style_id === 5 && bird2Model.current) {  // Bird2.objモデル
+                const scene = bird2Model.current.clone();
                 scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1;  
                 scene.scale.set(scale, scale, scale);
@@ -1190,8 +1191,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 scene.rotation.z = Math.PI/6;
                 innerGroup.add(scene);
                 added = true;
-            } else if (node.style_id === 6 && airplaneModel) {  // Airplane.objモデル
-                const scene = airplaneModel.clone();
+            } else if (node.style_id === 6 && airplaneModel.current) {  // Airplane.objモデル
+                const scene = airplaneModel.current.clone();
                 scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1;  // デフォルトスケール0.05
                 scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);

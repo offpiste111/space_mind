@@ -30,150 +30,144 @@ graph TB
     Index[index.tsx<br>データ仲介・状態管理]
     NodeEdit[NodeEditor]
     LinkEdit[LinkEditor]
-    TreeDraw[TreeDrawer]
+    MenuDrawer[MenuDrawer/Drawer<br>ファイル操作・レイアウト・背景]
+    SearchModal[SearchModal/Modal<br>ノード検索]
     Python[PythonBackend]
+    Background[BackgroundScenes<br>Space/Sky/Snow/Sunset]
     
     MindMap <--> |データ参照・更新| Index
     Index --> NodeEdit
     Index --> LinkEdit
-    Index --> TreeDraw
+    Index --> MenuDrawer
+    Index --> SearchModal
+    MindMap --> Background
     NodeEdit --> Python
     LinkEdit --> Python
-    TreeDraw --> Python
+    Index --> Python
 ```
 
 #### データフロー
 - MindMapGraphコンポーネントがノードとリンクのデータを保持
-- index.tsxがMindMapGraphとエディター間のデータ仲介を担当
+- index.tsxがMindMapGraphと各エディター/モーダル間のデータ仲介を担当
 - 各エディターはindex.tsxを介してデータの参照・更新を実行
+- 背景シーンはMindMapGraphの `globalBackground` 状態に応じて切り替わる
 
 ## 3. コンポーネント詳細
 
 ### 3.1 Pythonバックエンド (main.py)
 
 #### 主要機能
-- ファイルシステム操作（JSON読み書き）
-- ノード画像生成（HTML+CSSからPNG画像生成）
+- ファイルシステム操作（JSON読み書き、保存ダイアログ）
+- ノード画像生成（Jinja2テンプレートとwkhtmltoimageによるPNG生成）
+- アイコン画像のリサイズ・加工処理（PIL）
+- システム連携（既定のアプリでファイル/フォルダを開く）
+- 最近使用したファイルの管理
 - Eelによるフロントエンド通信
 
 #### ノード画像生成プロセス
-1. ノードの内容とスタイルをHTML+CSSで定義
-2. アイコン画像がある場合、base64形式で直接HTMLに埋め込み
-3. HTMLをPNG画像に変換（Windows: wkhtmltoimage, その他: WeasyPrint）
-4. 画像の透明度とラウンド処理
-5. 生成した画像をノードの表示用アセットとして保存
+1. ノードの内容とスタイルをHTML+CSS（Jinja2）で定義
+2. アイコン画像がある場合、`process_base64_image` でリサイズし、base64形式でHTMLに埋め込み
+3. `imgkit` (wkhtmltoimageのラッパー) を使用してHTMLをPNG画像に変換
+   - Windows: 同梱の `wkhtmltoimage.exe` を使用
+   - Linux: システムの `/usr/bin/wkhtmltoimage` または PATH上のコマンドを使用
+4. 生成された画像を `PIL` で読み込み、色反転・クロップ・透過処理・角丸処理を実行
+5. 生成した画像を `node_img/` ディレクトリに一意の名前（ID+タイムスタンプ）で保存
 
-#### 重要なメソッド
-- `select_file_dialog()`: ファイル選択ダイアログの表示
-- `load_json(path)`: JSONファイルの読み込み
-- `save_json(data, path)`: JSONファイルの保存
-- `generate_images(node_data)`: ノード画像の生成
-- `process_base64_image(base64_str, max_size)`: アイコン画像のリサイズ処理
+#### 主要なメソッド（Eel公開）
+- `init()`: アプリケーションの初期化
+- `select_file_dialog()`: JSONファイル選択ダイアログを表示
+- `load_json_by_path(path)`: 指定されたパスからデータを読み込み
+- `get_recent_files()`: 最近使用したファイルのリストを取得
+- `save_data(data)`: 現在のファイルにデータを保存
+- `save_as_data(data)`: 名前を付けて保存ダイアログを表示
+- `generate_image(node)`: 単一ノードの画像を生成し、保存パスとサイズを返却
+- `open_file(file_path)`: システムの既定アプリでファイルを開く
+- `open_folder(folder_path)`: システムのファイルエクスプローラーでフォルダを開く
+- `select_any_file()` / `select_folder()`: 汎用的なファイル/フォルダ選択ダイアログを表示
 
 ### 3.2 マインドマップグラフ (MindMapGraph.tsx)
 
 #### 主要機能
-- 3Dグラフの描画と操作
-- ノード・リンクデータの保持と管理
-- インタラクティブな編集機能
-- 複数ノード選択機能
-- ノードのコピー&ペースト機能
-- 3Dオブジェクトの表示と操作
-- 背景の星のアニメーション表示
-- Undo/Redoのための履歴管理
-- 多様なノードタイプのサポート（通常、課題、タスク、リンク、ファイル、フォルダー、3Dオブジェクト）
+- 3Dグラフの描画と操作（react-force-graph-3d）
+- ノード・リンクデータの管理（追加、削除、更新、検索）
+- 複数ノードの選択と一括ドラッグ移動
+- ノードのコピー/切り取り/貼り付け機能（Ctrl+C, Ctrl+X, Ctrl+V）
+- 3Dオブジェクトノードのサポート（Horse, Watch, Cat, Bird, Bird2, Airplane）
+- リンク作成機能（'L'キーによる一括リンク作成、マウスドラッグによるリンク張り）
+- 4種類の背景シーン切替（Space, Sky, Snow, Sunset）
+- 自動レイアウト機能（Tree Layout 4方向, Circle Layout, Free Layout）
+- カメラ状態（位置・注視点）の保存と復元
+- Undo/Redoによる操作履歴管理（useHistory hook）
+- マウス速度に応じた可変パン/回転速度制御
+- ホバー時のケバブメニュー（⋮）によるクイックアクセス
+- 右クリックによるコンテキストメニュー
 
 #### データ管理
-- `graphData`: ノードとリンクのデータを保持する状態
-- `selectedNode`: 現在選択中のノードを管理
-- `selectedNodeList`: 複数選択されたノードを管理
-- `copiedNodeRef`: コピーされたノードの参照を保持（useRefで管理）
-- `historyRef`: 操作履歴を管理するための参照
-- `historyIndexRef`: 現在の履歴位置を管理
+- `graphData`: ノード、リンク、`globalBackground` を保持
+- `selectedNode`: 単一選択中のノード
+- `selectedNodeList`: 複数選択中のノードリスト
+- `copiedNodeRef`: コピーされたノードデータのバッファ
+- `undo/redo`: 操作履歴をスタックで管理
 
-#### 重要なメソッド
-- `copyNode`: 選択中のノードをコピーしてバッファに保存
-- `getCopiedNode`: コピーされたノードのディープコピーを取得
-- `addNode`: 新規ノードを追加（ペースト操作で使用）
-  - コピー元の位置から少しずらして配置
-  - 新規IDを割り当て
-  - スタイル、アイコン、期限などの属性を保持
+#### 重要なメソッド（外部公開）
+- `getGraphData()` / `setGraphData(data)`: グラフデータの取得と設定
+- `addNewNode()`: 現在の選択位置付近に新規ノードを追加
+- `addLink(source, target)`: ノード間にリンクを作成
+- `arrangeNodes(layout)`: 指定したアルゴリズムで自動レイアウトを実行
+- `searchNodes(text)`: ノード名による部分一致検索
+- `focusOnNode(node)`: 指定したノードにカメラをズーム・移動
+- `undo()` / `redo()`: 操作履歴を戻す/進める
+- `setGlobalBackground(bg)`: 背景シーンを切り替える
 
-#### 重要なコンポーネント
-- `ForceGraph3D`: 3Dグラフの描画エンジン
-- `nodeThreeObjectImageTexture`: ノードの3D表示処理（画像とメッシュの切り替え）
-- `MovingStars`: 背景の星アニメーション
-- `handleClick`: ノードクリック時の処理
-- `handleNodeDrag`: ノードドラッグ時の処理
-- `handleDoubleClick`: ダブルクリック時の特殊処理（URL、ファイル、フォルダの開き）
+#### 内部処理
+- `nodeThreeObjectImageTexture`: ノードの表示オブジェクト（Spriteまたは3Dモデル）を生成
+- `handleNodeDrag`: 複数選択時は全ノードを相対的に移動
+- `variable speed control`: マウスの移動速度を計算し、Three.jsのOrbitControlsの感度を動的に調整
 
 ### 3.3 ノードエディタ (NodeEditor.tsx)
 
 #### 主要機能
-- ノード内容の編集
-- ノードタイプの選択（通常、課題、タスク、リンク、ファイル、フォルダー、3Dオブジェクト）
-- ノードスタイルの設定
-- アイコン画像の設定（ドラッグ&ドロップ対応、サイズ調整可能）
-- ノードの削除と無効化
-- タスクノードの属性設定（期限、重要度、緊急度）
-- 3Dオブジェクトのモデル選択とスケール調整
-- 課題ノードの背景色設定
+- ノード情報の編集（名称、タイプ、スタイル/モデル、アイコン画像）
+- ノードタイプの切り替え（通常、課題、タスク、リンク、ファイル、フォルダ、3Dオブジェクト）
+- アイコン画像のアップロードとサイズ調整（ドラッグ&ドロップ対応）
+- タイプ別の特定フィールドの編集
+  - タスク: 期限、重要度、緊急度
+  - リンク: URL
+  - ファイル/フォルダ: システムダイアログによるパス選択
+  - 3Dオブジェクト: モデル選択とスケール調整
+- ノードの有効化/無効化（半透明表示）
 
 #### UI要素
-- ノードタイプ選択ドロップダウン
-- テキスト入力エリア（複数行対応）
-- スタイル選択ドロップダウン
-- アイコン画像アップロードエリア（プレビュー表示、サイズ調整スライダー付き）
-- タスク用フィールド（期限、重要度、緊急度）
-- リンク用URLフィールド
-- ファイル・フォルダー用パス選択UI
-- 3Dオブジェクト用モデル選択とスケール調整
-- 課題用背景色ピッカー
-- 操作ボタン（OK、キャンセル、削除、無効化/有効化）
-
-#### アイコン画像処理フロー
-```mermaid
-sequenceDiagram
-    participant User
-    participant NodeEditor
-    participant Python
-    
-    User->>NodeEditor: 画像ドラッグ&ドロップ
-    NodeEditor->>NodeEditor: FileReader処理
-    NodeEditor->>NodeEditor: base64変換
-    NodeEditor->>NodeEditor: プレビュー表示
-    NodeEditor->>Python: ノード保存（base64データ含む）
-    Python->>Python: 画像リサイズ処理
-    Python->>Python: ノード画像生成（アイコン埋め込み）
-    Python-->>NodeEditor: 処理完了
-```
+- タイプ選択ドロップダウン
+- コンテンツ入力（TextArea, Shift+Enterで保存）
+- スタイル/フレーム選択（通常・課題タイプのみ）
+- アイコンアップロードエリアとサイズ調整スライダー
+- 3Dオブジェクト用モデル選択とスケールスライダー
+- タスク用属性（日付入力、重要度/緊急度Select）
+- ファイル/フォルダパス入力と選択ボタン
 
 ### 3.4 リンクエディタ (LinkEditor.tsx)
 
 #### 主要機能
 - リンク名の編集
+- 接続されているソースノードとターゲットノードの名称表示
+- ノード名クリックによる該当ノードへのジャンプ（選択・フォーカス）
 - リンクの削除
-- 接続ノードの表示と相互参照
-- ソース・ターゲットノードへのクイックジャンプ
 
-#### UI要素
-- リンク名入力フィールド
-- 接続ノード表示（クリック可能なリンク形式）
-- エッジのソースとターゲットの視覚的表示（矢印付き）
-- 操作ボタン（OK、キャンセル、削除）
+### 3.5 メニュードロワーと検索モーダル (index.tsx)
 
-### 3.5 ツリードロワー (TreeDrawer.tsx)
+#### メニュードロワー (Drawer + Menu)
+画面左上のボタンで開閉する管理メニュー。
+- **File**: ファイルを開く、最近使ったファイル、保存、名前を付けて保存、新規ウィンドウ
+- **Edit**: 元に戻す、やり直し、切り取り、コピー、貼り付け、検索
+- **Layout**: Tree Layout (4方向), Circle Layout, Free Layout
+- **Background**: Space, Sky, Snowy Morning, Sunset シーンの切り替え
 
-#### 主要機能
-- ノード検索
-- ファイル操作
-- 検索結果の表示
+#### ノード検索モーダル (Modal + List)
+Ctrl+F で呼び出す検索インターフェース。
+- ノード名のリアルタイムフィルタリング
+- 検索結果リストからノードを選択すると、そのノードにカメラがフォーカスし、選択状態になる
 
-#### UI要素
-- 検索入力フィールド
-- 検索結果リスト
-- ファイル操作ボタン
-- 保存ボタン
 
 ## 4. データ構造
 
@@ -182,31 +176,38 @@ sequenceDiagram
 interface NodeData {
     id: number;
     name: string;
-    img: string;
+    img: string;        // 生成された画像パス
+    type?: string;      // "normal" | "issue" | "task" | "link" | "file" | "folder" | "3dobject"
     group?: number;
-    style_id: number;
-    x?: number;
-    y?: number;
-    z?: number;
-    fx?: number;
-    fy?: number;
-    fz?: number;
-    size_x: number;
-    size_y: number;
-    deadline?: string;  // 期限（YYYY-MM-DDTHH:mm形式）
-    priority?: number | null;  // 重要度（未選択、または1:最低～5:最高）
-    urgency?: number | null;  // 緊急度（未選択、または1:最低～5:最高）
-    icon_img?: string;  // アイコン画像（base64形式）
-    icon_size?: number; // アイコン画像のサイズ（px）
-    createdAt: string;  // 作成日時（ISO 8601形式）
-    updatedAt: string;  // 更新日時（ISO 8601形式）
-    disabled?: boolean; // ノードの無効化フラグ
-    type?: string;     // ノードタイプ（"normal" | "issue" | "task" | "link" | "file" | "folder" | "3dobject"）
-    url?: string;      // リンクタイプのURL
-    file_path?: string; // ファイルタイプのパス
-    folder_path?: string; // フォルダータイプのパス
-    scale?: number;    // 3Dオブジェクトのスケール（0.1 to 2.0）
-    background?: string; // 課題タイプの背景色
+    style_id: number;   // スタイルIDまたは3DモデルID (1-6)
+    
+    // 座標・位置管理
+    fx?: number; fy?: number; fz?: number; // 固定座標
+    x?: number; y?: number; z?: number;    // 現在の座標
+    _originalX?: number; _originalY?: number; _originalZ?: number; // 複数ドラッグ開始時の基準位置
+    
+    // サイズ・回転
+    size_x?: number; size_y?: number; // 表示サイズ
+    rot_x?: number; rot_y?: number;   // 3Dオブジェクトの回転
+    scale?: number;                   // 3Dオブジェクトのスケール
+    
+    // タイプ別属性
+    deadline?: string;
+    priority?: number | null;
+    urgency?: number | null;
+    url?: string;
+    file_path?: string;
+    folder_path?: string;
+    
+    // アイコン
+    icon_img?: string;  // base64データ
+    icon_size?: number; // アイコン表示サイズ(px)
+    
+    // メタデータ
+    createdAt: string;
+    updatedAt: string;
+    disabled?: boolean;
+    isNew?: boolean;    // 新規作成フラグ
 }
 ```
 
@@ -214,9 +215,23 @@ interface NodeData {
 ```typescript
 interface LinkData {
     index: number;
-    source: NodeData;
-    target: NodeData;
+    source: NodeData | number;
+    target: NodeData | number;
     name: string;
+    isNew?: boolean;
+}
+```
+
+### 4.3 グラフデータ (GraphData)
+```typescript
+interface GraphData {
+    nodes: NodeData[];
+    links: LinkData[];
+    globalBackground?: string; // 'space' | 'sky' | 'snow' | 'sunset'
+    camera?: {                 // カメラの保存状態
+        position: { x: number, y: number, z: number };
+        lookAt: { x: number, y: number, z: number };
+    };
 }
 ```
 
@@ -246,21 +261,20 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant User
-    participant TreeDrawer
+    participant Menu as MenuDrawer
     participant Index
     participant MindMap
     participant Python
     participant FileSystem
     
-    User->>TreeDrawer: 保存ボタン押下
-    TreeDrawer->>Index: 保存要求
-    Index->>MindMap: データ取得要求
-    MindMap->>Index: グラフデータ返却
-    Index->>Python: 保存要求（JSONデータ）
-    Python->>Python: JSONデータ整形
+    User->>Menu: 保存ボタン押下
+    Menu->>Index: handleSave要求
+    Index->>MindMap: getGraphData / getCameraState
+    MindMap-->>Index: グラフデータ + カメラ情報
+    Index->>Python: save_data(JSON)
     Python->>FileSystem: ファイル保存
-    Python->>Index: 完了通知
-    Index->>TreeDrawer: 完了通知
+    Python-->>Index: 完了通知
+    Index->>User: message.success表示
 ```
 
 ### 5.3 ノードコピー&ペーストフロー
@@ -349,24 +363,23 @@ sequenceDiagram
 
 ### 8.2 キー操作一覧
 
-#### グローバルキー操作
-- **Ctrl + S**: 現在のマインドマップを保存
-  - index.tsxでキャッチし、handleSave関数を実行
-  - MindMapGraphからデータを取得しPythonバックエンドで保存
-  - 保存結果をメッセージで表示
+#### グローバルショートカット
+- **Ctrl + S**: マインドマップを現在のファイルに保存
+- **Ctrl + Z**: 元に戻す（Undo）
+- **Ctrl + Y**: やり直し（Redo）
 - **Ctrl + C**: 選択中のノードをコピー
-  - MindMapGraphのcopyNode関数を実行
-  - 選択中のノードの情報を内部バッファに保存
-- **Ctrl + V**: コピーしたノードをペースト
-  - MindMapGraphのgetCopiedNode関数でコピーされたノードを取得
-  - 新規ノードとして追加（位置はコピー元からずらして配置）
-  - コピー時の属性（スタイル、アイコン、期限など）を保持
-- **Ctrl + A**: 全てのノードを選択
-  - index.tsxでキャッチし、MindMapGraphのgetGraphData関数でノードリストを取得
-  - 現在の選択をクリア（clearSelectedNode関数を実行）
-  - 全ノードを選択状態に設定（setSelectedNodeList関数を実行）
-  - 選択されたノードは青色（0x4169e1）でハイライト表示
-  - 選択された全ノードは一括でドラッグ移動可能
+- **Ctrl + X**: 選択中のノードを切り取り（コピーして削除）
+- **Ctrl + V**: コピーしたノードを貼り付け
+  - 選択中のノードがある場合はリンクも自動作成
+- **Ctrl + A**: 全ノードを選択
+- **Ctrl + F**: ノード検索モーダルを表示
+- **Ctrlキー長押し**: `funcMode` 有効化（複数ノード選択用）
+
+#### ノード操作
+- **Enter / Tab**: 選択中ノードから新規ノードを作成してリンク
+- **Delete / Backspace**: 選択中ノードを削除
+- **Escape**: すべての選択を解除
+- **L / l**: 最初に選択したノードから、他の全選択ノードへ一括でリンクを作成
 
 ### 8.2.1 複数ノードの同時ドラッグ処理
 
@@ -504,3 +517,21 @@ const EditorComponent = ({ onClose, ...props }) => {
 - [ ] コンポーネントにonCloseプロパティを追加
 - [ ] すべての閉じる操作（OK、キャンセル、×ボタン等）でonCloseを呼び出す
 - [ ] keyFunctionで表示状態をチェックする条件に追加
+
+## 10. 付録
+
+### 10.1 3DモデルとスタイルIDのマッピング
+`3dobject` タイプにおいて、`style_id` は以下のモデルに対応します。
+1. **Horse**: Horse.glb
+2. **Watch**: Watch.glb
+3. **Cat**: Cat.obj
+4. **Bird**: Bird.obj (12213_Bird_v1_l3)
+5. **Bird2**: Bird.obj (12249_Bird_v1_L2)
+6. **Airplane**: Airplane.obj (11803_Airplane_v1_l1)
+
+### 10.2 NODE_CONSTANTS (constants.ts)
+システム全体で使用される表示定数。
+- `DEFAULT_LOGO_SIZE_X / Y`: ロゴノードの初期サイズ (120x40)
+- `DEFAULT_NEW_NODE_SIZE_X / Y`: 新規ノードの初期サイズ (240x80)
+- `ISSUE_MAX_LONG_SIDE`: 課題ノードの最大長辺サイズ (200) - 遠くからでも見やすくするための表示制限。
+

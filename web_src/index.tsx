@@ -22,10 +22,11 @@ eel.set_host( 'ws://localhost:5169' )
 
 // Expose the `sayHelloJS` function to Python as `say_hello_js`
 function sayHelloJS( x: any ) {
-  console.log( 'Hello from ' + x )
+  //console.log( 'Hello from ' + x )
 }
 // WARN: must use window.eel to keep parse-able eel.expose{...}
-window.eel.expose( sayHelloJS, 'say_hello_js' )
+//window.eel.expose( sayHelloJS, 'say_hello_js' )
+window.eel.expose( sayHelloJS, '' )
 
 type MenuItem = Required<MenuProps>['items'][number];
 
@@ -252,6 +253,7 @@ const App = () => {
                 nodes: [{
                     id: 1,
                     img: "logo.png",
+                    type: "issue",
                     group: 1,
                     style_id: 1,
                     fx: 0,
