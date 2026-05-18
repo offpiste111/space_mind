@@ -63,7 +63,7 @@ export class CircleLayout {
     private baseRadius: number = 300;
     private radiusIncrement: number = 300;
     private levelMap: Map<number, NodeInfo[]> = new Map();
-    private padding: number = 200; // ノード間の余白
+    private padding: number = 50; // ノード間の余白
     
     constructor(graphData: GraphData, baseRadius?: number, radiusIncrement?: number, z_layer: number = -300) {
         this.graphData = graphData;
@@ -294,11 +294,10 @@ export class CircleLayout {
 
         this.levelMap.forEach((nodesInLevel, level) => {
             const radius = radii.get(level) || this.baseRadius;
-            const angleOffset = Math.PI / nodesInLevel.length;
 
             nodesInLevel.forEach((nodeInfo, index) => {
                 if (nodeInfo.angle !== undefined) {
-                    const angle = nodeInfo.angle + angleOffset * (index % 2);
+                    const angle = nodeInfo.angle;
                     nodeInfo.x = radius * Math.cos(angle);
                     nodeInfo.y = radius * Math.sin(angle);
                 }

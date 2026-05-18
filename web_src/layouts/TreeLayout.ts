@@ -62,9 +62,9 @@ export class TreeLayout {
     private rootNodes: NodeInfo[] = [];
     private direction: LayoutDirection;
     private z_layer: number;
-    private levelSpacing: number = 300;
-    private paddingY: number = 200; // Increased padding for Y spacing
-    private paddingX: number = 300; // Increased padding for X spacing
+    private levelSpacing: number = 150;
+    private paddingY: number = 80; // Increased padding for Y spacing
+    private paddingX: number = 100; // Increased padding for X spacing
 
     constructor(graphData: GraphData, direction: LayoutDirection = 'right', z_layer: number = -300) {
         this.graphData = graphData;

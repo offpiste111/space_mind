@@ -594,8 +594,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     const direction = layout.split('-')[0] as 'right' | 'left' | 'upper' | 'lower';
                     executeTreeLayout(tempGraphData, direction, z_layer);
                 } else if (layout === 'circle') {
-                    const baseRadius = 200; // 中心円の基本半径
-                    const radiusIncrement = 200; // レベルごとの半径の増分
+                    const baseRadius = 80; // 中心円の基本半径
+                    const radiusIncrement = 100; // レベルごとの半径の増分
                     executeCircleLayout(tempGraphData, baseRadius, radiusIncrement, z_layer);
                 }
                 
@@ -1329,6 +1329,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             fgRef.current.d3Force('link').distance(2).strength(1);
             fgRef.current.d3Force('collision', d3force.forceCollide(150));
             fgRef.current.d3Force('charge', d3force.forceManyBody().strength(-10));
+            
+            const camera = fgRef.current.camera();
+            camera.fov = 100;
+            camera.updateProjectionMatrix();
 
             // --- マウス速度に応じた可変パン/回転速度制御 ---
             const state = {
@@ -1592,7 +1596,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                             graphData.globalBackground === 'sunset' ? '#ff9e5e' :
                             'black' 
                     }}
-                    camera={{ position: [0, 0, 40], near: 0.1, far: 1000 }}
+                    camera={{ position: [0, 0, 40], near: 0.1, far: 1000, fov: 100 }}
                 >
                     {graphData.globalBackground === 'sky' ? <SkyScene /> : 
                      graphData.globalBackground === 'snow' ? <SnowScene /> :
