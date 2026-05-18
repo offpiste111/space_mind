@@ -439,6 +439,7 @@ def generate_image(node):
         deadline=node.get('deadline', '').strip() if 'deadline' in node and node['deadline'] else None,
         priority=node.get('priority'),
         urgency=node.get('urgency'),
+        assignee=node.get('assignee'),
         issue1_base64=issue1_base64,
         issue2_base64=issue2_base64,
         issue3_base64=issue3_base64,

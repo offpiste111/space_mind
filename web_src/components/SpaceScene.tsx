@@ -147,33 +147,33 @@ const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
                     alphaTest={0.001}
                 />
             </points>
-            {/* 雲のようなネビュラ（星雲）表現 */}
+            {/* 雲のようなネビュラ（星雲）表現 - より広く薄く */}
             <Cloud
-                opacity={opacity * 0.5}
-                speed={0.1} // ゆっくり動くガス
-                bounds={[params.radius * 0.8, params.radius * 0.2, params.radius * 0.8]}
-                volume={params.radius * 0.5}
-                segments={40}
-                color="#8a2be2" // 深い紫
+                opacity={opacity * 0.05}
+                speed={0.05}
+                bounds={[params.radius * 3, params.radius * 0.5, params.radius * 3]}
+                volume={params.radius * 2}
+                segments={80}
+                color="#00ffff" // シアン
                 position={[0, 0, 0]}
             />
             <Cloud
-                opacity={opacity * 0.4}
-                speed={0.15}
-                bounds={[params.radius * 0.6, params.radius * 0.3, params.radius * 0.6]}
-                volume={params.radius * 0.4}
-                segments={30}
+                opacity={opacity * 0.1}
+                speed={0.08}
+                bounds={[params.radius * 2.5, params.radius * 0.8, params.radius * 2.5]}
+                volume={params.radius * 1.5}
+                segments={60}
                 color="#ff1493" // 鮮やかなピンク
-                position={[params.radius * 0.2, 0, params.radius * 0.1]}
+                position={[params.radius * 0.5, 0, params.radius * 0.5]}
             />
             <Cloud
                 opacity={opacity * 0.3}
-                speed={0.05}
-                bounds={[params.radius * 0.7, params.radius * 0.4, params.radius * 0.7]}
-                volume={params.radius * 0.6}
-                segments={35}
-                color="#1e90ff" // 深い青
-                position={[-params.radius * 0.2, params.radius * 0.1, -params.radius * 0.1]}
+                speed={0.03}
+                bounds={[params.radius * 3.5, params.radius * 0.6, params.radius * 3.5]}
+                volume={params.radius * 2.5}
+                segments={90}
+                color="#1b3984" // 深い青
+                position={[-params.radius * 0.5, params.radius * 0.2, -params.radius * 0.5]}
             />
         </group>
     );
@@ -782,13 +782,92 @@ const MovingGalaxies = ({ galaxyCount, opacity }: { galaxyCount: number; opacity
     );
 };
 
+const BackgroundNebula = () => {
+    const nebulaRef = useRef<THREE.Group>(null);
+    const group1 = useRef<THREE.Group>(null);
+    const group2 = useRef<THREE.Group>(null);
+    const group3 = useRef<THREE.Group>(null);
+    
+    // ランダムな渦のパラメータを生成
+    const swirls = useMemo(() => {
+        return [
+            { speed: 0.01 + Math.random() * 0.01, phase: Math.random() * Math.PI * 2 },
+            { speed: -0.015 - Math.random() * 0.01, phase: Math.random() * Math.PI * 2 },
+            { speed: 0.005 + Math.random() * 0.01, phase: Math.random() * Math.PI * 2 }
+        ];
+    }, []);
+
+    useFrame(({ clock }) => {
+        const time = clock.getElapsedTime();
+        if (nebulaRef.current) {
+            // 全体をゆっくり回転・揺らぐ
+            nebulaRef.current.rotation.y = time * 0.005;
+            nebulaRef.current.rotation.x = Math.sin(time * 0.01) * 0.02;
+        }
+        
+        // 個別の雲グループをランダムな速度と位相で渦巻かせる（Y軸回転）
+        if (group1.current) {
+            group1.current.rotation.y = time * swirls[0].speed + swirls[0].phase;
+            // 上下にも少し揺らすことで複雑な渦を表現
+            group1.current.position.y = Math.sin(time * 0.05 + swirls[0].phase) * 20;
+        }
+        if (group2.current) {
+            group2.current.rotation.y = time * swirls[1].speed + swirls[1].phase;
+            group2.current.position.y = Math.cos(time * 0.04 + swirls[1].phase) * 15;
+        }
+        if (group3.current) {
+            group3.current.rotation.y = time * swirls[2].speed + swirls[2].phase;
+            group3.current.position.y = Math.sin(time * 0.06 + swirls[2].phase) * 25;
+        }
+    });
+
+    return (
+        <group ref={nebulaRef} position={[0, -100, -100]}>
+            <group ref={group1}>
+                <Cloud
+                    opacity={0.02}
+                    speed={0.02}
+                    bounds={[800, 100, 800]}
+                    volume={300}
+                    segments={80}
+                    color="#66ffff" // シアン
+                    position={[100, 0, 0]}
+                />
+            </group>
+            <group ref={group2}>
+                <Cloud
+                    opacity={0.02}
+                    speed={0.015}
+                    bounds={[1000, 120, 1000]}
+                    volume={400}
+                    segments={80}
+                    color="#ff1493" // 鮮やかなピンク
+                    position={[-50, -20, -50]}
+                />
+            </group>
+            <group ref={group3}>
+                <Cloud
+                    opacity={0.5}
+                    speed={0.01}
+                    bounds={[1200, 150, 1200]}
+                    volume={500}
+                    segments={120}
+                    color="#1b3984" // 深い青
+                    position={[0, -50, -100]}
+                />
+            </group>
+        </group>
+    );
+};
+
 export function SpaceScene() {
     // 銀河の設定
     const galaxyCount = 1; // 同時に表示される最大の銀河数
-    const galaxyOpacity = 0.05; // より鮮明に表示
+    const galaxyOpacity = 0.8; // より鮮明に表示 (元は0.05)
     
     return (
         <>
+            <BackgroundNebula />
             <MovingStars />
             <MovingGalaxies galaxyCount={galaxyCount} opacity={galaxyOpacity} />
             <Mercury />

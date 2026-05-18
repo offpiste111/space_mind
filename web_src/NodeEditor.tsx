@@ -1,6 +1,6 @@
 import React,{useState, forwardRef, useImperativeHandle, useEffect } from 'react'
 import { Modal, Input, Button, Flex, Select, Upload, Slider, ColorPicker } from 'antd';
-import { UploadOutlined, FolderOutlined } from '@ant-design/icons';
+import { UploadOutlined, FolderOutlined, UserOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import type { UploadProps } from 'antd';
 import { eel } from './index';
@@ -22,6 +22,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [deadline, setDeadline] = useState<string>("");
     const [priority, setPriority] = useState<number | null>(null); // デフォルト: 未選択
     const [urgency, setUrgency] = useState<number | null>(null); // デフォルト: 未選択
+    const [assignee, setAssignee] = useState<string>(""); // デフォルト: 空文字
     const [imageSize, setImageSize] = useState<number>(300); // デフォルト画像サイズ: 300px
     const [nodeType, setNodeType] = useState<string>("normal"); // デフォルト: ノーマル
     const [url, setUrl] = useState<string>(""); // リンクタイプ用のURL
@@ -35,6 +36,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         deadline?: string;
         priority?: number | null;
         urgency?: number | null;
+        assignee?: string;
         disabled?: boolean;
         icon_img?: string;
         icon_size?: number;
@@ -80,6 +82,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setDeadline(node.deadline || "");
             setPriority(node.priority !== undefined ? node.priority : null);
             setUrgency(node.urgency !== undefined ? node.urgency : null);
+            setAssignee(node.assignee || "");
             setIconImg(node.icon_img || "");
             setImageSize(node.icon_size || 300); // 保存されていたサイズがあれば取得、なければデフォルト値
             setNodeType(node.type || "normal"); // 保存されていたタイプがあれば取得、なければデフォルト値
@@ -108,6 +111,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.assignee;
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
                     delete nodeToUpdate.folder_path;
@@ -120,6 +124,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.assignee;
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
                     delete nodeToUpdate.folder_path;
@@ -136,6 +141,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                         delete nodeToUpdate.urgency;
                     } else {
                         nodeToUpdate.urgency = urgency;
+                    }
+                    if (assignee === "") {
+                        delete nodeToUpdate.assignee;
+                    } else {
+                        nodeToUpdate.assignee = assignee;
                     }
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
@@ -156,6 +166,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.assignee;
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.folder_path;
                     break;
@@ -165,6 +176,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.assignee;
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
                     break;
@@ -176,6 +188,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.assignee;
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
                     delete nodeToUpdate.folder_path;
@@ -268,6 +281,15 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                     { value: 4, label: '高' },
                                     { value: 5, label: '最高' },
                                 ]}
+                            />
+                        </Flex>
+                        <Flex gap="middle" align="center">
+                            <div style={{ width: '80px' }}>担当</div>
+                            <Input
+                                style={{ flex: 1 }}
+                                prefix={<UserOutlined rev="" />}
+                                value={assignee}
+                                onChange={(e) => setAssignee(e.target.value)}
                             />
                         </Flex>
                     </>
