@@ -39,7 +39,8 @@
     "satori-html": "^0.3.2",
     "three": "^0.160.1",
     "three-forcegraph": "^1.41.10",
-    "three-spritetext": "^1.8.1"
+    "three-spritetext": "^1.8.1",
+    "three-stdlib": "^2.36.1"
   },
   "devDependencies": {
     "@types/d3-dsv": "^3.0.7",

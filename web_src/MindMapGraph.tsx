@@ -8,12 +8,13 @@ import * as forceCollide from 'd3-force'
 import * as THREE from 'three'
 
 import {CSS2DObject, CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRenderer'
+import {CSS3DRenderer, CSS3DSprite} from 'three/examples/jsm/renderers/CSS3DRenderer'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
 import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 
-import { useState, forwardRef, useImperativeHandle, useMemo, useCallback} from 'react'
+import { useState, forwardRef, useImperativeHandle, useMemo, useCallback, useRef, useEffect} from 'react'
 
 
 import { Canvas, useFrame, useLoader} from '@react-three/fiber'
@@ -31,9 +32,6 @@ import { executeCircleLayout } from './layouts/CircleLayout';
 import './index.css'
 import { useHistory } from './hooks/useHistory';
 import { NODE_CONSTANTS } from './constants';
-
-
-const { useRef, useEffect } = React;
 
 // バッチ更新用のカスタムフック
 const useBatchUpdate = () => {
@@ -59,9 +57,27 @@ import { SpaceScene } from './components/SpaceScene';
 import { SkyScene } from './components/SkyScene';
 import { SnowScene } from './components/SnowScene';
 import { SunsetScene } from './components/SunsetScene';
+import HtmlNodeComponent from './components/HtmlNodeComponent';
 
 const MindMapGraph = forwardRef((props: any, ref:any) => {
     const fgRef = useRef<any>();
+    
+    const css3DRenderer = useMemo(() => {
+        const renderer = new CSS3DRenderer();
+        renderer.domElement.className = 'css3d-renderer-container';
+        renderer.domElement.style.pointerEvents = 'none';
+        return renderer;
+    }, []);
+    const extraRenderers = useMemo(() => [css3DRenderer as any], [css3DRenderer]);
+
+    const htmlNodeCache = useRef(new Map<number, { 
+        div: HTMLDivElement, 
+        root: any, 
+        hitBox: THREE.Sprite,
+        sprite: CSS3DSprite,
+        group: THREE.Group,
+        lastData?: string
+    }>());
     const { addToHistory, undo, redo, canUndo, canRedo } = useHistory();
 
     // 選択されたノードを追跡するstate
@@ -156,6 +172,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     };   
 
     const isDraggingNode = useRef<boolean>(false);
+    const lastDragEndTime = useRef<number>(0);
     const dragCounter = useRef<number>(0);
     const isHovering = useRef<boolean>(false);
     const label_key = "name";
@@ -184,17 +201,18 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 
                 const now = new Date().toISOString();
                 let new_node = { 
-                    id: 1, 
-                    img: "logo.png", 
-                    type: "issue",
-                    group: 1, 
-                    style_id: 1, 
-                    fx: coords.x, 
-                    fy: coords.y, 
-                    fz: coords.z, 
-                    size_x: NODE_CONSTANTS.DEFAULT_LOGO_SIZE_X,
-                    size_y: NODE_CONSTANTS.DEFAULT_LOGO_SIZE_Y,
-                    name: "SpaceMind",
+                        id: 1, 
+                        img: "logo.png", 
+                        type: "issue", 
+                        group: 1,
+                        style_id: 1,
+                        fx: 0, 
+                        fy: 0, 
+                        fz: z_layer,
+                        size_x: 300,
+                        size_y: 200,
+                        name: "",
+
                     createdAt: now,
                     updatedAt: now
                 };
@@ -439,13 +457,14 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             const newNode = { 
                 id: nodeId, 
                 img: "new_node.png", 
+                type: "normal",
                 group: groupId, 
                 style_id: 1, 
                 fx: (selectedNode.fx || selectedNode.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
                 fy: (selectedNode.fy || selectedNode.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
                 fz: selectedNode.fz,
-                size_x: NODE_CONSTANTS.DEFAULT_NEW_NODE_SIZE_X,
-                size_y: NODE_CONSTANTS.DEFAULT_NEW_NODE_SIZE_Y,
+                size_x: 200,
+                size_y: 120,
                 name: "",
                 isNew: true,
                 createdAt: now,
@@ -696,25 +715,35 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         
         if (!node) {
             setSelectedNode(null);
+            setSelectedNodeList([]);
+            return;
+        }
+
+        // ドラッグ直後のクリックイベントを無視する
+        if (Date.now() - lastDragEndTime.current < 100) {
             return;
         }
 
         // Ctrlキーが押されている場合は複数選択モード
         if ( funcMode  && node) {
-
-            // ノードが通常選択されている場合、選択を解除
-            if (selectedNode && node.id == selectedNode.id) {
-                setSelectedNode(null);
+            let currentList = [...selectedNodeList];
+            // もし通常選択のみされていて、リストに入っていなければ追加
+            if (selectedNode && currentList.length === 0) {
+                currentList = [selectedNode];
             }
-            
-            // 既に選択されているノードをクリックした場合は選択解除
-            if (selectedNodeList.some(n => n.id === node.id)) {
-                console.log('Node unselected:', node);
-                setSelectedNodeList(prev => prev.filter(n => n.id !== node.id));
+
+            if (currentList.some(n => n.id === node.id)) {
+                // 既に選択されている場合は解除
+                currentList = currentList.filter(n => n.id !== node.id);
+                setSelectedNodeList(currentList);
+                if (selectedNode?.id === node.id) {
+                    setSelectedNode(currentList.length > 0 ? currentList[currentList.length - 1] : null);
+                }
             } else {
                 // 新しいノードを選択リストに追加
-                console.log('Node selected:', node);
-                setSelectedNodeList(prev => [...prev, node]);
+                currentList.push(node);
+                setSelectedNodeList(currentList);
+                setSelectedNode(node);
             }
             return;
         } 
@@ -724,7 +753,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         
         // ダブルクリック検出（指定ms以内に同じノードをクリック）
         const timeSinceLastClickInterval = 600
-        if (timeSinceLastClick < timeSinceLastClickInterval && lastClickedNode.current && node.id === lastClickedNode.current.id) {
+        const isSameNode = lastClickedNode.current && String(node.id) === String(lastClickedNode.current.id);
+        
+        if (timeSinceLastClick < timeSinceLastClickInterval && isSameNode) {
             // ダブルクリック処理
             if (clickTimeout.current) {
                 clearTimeout(clickTimeout.current);
@@ -740,8 +771,15 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         lastClickTime.current = now;
         lastClickedNode.current = node;
 
-        // 選択されたノードを更新（これは常に行う）
-        setSelectedNode(node);
+        // 複数選択をクリア
+        if (selectedNodeList.length > 0) {
+            setSelectedNodeList([]);
+        }
+
+        // 選択されたノードを更新（変更がある場合のみ）
+        if (selectedNode?.id !== node.id) {
+            setSelectedNode(node);
+        }
 
         if (clickTimeout.current) {
             clearTimeout(clickTimeout.current);
@@ -770,51 +808,44 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     // ノードのダブルクリックを処理する関数
     const handleDoubleClick = (node: any) => {
         console.log('Node double clicked:', node);
+        const nodeType = node.type || "";
         
         // リンクタイプのノードの場合、URLを開く
-        if (node.type === "link" && node.url) {
+        if ((nodeType === "link") && node.url) {
             console.log('Opening URL:', node.url);
-            // URLの形式を確認し、必要に応じてhttps://を追加
             let url = node.url;
             if (!/^https?:\/\//i.test(url)) {
                 url = 'https://' + url;
             }
-            // 新しいタブでURLを開く
             window.open(url, '_blank');
         }
-        // ファイルタイプのノードの場合、親コンポーネントにファイルを開く要求を委譲
-        else if (node.type === "file" && node.file_path) {
+        // ファイルタイプのノードの場合
+        else if (nodeType === "file" && node.file_path) {
             console.log('Opening file:', node.file_path);
             props.onOpenFile && props.onOpenFile(node);
         }
-        // フォルダタイプのノードの場合、親コンポーネントにフォルダを開く要求を委譲
-        else if (node.type === "folder" && node.folder_path) {
+        // フォルダタイプのノードの場合
+        else if ((nodeType === "folder") && node.folder_path) {
             console.log('Opening folder:', node.folder_path);
             props.onOpenFolder && props.onOpenFolder(node);
         }
         else {
-            // 通常の選択モード
+            // 通常の選択モード（カメラ移動）
             if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
-                // クリックしたノードが複数選択ノード配列に含まれていた場合、複数選択をクリア
                 if (selectedNodeList.some(n => n.id === node.id)) {
                     setSelectedNodeList([]);
                 }
                 const distance = 1000;
-                const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
-
-                // 視点座標を保存
                 setLookAtTarget(new THREE.Vector3(node.x, node.y, node.z));
 
                 if (fgRef.current) {
                     fgRef.current.cameraPosition(
-                        { x: node.x, y: node.y, z: node.z + distance }, // new position
-                        { x: node.x, y: node.y, z: node.z }, // lookAt ({ x, y, z })
-                        1000  // ms transition duration
+                        { x: node.x, y: node.y, z: node.z + distance },
+                        { x: node.x, y: node.y, z: node.z },
+                        1000
                     );
                 }
-                // カメラの向きを設定
                 setCameraOrientation();
-
             }
         }
     };
@@ -939,10 +970,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
         }
 
-        // Ctrlキーが押されていない場合は以降の処理をスキップ
-        if (!funcMode) {
-            return;
-        }
+
 
         //onNodeDragが実行される回数をカウントしておき、100回に1回しか実行しない
         dragCounter.current += 1;
@@ -1136,6 +1164,101 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     const nodeThreeObjectImageTexture = useCallback((node: any): THREE.Object3D | SpriteText => {
         if (node.id < 0) {
             return nodeThreeObjectCustomMesh(node);
+        }
+
+        if (node.type && typeof node.type === 'string' && node.type !== '3dobject' && node.type !== 'image') {
+            let cache = htmlNodeCache.current.get(node.id);
+            const SCALE = 4; // 高解像度化の倍率
+
+            // 描画が必要なデータを文字列化して比較（キャッシュの無駄な更新を防ぐ）
+            const currentData = JSON.stringify({
+                name: node.name,
+                deadline: node.deadline,
+                priority: node.priority,
+                urgency: node.urgency,
+                assignee: node.assignee,
+                style_id: node.style_id,
+                type: node.type,
+                icon_size: node.icon_size, // アイコンサイズの変更を検知
+                icon_img: !!node.icon_img, // アイコンの有無
+                img: node.img // imgの変更を検知
+            });
+
+            if (!cache) {
+                let defaultWidth = 200;
+                let defaultHeight = 120;
+                if (node.type === "issue") {
+                    defaultWidth = 300;
+                    defaultHeight = 200;
+                } else if (node.type === "task") {
+                    defaultWidth = 250;
+                    defaultHeight = 150;
+                } else if (node.type !== "normal") {
+                    defaultWidth = 250;
+                    defaultHeight = 100;
+                }
+
+                const drawSizeX = node.size_x || defaultWidth;
+                const drawSizeY = node.size_y || defaultHeight;
+
+                // クリックやドラッグの判定を受けつつ、奥の3Dオブジェクトを隠すための深度マスク
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    colorWrite: false, // WebGLキャンバス上には何も色を描画しない（HTMLがそのまま見えるようにする）
+                    depthWrite: true,  // ただし深度（Zバッファ）には書き込むことで、奥にある3Dオブジェクトの描画をブロックする
+                    depthTest: true,
+                });
+                const hitBox = new THREE.Sprite(spriteMaterial);
+                hitBox.renderOrder = -1; // 最優先で深度を書き込む
+                hitBox.scale.set(drawSizeX, drawSizeY, 1);
+
+                const div = document.createElement('div');
+                div.style.pointerEvents = 'none'; 
+                const root = ReactDOM.createRoot(div);
+                
+                const sprite = new CSS3DSprite(div);
+                sprite.scale.set(1/SCALE, 1/SCALE, 1/SCALE);
+                sprite.frustumCulled = false; // 画面外で消えないように
+
+                // ResizeObserverを使って、Reactコンポーネントが描画された後の実際のDOMサイズに合わせてhitBoxを更新する
+                const resizeObserver = new ResizeObserver(entries => {
+                    for (let entry of entries) {
+                        const { width, height } = entry.contentRect;
+                        if (width > 0 && height > 0) {
+                            // DOMのサイズはSCALE倍で描画されているため、元のサイズに戻してhitBoxに適用
+                            hitBox.scale.set(width / SCALE, height / SCALE, 1);
+                        }
+                    }
+                });
+                // コンポーネントがマウントされる最初の子要素（.node-html-content）を監視できるよう、
+                // div自体のサイズ変更を監視する（.node-html-contentがdivを押し広げるようにするため、divをinline-block等にする必要があるかもしれないが、
+                // React18のcreateRootはdivの中に要素を作る。div自体の幅や高さが変わるようにするには、div自体をinline-block等にするか、中の要素を監視する）
+                
+                // divはコンテナとして働くため、中身にフィットさせるためにinline-blockにする
+                div.style.display = 'inline-block';
+                resizeObserver.observe(div);
+
+                const group = new THREE.Group();
+
+                cache = { div, root, hitBox, sprite, group, lastData: "" };
+                htmlNodeCache.current.set(node.id, cache);
+            }
+            
+            // データが更新されている場合のみReactコンポーネントを再レンダリング
+            if (cache.lastData !== currentData) {
+                cache.root.render(<HtmlNodeComponent node={node} />);
+                cache.lastData = currentData;
+            }
+
+            // ノードIDに基づいて微小なZ座標のオフセットを加算し、新しく作られたノードほど手前に判定されるようにする
+            const zOffset = (node.id || 0) * 0.01;
+            cache.hitBox.position.z = zOffset;
+            cache.sprite.position.z = zOffset;
+
+            // groupを作り直さず、中身を更新して返す（要素の追加は重複しない）
+            cache.group.add(cache.hitBox);
+            cache.group.add(cache.sprite);
+
+            return cache.group;
         }
 
         if (node.type === "3dobject") {
@@ -1429,6 +1552,79 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         }
     }, [fgRef]);
 
+    // 選択状態が変わった際にHTMLノード（CSS3D）の発光エフェクトを動的に更新する
+    useEffect(() => {
+        htmlNodeCache.current.forEach((cache, nodeId) => {
+            if (cache && cache.div) {
+                if (selectedNode && nodeId === selectedNode.id) {
+                    // 単一選択: 白色の強い光彩
+                    cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
+                } else if (selectedNodeList.some(n => n.id === nodeId)) {
+                    // 複数選択: 白色の強い光彩 (単一と同じく白にする)
+                    cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
+                } else {
+                    // 非選択: 発光なし
+                    cache.div.style.filter = 'none';
+                }
+            }
+        });
+        
+        // 3Dオブジェクト（WebGL）の見た目も更新させるため、ForceGraphの再描画を促す
+        if (fgRef.current) {
+            fgRef.current.refresh();
+        }
+    }, [selectedNode, selectedNodeList]);
+
+    const handleNodeThreeObject = useCallback((node: any) => {
+        const groupOrSprite = nodeThreeObjectImageTexture(node);
+        
+        // 3Dオブジェクト（古い形式のスプライトなど）
+        if (groupOrSprite instanceof THREE.Sprite) {
+            const material = groupOrSprite.material as THREE.SpriteMaterial;
+            if (selectedNode && node.id === selectedNode.id) {
+                material.color = new THREE.Color(0xffffff);
+                material.opacity = (node.disabled) ? 0.1 : 1;
+            } else if (selectedNodeList.some(n => n.id === node.id)) {
+                material.color = new THREE.Color(0x4169e1);
+                material.opacity = (node.disabled) ? 0.1 : 1;
+            } else {
+                material.color = new THREE.Color(0xe0e0e0);
+                material.opacity = (node.disabled) ? 0.1: (node.isNew) ? 0.3 : 1;
+            }
+        }
+        
+        // HTMLノードの光彩（drop-shadow）制御
+        const cache = htmlNodeCache.current.get(node.id);
+        if (cache && cache.div) {
+            if ((selectedNode && node.id === selectedNode.id) || selectedNodeList.some(n => n.id === node.id)) {
+                // 選択時（単一・複数）: 白色の強い光彩で2倍の幅に
+                cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
+            } else {
+                // 非選択: 発光なし
+                cache.div.style.filter = 'none';
+            }
+        }
+        
+        // 3Dモデル（glbファイル等）の選択発光制御
+        if (groupOrSprite instanceof THREE.Group && node.type === "3dobject") {
+            groupOrSprite.traverse((child: any) => {
+                if (child.isMesh) {
+                    if (!child.userData.originalEmissive) {
+                        child.userData.originalEmissive = child.material.emissive ? child.material.emissive.clone() : new THREE.Color(0x000000);
+                    }
+                    if ((selectedNode && node.id === selectedNode.id) || selectedNodeList.some(n => n.id === node.id)) {
+                        // 選択時（単一・複数）: 白っぽく光らせる
+                        child.material.emissive = new THREE.Color(0x555555);
+                    } else {
+                        child.material.emissive = child.userData.originalEmissive;
+                    }
+                }
+            });
+        }
+
+        return groupOrSprite;
+    }, [nodeThreeObjectImageTexture, selectedNode, selectedNodeList]);
+
     return (
         <div style={{position: "relative", width: "100%", height: "100%" }}>
             {/* ケバブメニュー */}
@@ -1462,25 +1658,9 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 width={windowDimensions.width}
                 height={windowDimensions.height}
                 ref={fgRef}
+                extraRenderers={extraRenderers}
                 graphData={{'nodes' : graphData.nodes, 'links' : graphData.links}}
-                nodeThreeObject={(node) => {
-                    const sprite = nodeThreeObjectImageTexture(node);
-                    if (sprite instanceof THREE.Sprite) {
-                        const material = sprite.material as THREE.SpriteMaterial;
-                        if (selectedNode && node.id === selectedNode.id) {
-                            material.color = new THREE.Color(0xffffff);
-                            material.opacity = (node.disabled) ? 0.1 : 1;
-                        } else if (selectedNodeList.some(n => n.id === node.id)) {
-                            console.log('selectedNodeList:', selectedNodeList);
-                            material.color = new THREE.Color(0x4169e1);
-                            material.opacity = (node.disabled) ? 0.1 : 1;
-                        } else {
-                            material.color = new THREE.Color(0xe0e0e0);
-                            material.opacity = (node.disabled) ? 0.1: (node.isNew) ? 0.3 : 1;
-                        }
-                    }
-                    return sprite;
-                }}
+                nodeThreeObject={handleNodeThreeObject}
                 enableNavigationControls={true}
                 showNavInfo={false}
                 backgroundColor={backgroundColor}
@@ -1564,15 +1744,14 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     delete node.dz;
 
 
-                    // ドラッグしたノードが複数選択の一部でない場合のみ、通常の選択処理を行う
-                    if (!selectedNodeList.some(n => n.id === node.id)) {
-                        setSelectedNode(node);
-                        if (selectedNodeList.length > 0) {
-                            console.log('clearSelectedNodeList');
-                            setSelectedNodeList([]);
-                        }
+                    // ドラッグによる選択は行わない（クリックのみで選択状態にする仕様）
+
+                    if (interimLink) {
+                        addToHistory('add_link', interimLink);
+                        setInterimLinkState(null);
                     }
 
+                    lastDragEndTime.current = Date.now();
                     isDraggingNode.current = false;
                 }}
                 />

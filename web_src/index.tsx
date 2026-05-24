@@ -259,9 +259,9 @@ const App = () => {
                     fx: 0,
                     fy: 0,
                     fz: -300,
-                    size_x: NODE_CONSTANTS.DEFAULT_LOGO_SIZE_X,
-                    size_y: NODE_CONSTANTS.DEFAULT_LOGO_SIZE_Y,
-                    name: "SpaceMind",
+                    size_x: 300,
+                    size_y: 200,
+                    name: "",
                     createdAt: now,
                     updatedAt: now
                 }],
@@ -333,7 +333,7 @@ const App = () => {
                     const selectedNode = mindMapGraphRef.current.getSelectedNode();
                     
                     if (copied) {
-                        const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img"];
+                        const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img","type","url","file_path","folder_path"];
                         Object.keys(copied).forEach(key => {
                             if (!keys.includes(key)) {
                                 delete copied[key];
@@ -386,18 +386,26 @@ const App = () => {
         sayHelloJS( 'Javascript World!' )
         eel.say_hello_py( 'Javascript World!' )
         
-        // icon_sizeがある場合はそれを渡し、なければデフォルト値(300)を使用
-        const maxSize = node.icon_size || 300;
-        
-        eel.generate_image(node)((generatedImage: any) => {
-            let result = generatedImage;
-            node.img = result[0];
-            node.size_x = result[1][0];
-            node.size_y = result[1][1];
-            if(mindMapGraphRef.current){
-                mindMapGraphRef.current.refreshNode(node);
+        // HTMLノードのデフォルトサイズ設定
+        if (node.type && node.type !== '3dobject' && node.type !== 'image') {
+            if (node.type === 'normal') {
+                node.size_x = node.size_x || 200;
+                node.size_y = node.size_y || 120;
+            } else if (node.type === 'issue') {
+                node.size_x = node.size_x || 300;
+                node.size_y = node.size_y || 200;
+            } else if (node.type === 'task') {
+                node.size_x = node.size_x || 250;
+                node.size_y = node.size_y || 150;
+            } else {
+                node.size_x = node.size_x || 250;
+                node.size_y = node.size_y || 100;
             }
-        })
+        }
+
+        if(mindMapGraphRef.current){
+            mindMapGraphRef.current.refreshNode(node);
+        }
     }
 
     const handleDeleteNode = (node:any) => {
@@ -761,7 +769,7 @@ const App = () => {
                                 const selectedNode = mindMapGraphRef.current.getSelectedNode();
                                 
                                 if (copied) {
-                                    const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img"];
+                                    const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img","type","url","file_path","folder_path"];
                                     Object.keys(copied).forEach(key => {
                                         if (!keys.includes(key)) {
                                             delete copied[key];

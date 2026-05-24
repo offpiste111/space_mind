@@ -2,7 +2,6 @@
   "nodes": [
     {
       "id": 1,
-      "img": "node_img/1_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 1,
       "name": "SpaceMind",
@@ -14,11 +13,11 @@
       "fy": 352.43674182679587,
       "fz": 427.0284994824091,
       "size_x": 159,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 2,
-      "img": "node_img/2_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 2,
       "index": 1,
@@ -31,11 +30,11 @@
       "fy": -205.64933982657547,
       "fz": 421.97244757232505,
       "size_x": 96,
-      "size_y": 66
+      "size_y": 66,
+      "type": "normal"
     },
     {
       "id": 3,
-      "img": "node_img/3_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 1,
       "index": 2,
@@ -48,11 +47,11 @@
       "fy": -228.249488662085,
       "fz": 420.0067360941081,
       "size_x": 230,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 4,
-      "img": "node_img/4_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 1,
       "index": 3,
@@ -65,11 +64,11 @@
       "fy": -406.13933315672614,
       "fz": 422.16282752474115,
       "size_x": 210,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 5,
-      "img": "node_img/5_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 1,
       "index": 4,
@@ -82,11 +81,11 @@
       "fy": 482.85074308615384,
       "fz": 349.22020595036355,
       "size_x": 181,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 6,
-      "img": "node_img/6_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 1,
       "index": 5,
@@ -100,11 +99,11 @@
       "fz": 352.15593759254267,
       "disabled": true,
       "size_x": 230,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 7,
-      "img": "node_img/7_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 1,
       "index": 6,
@@ -117,11 +116,11 @@
       "fy": 1303.3290672453747,
       "fz": 414.1565022461746,
       "size_x": 410,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 8,
-      "img": "node_img/8_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 4,
       "index": 7,
@@ -135,11 +134,11 @@
       "fz": 352.59263752836756,
       "disabled": true,
       "size_x": 438,
-      "size_y": 72
+      "size_y": 72,
+      "type": "normal"
     },
     {
       "id": 9,
-      "img": "node_img/9_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 3,
       "index": 8,
@@ -153,11 +152,11 @@
       "fy": 973.9419700531946,
       "fz": 382.3568363031178,
       "size_x": 271,
-      "size_y": 147
+      "size_y": 147,
+      "type": "normal"
     },
     {
       "id": 10,
-      "img": "node_img/10_2026-05-11-18-20-07.png",
       "group": 1,
       "style_id": 5,
       "index": 9,
@@ -171,11 +170,11 @@
       "fy": -597.3870926466249,
       "fz": 400.8030885415097,
       "size_x": 578,
-      "size_y": 138
+      "size_y": 138,
+      "type": "normal"
     },
     {
       "id": 11,
-      "img": "node_img/11_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 3,
       "index": 10,
@@ -188,11 +187,11 @@
       "fy": -914.5636435244237,
       "fz": 414.36879052101364,
       "size_x": 191,
-      "size_y": 81
+      "size_y": 81,
+      "type": "normal"
     },
     {
       "id": 12,
-      "img": "node_img/12_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 5,
       "index": 11,
@@ -205,11 +204,11 @@
       "fy": -521.6328020839557,
       "fz": 421.4575701446475,
       "size_x": 138,
-      "size_y": 72
+      "size_y": 72,
+      "type": "normal"
     },
     {
       "id": 14,
-      "img": "node_img/14_2026-05-11-18-20-08.png",
       "group": 2,
       "style_id": 6,
       "index": 12,
@@ -222,11 +221,11 @@
       "fy": -2436.6644548775707,
       "fz": -1496.2936816476479,
       "size_x": 496,
-      "size_y": 66
+      "size_y": 66,
+      "type": "normal"
     },
     {
       "id": 15,
-      "img": "node_img/15_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 3,
       "index": 13,
@@ -240,11 +239,11 @@
       "fy": -344.6855492616561,
       "fz": 398.2147768080212,
       "size_x": 491,
-      "size_y": 147
+      "size_y": 147,
+      "type": "normal"
     },
     {
       "id": 16,
-      "img": "node_img/16_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 1,
       "index": 14,
@@ -257,11 +256,11 @@
       "fy": 842.4207664926902,
       "fz": 258.2355566411643,
       "size_x": 150,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 17,
-      "img": "node_img/17_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 2,
       "index": 15,
@@ -276,11 +275,11 @@
       "fy": 685.0737968107001,
       "fz": -60.10637546546533,
       "size_x": 196,
-      "size_y": 102
+      "size_y": 102,
+      "type": "normal"
     },
     {
       "id": 19,
-      "img": "node_img/19_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 2,
       "index": 16,
@@ -293,11 +292,11 @@
       "fy": 433.85358581779764,
       "fz": -42.24628963579612,
       "size_x": 323,
-      "size_y": 66
+      "size_y": 66,
+      "type": "normal"
     },
     {
       "id": 20,
-      "img": "node_img/20_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 1,
       "index": 17,
@@ -310,11 +309,11 @@
       "fy": -77.01969446049941,
       "fz": 417.0241424495687,
       "size_x": 270,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 21,
-      "img": "node_img/21_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 1,
       "index": 18,
@@ -328,11 +327,11 @@
       "fy": 661.8159751883553,
       "fz": 350.89361982376704,
       "size_x": 450,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 22,
-      "img": "node_img/22_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 2,
       "index": 19,
@@ -347,11 +346,11 @@
       "fz": 413.1461287689655,
       "disabled": true,
       "size_x": 244,
-      "size_y": 132
+      "size_y": 132,
+      "type": "normal"
     },
     {
       "id": 23,
-      "img": "node_img/23_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 2,
       "index": 20,
@@ -366,11 +365,11 @@
       "fy": 1313.6418917336014,
       "fz": 372.45893579825196,
       "size_x": 336,
-      "size_y": 138
+      "size_y": 138,
+      "type": "normal"
     },
     {
       "id": 24,
-      "img": "node_img/24_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 2,
       "index": 21,
@@ -385,11 +384,11 @@
       "fz": 90.76458906592208,
       "disabled": true,
       "size_x": 510,
-      "size_y": 102
+      "size_y": 102,
+      "type": "normal"
     },
     {
       "id": 25,
-      "img": "node_img/25_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 2,
       "index": 22,
@@ -402,11 +401,11 @@
       "fy": -3915.1488773289148,
       "fz": -1765.6617162443142,
       "size_x": 336,
-      "size_y": 96
+      "size_y": 96,
+      "type": "normal"
     },
     {
       "id": 26,
-      "img": "node_img/26_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 2,
       "index": 23,
@@ -420,11 +419,11 @@
       "fy": 741.4928376367384,
       "fz": 406.37799461116055,
       "size_x": 298,
-      "size_y": 132
+      "size_y": 132,
+      "type": "normal"
     },
     {
       "id": 27,
-      "img": "node_img/27_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 5,
       "index": 24,
@@ -438,11 +437,11 @@
       "fy": -251.57578016111785,
       "fz": 481.22083659599303,
       "size_x": 358,
-      "size_y": 108
+      "size_y": 108,
+      "type": "normal"
     },
     {
       "id": 28,
-      "img": "node_img/28_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 1,
       "index": 25,
@@ -455,11 +454,11 @@
       "fy": -899.6768737930236,
       "fz": 414.49029126879714,
       "size_x": 430,
-      "size_y": 110
+      "size_y": 110,
+      "type": "normal"
     },
     {
       "id": 29,
-      "img": "node_img/29_2026-05-11-18-20-08.png",
       "group": 3,
       "style_id": 1,
       "name": "不具合",
@@ -472,11 +471,11 @@
       "fy": -4874.85266872349,
       "fz": -1409.2489633565717,
       "size_x": 110,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 30,
-      "img": "node_img/30_2026-05-11-18-20-08.png",
       "group": 3,
       "style_id": 2,
       "index": 27,
@@ -489,11 +488,11 @@
       "fy": -4979.759603644084,
       "fz": -1409.2489633565717,
       "size_x": 636,
-      "size_y": 96
+      "size_y": 96,
+      "type": "normal"
     },
     {
       "id": 31,
-      "img": "node_img/31_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 4,
       "index": 28,
@@ -506,11 +505,11 @@
       "fy": 655.5731489971334,
       "fz": 390.41045691021213,
       "size_x": 598,
-      "size_y": 102
+      "size_y": 102,
+      "type": "normal"
     },
     {
       "id": 32,
-      "img": "node_img/32_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 1,
       "index": 29,
@@ -523,11 +522,11 @@
       "fy": -363.90493322054874,
       "fz": 865.9764166295274,
       "size_x": 650,
-      "size_y": 140
+      "size_y": 140,
+      "type": "normal"
     },
     {
       "id": 33,
-      "img": "node_img/33_2026-05-11-18-20-08.png",
       "group": 1,
       "style_id": 1,
       "index": 30,
@@ -540,11 +539,11 @@
       "fy": -807.9858029034821,
       "fz": 413.4754089835799,
       "size_x": 290,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 34,
-      "img": "node_img/34_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 2,
       "index": 31,
@@ -557,11 +556,11 @@
       "fy": -4081.9512363065737,
       "fz": -1765.6617162443142,
       "size_x": 695,
-      "size_y": 66
+      "size_y": 66,
+      "type": "normal"
     },
     {
       "id": 35,
-      "img": "node_img/35_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 1,
       "index": 32,
@@ -574,11 +573,11 @@
       "fy": -462.30944052096595,
       "fz": 390.6408930502696,
       "size_x": 370,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 36,
-      "img": "node_img/36_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 4,
       "name": "nappa",
@@ -594,11 +593,11 @@
       "fy": 877.6625651877825,
       "fz": -48.522091689696325,
       "size_x": 328,
-      "size_y": 464
+      "size_y": 464,
+      "type": "normal"
     },
     {
       "id": 37,
-      "img": "node_img/37_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 1,
       "name": "doragonball",
@@ -612,11 +611,11 @@
       "fy": 994.2548077626863,
       "fz": -47.961059628932425,
       "size_x": 350,
-      "size_y": 325
+      "size_y": 325,
+      "type": "normal"
     },
     {
       "id": 38,
-      "img": "node_img/38_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 1,
       "name": "北斗の拳",
@@ -631,11 +630,11 @@
       "fz": -30.49224430768164,
       "disabled": true,
       "size_x": 350,
-      "size_y": 393
+      "size_y": 393,
+      "type": "normal"
     },
     {
       "id": 40,
-      "img": "node_img/40_2026-05-11-18-20-09.png",
       "group": 3,
       "style_id": 1,
       "name": "保存のときにエラーメッセージがたくさん出る\n\neel.js:73 THREE.ImageUtils.getDataURL: Image converted to jpg for performance reasons \n_toJSON\t@\teel.js:73\neel.<computed>\t@\teel.js:49\n(anonymous)\t@\tindex.tsx:177\nonClick\t@\tTreeDrawer.tsx:80\n",
@@ -649,11 +648,11 @@
       "fy": -4683.901321987186,
       "fz": -1409.2489633565717,
       "size_x": 930,
-      "size_y": 260
+      "size_y": 260,
+      "type": "normal"
     },
     {
       "id": 41,
-      "img": "node_img/41_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 1,
       "fx": 707.0511676925316,
@@ -669,11 +668,11 @@
       "priority": 4,
       "urgency": 5,
       "size_x": 490,
-      "size_y": 152
+      "size_y": 152,
+      "type": "normal"
     },
     {
       "id": 42,
-      "img": "node_img/42_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 1,
       "fx": -162.36221780149106,
@@ -689,11 +688,11 @@
       "priority": 5,
       "urgency": 4,
       "size_x": 230,
-      "size_y": 302
+      "size_y": 302,
+      "type": "normal"
     },
     {
       "id": 43,
-      "img": "node_img/43_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 2,
       "fx": 803.1695021060182,
@@ -708,11 +707,11 @@
       "icon_img": "",
       "disabled": true,
       "size_x": 536,
-      "size_y": 66
+      "size_y": 66,
+      "type": "normal"
     },
     {
       "id": 44,
-      "img": "node_img/44_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 1,
       "fx": 1374.947279663488,
@@ -726,11 +725,11 @@
       "y": 84.40326864903608,
       "z": 312.3273668309593,
       "size_x": 1109,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 45,
-      "img": "node_img/45_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 1,
       "fx": 889.3931983334105,
@@ -744,11 +743,11 @@
       "deadline": "",
       "icon_img": "",
       "size_x": 270,
-      "size_y": 80
+      "size_y": 80,
+      "type": "normal"
     },
     {
       "id": 46,
-      "img": "node_img/46_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 1,
       "fx": 1278.8798660892498,
@@ -768,7 +767,6 @@
     },
     {
       "id": 47,
-      "img": "node_img/47_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 5,
       "fx": 212.63439542706982,
@@ -788,7 +786,6 @@
     },
     {
       "id": 48,
-      "img": "node_img/48_2026-05-11-18-20-09.png",
       "group": 1,
       "style_id": 2,
       "fx": 1530.747603015359,

@@ -25,12 +25,8 @@ import numpy as np
 import io
 import base64
 import subprocess
-from jinja2 import Environment, FileSystemLoader
 
-# Import imgkit at module level to avoid repeated imports across threads
-import imgkit
 
-NODE_HTML_SCALE_FACTOR = 2.0
 
 def get_resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -52,9 +48,6 @@ def get_resource_path(relative_path):
             return loc
     return os.path.join(base_path, relative_path)
 
-templates_dir = get_resource_path('templates')
-env = Environment(loader=FileSystemLoader(templates_dir))
-node_template = env.get_template('node_template.html')
 
 g_current_file_path = None  # 現在開いているファイルのパスを保持
 RECENT_FILES_PATH = os.path.expanduser("~/.space_mind_recent_files.json")
@@ -316,215 +309,13 @@ def say_hello_py(x):
 @eel.expose
 def load_json(path):
     node_data = read_json(path)
-    generate_images(node_data)
     return node_data
 
 @eel.expose
 def load_data(node_data):
-    generate_images(node_data)
     return node_data
 
-def generate_images(node_data):
-    # Determine the actual writable assets directory
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
 
-    # Prioritize the directory being served by Eel
-    if os.path.exists(os.path.join(base_path, "web_src/assets")):
-        node_img_dir_name = os.path.join(base_path, "web_src/assets/node_img")
-    elif os.path.exists(os.path.join(base_path, "dist_vite/assets")):
-        node_img_dir_name = os.path.join(base_path, "dist_vite/assets/node_img")
-    else:
-        node_img_dir_name = os.path.join(base_path, "assets/node_img")
-
-    print(f"--- Target node_img directory: {node_img_dir_name}")
-    
-    if os.path.exists(node_img_dir_name):
-        try:
-            shutil.rmtree(node_img_dir_name)
-        except Exception as e:
-            print(f"Could not remove old node_img dir: {e}")
-    
-    os.makedirs(node_img_dir_name, exist_ok=True)
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        executor.map(generate_image, node_data.get("nodes", []))
-
-    return node_data
-
-def process_base64_image(base64_str, max_size=150):
-    """Base64形式の画像を処理してサイズを調整する"""
-    # Base64ヘッダーを削除
-    if ',' in base64_str:
-        base64_str = base64_str.split(',')[1]
-    
-    # Base64をデコードして画像を開く
-    img_data = base64.b64decode(base64_str)
-    img = Image.open(io.BytesIO(img_data))
-    
-    # アスペクト比を保持しながらリサイズ
-    width, height = img.size
-    if width > height:
-        if width > max_size:
-            ratio = max_size / width
-            new_width = max_size
-            new_height = int(height * ratio)
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-    else:
-        if height > max_size:
-            ratio = max_size / height
-            new_height = max_size
-            new_width = int(width * ratio)
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-    
-    return img
-
-@eel.expose
-def generate_image(node):
-    # icon_imgがある場合は、それを処理
-    icon_base64 = None
-    if 'icon_img' in node and node['icon_img']:
-        # icon_sizeの値があれば取得し、なければデフォルト値の300を使用
-        icon_size = node.get('icon_size', 300)
-        img = process_base64_image(node['icon_img'], max_size=icon_size)
-        # 処理した画像をbase64に変換
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        icon_base64 = base64.b64encode(buffered.getvalue()).decode()
-
-    issue1_base64 = ""
-    issue2_base64 = ""
-    issue3_base64 = ""
-    issue4_base64 = ""
-    issue5_base64 = ""
-    issue6_base64 = ""
-
-    styles = node_styles
-    if "type" in node and node["type"] == "link":
-        styles = node_link_styles
-    elif "type" in node and node["type"] == "task":
-        styles = node_task_styles
-    elif "type" in node and node["type"] == "file":
-        styles = node_file_styles
-    elif "type" in node and node["type"] == "folder":
-        styles = node_folder_styles
-    elif "type" in node and node["type"] == "issue":
-        styles = node_issue_styles
-
-        if node["style_id"] == 1:
-            with open(get_resource_path('assets/issue1.png'), 'rb') as img_file:
-                issue1_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-        if node["style_id"] == 2:
-            with open(get_resource_path('assets/issue2.png'), 'rb') as img_file:
-                issue2_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-        if node["style_id"] == 3:
-            with open(get_resource_path('assets/issue3.png'), 'rb') as img_file:
-                issue3_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-        if node["style_id"] == 4:
-            with open(get_resource_path('assets/issue4.png'), 'rb') as img_file:
-                issue4_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-        if node["style_id"] == 5:
-            with open(get_resource_path('assets/issue5.png'), 'rb') as img_file:
-                issue5_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-        if node["style_id"] == 6:
-            with open(get_resource_path('assets/issue6.png'), 'rb') as img_file:
-                issue6_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-
-    html_content = node_template.render(
-        style_class=styles[node['style_id']-1]['class'],
-        icon_base64=icon_base64,
-        node_name=node['name'],
-        deadline=node.get('deadline', '').strip() if 'deadline' in node and node['deadline'] else None,
-        priority=node.get('priority'),
-        urgency=node.get('urgency'),
-        assignee=node.get('assignee'),
-        issue1_base64=issue1_base64,
-        issue2_base64=issue2_base64,
-        issue3_base64=issue3_base64,
-        issue4_base64=issue4_base64,
-        issue5_base64=issue5_base64,
-        issue6_base64=issue6_base64,
-        scale_factor=NODE_HTML_SCALE_FACTOR
-    )
-
-    # Determine where to store and load generated images
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    if os.path.exists(os.path.join(base_path, "web_src/assets")):
-        assets_base = os.path.join(base_path, "web_src/assets")
-    elif os.path.exists(os.path.join(base_path, "dist_vite/assets")):
-        assets_base = os.path.join(base_path, "dist_vite/assets")
-    else:
-        assets_base = os.path.join(base_path, "assets")
-
-    now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    output_path = os.path.join(assets_base, f"node_img/{node['id']}_{now}.png")
-    
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    options = {
-        'width': '1200',
-        'height': '1200'
-    }
-
-    if 'isNew' not in node or node['isNew'] == False:
-        if node['img'] != "logo.png":
-            # if os.path.exists(os.path.join(assets_base, node['img'])):
-            #     os.remove(os.path.join(assets_base, node['img']))
-            pass
-
-    if os.name == 'nt':
-        wkhtmltoimage_path = get_resource_path('wkhtmltox/bin/wkhtmltoimage.exe')
-        wkhtmltoimage_config = imgkit.config(wkhtmltoimage=wkhtmltoimage_path)
-        imgkit.from_string(html_content, output_path, config=wkhtmltoimage_config, options=options)
-    else:
-        # On Linux, try system path first
-        wk_path = '/usr/bin/wkhtmltoimage'
-        if not os.path.exists(wk_path):
-            # Fallback to 'wkhtmltoimage' in PATH
-            imgkit.from_string(html_content, output_path, options=options)
-        else:
-            wkhtmltoimage_config = imgkit.config(wkhtmltoimage=wk_path)
-            imgkit.from_string(html_content, output_path, config=wkhtmltoimage_config, options=options)
-    
-    node['img'] = f"node_img/{node['id']}_{now}.png"
-
-    img = Image.open(output_path).convert("RGB")
-    img = ImageOps.invert(img)
-    img = img.crop(img.getbbox())
-    img = ImageOps.invert(img)
-
-    img.save(output_path + "_", 'PNG')
-
-    if styles[node['style_id']-1]['background_trasparent']:
-        img = img.convert("RGBA")
-        np_img = np.array(img)
-        alpha_mask = np.all(np_img[:, :, :3] > 240, axis=-1)
-        np_img[:, :, 3] = np.where(alpha_mask, 0, np_img[:, :, 3])
-        img = Image.fromarray(np_img)
-
-    if styles[node['style_id']-1]['rounded_rectangle_radius'] > 0:
-        mask = Image.new("L", img.size, 0)
-        mask_draw = ImageDraw.Draw(mask)
-        # スケールに合わせて角丸の半径も2倍にする
-        scaled_radius = styles[node['style_id']-1]['rounded_rectangle_radius'] * 2
-        mask_draw.rounded_rectangle((0, 0, img.width, img.height), scaled_radius, fill=255)
-        img.putalpha(mask)
-        
-    img.save(output_path, 'PNG')
-    
-    scale_factor = NODE_HTML_SCALE_FACTOR
-    node['size_x'] = img.size[0] / scale_factor
-    node['size_y'] = img.size[1] / scale_factor
-    print(node['img'])
-        
-    return node['img'], (node['size_x'], node['size_y'])
 
 @eel.expose
 def save_data(data):

@@ -85,7 +85,9 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setAssignee(node.assignee || "");
             setIconImg(node.icon_img || "");
             setImageSize(node.icon_size || 300); // 保存されていたサイズがあれば取得、なければデフォルト値
+            
             setNodeType(node.type || "normal"); // 保存されていたタイプがあれば取得、なければデフォルト値
+
             setUrl(node.url || ""); // リンク用URL
             setFilePath(node.file_path || ""); // ファイルパス
             setFolderPath(node.folder_path || ""); // フォルダパス
@@ -96,8 +98,13 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const handleOk = () => {
         if (editNode){
             // 元のノードをディープコピーして、そのコピーに変更を適用する
-            const nodeToUpdate = _.cloneDeep(editNode);
+            const nodeToUpdate: any = _.cloneDeep(editNode);
             
+            // 編集時にロゴ画像は削除する（最初だけ表示する仕様のため）
+            if (nodeToUpdate.img === "logo.png") {
+                delete nodeToUpdate.img;
+            }
+
             nodeToUpdate.name = contents;
             nodeToUpdate.icon_img = iconImg;
             nodeToUpdate.icon_size = imageSize; // 画像サイズの保存
@@ -107,7 +114,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             switch (nodeType) {
                 case "normal":
                     nodeToUpdate.style_id = styleId;
-                    // ノーマルタイプでは不要な属性を削除
+                    nodeToUpdate.size_x = 200; // デフォルトサイズ
+                    nodeToUpdate.size_y = 120;
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
@@ -115,12 +123,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
                     delete nodeToUpdate.folder_path;
-                    delete (nodeToUpdate as any).background;
                     break;
                 case "issue":
                     nodeToUpdate.style_id = styleId;
-                    delete (nodeToUpdate as any).background;
-                    // issueタイプでは不要な属性を削除
+                    nodeToUpdate.size_x = 300; 
+                    nodeToUpdate.size_y = 200;
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
@@ -132,21 +139,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 case "task":
                     nodeToUpdate.style_id = 1;
                     nodeToUpdate.deadline = deadline;
-                    if (priority === null) {
-                        delete nodeToUpdate.priority;
-                    } else {
-                        nodeToUpdate.priority = priority;
-                    }
-                    if (urgency === null) {
-                        delete nodeToUpdate.urgency;
-                    } else {
-                        nodeToUpdate.urgency = urgency;
-                    }
-                    if (assignee === "") {
-                        delete nodeToUpdate.assignee;
-                    } else {
-                        nodeToUpdate.assignee = assignee;
-                    }
+                    nodeToUpdate.priority = priority;
+                    nodeToUpdate.urgency = urgency;
+                    nodeToUpdate.assignee = assignee;
+                    nodeToUpdate.size_x = 250;
+                    nodeToUpdate.size_y = 150;
                     delete nodeToUpdate.url;
                     delete nodeToUpdate.file_path;
                     delete nodeToUpdate.folder_path;
@@ -154,15 +151,20 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 case "link":
                     nodeToUpdate.style_id = 1;
                     nodeToUpdate.url = url;
+                    nodeToUpdate.size_x = 250;
+                    nodeToUpdate.size_y = 100;
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
+                    delete nodeToUpdate.assignee;
                     delete nodeToUpdate.file_path;
                     delete nodeToUpdate.folder_path;
                     break;
                 case "file":
                     nodeToUpdate.style_id = 1;
                     nodeToUpdate.file_path = filePath;
+                    nodeToUpdate.size_x = 250;
+                    nodeToUpdate.size_y = 100;
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
@@ -173,6 +175,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 case "folder":
                     nodeToUpdate.style_id = 1;
                     nodeToUpdate.folder_path = folderPath;
+                    nodeToUpdate.size_x = 250;
+                    nodeToUpdate.size_y = 100;
                     delete nodeToUpdate.deadline;
                     delete nodeToUpdate.priority;
                     delete nodeToUpdate.urgency;
@@ -466,7 +470,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
               }}
             />
             {/* スタイル選択 */}
-            {nodeType === "normal" ? (
+            {(nodeType === "normal") ? (
               <Flex gap="middle" align="center">
                 <div style={{ width: '80px' }}>{"スタイル"}</div>
                 <Select
@@ -483,7 +487,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                   ]}
                 />
               </Flex>
-            ) : nodeType === "issue" ? (
+            ) : (nodeType === "issue") ? (
               <Flex gap="middle" align="center">
                 <div style={{ width: '80px' }}>{"背景"}</div>
                 <Select
