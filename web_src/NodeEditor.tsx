@@ -159,6 +159,16 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     delete nodeToUpdate.assignee;
                     delete nodeToUpdate.file_path;
                     delete nodeToUpdate.folder_path;
+                    
+                    // URLが有効で、かつ変更されている場合にOGP画像を取得
+                    if (url && url !== editNode.url) {
+                        eel.get_ogp_image(url)((imgData: string | null) => {
+                            if (imgData) {
+                                nodeToUpdate.icon_img = imgData;
+                                props.onRefreshNode(nodeToUpdate);
+                            }
+                        });
+                    }
                     break;
                 case "file":
                     nodeToUpdate.style_id = 1;

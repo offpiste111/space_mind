@@ -2,9 +2,12 @@
 # .\env\Scripts\activate.ps1
 
 # bottle has a issue with stdout when using pyinstaller --noconsole
-    bottle #='0.13-dev'  # download the latest bottle version and replace the contents with this version from https://github.com/bottlepy/bottle/blob/master/bottle.py
-    eel
-    pyinstaller
-    psutil==5.9.4
-    jinja2 \n    numpy
-    playwright
+bottle
+eel
+pyinstaller
+psutil==5.9.4
+jinja2
+numpy
+playwright
+requests
+beautifulsoup4

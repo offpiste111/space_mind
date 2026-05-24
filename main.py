@@ -25,7 +25,8 @@ import numpy as np
 import io
 import base64
 import subprocess
-
+import requests
+from bs4 import BeautifulSoup
 
 
 def get_resource_path(relative_path):
@@ -356,6 +357,38 @@ def save_as_data(data):
 def expand_user(folder):
     """Return the full path to display in the UI."""
     return '{}/*'.format(os.path.expanduser(folder))
+
+@eel.expose
+def get_ogp_image(url):
+    """URLからOGP画像を取得してBase64形式で返す"""
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        # OGP画像タグを探す
+        og_image = soup.find("meta", property="og:image")
+        if not og_image:
+            og_image = soup.find("meta", attrs={"name": "twitter:image"})
+            
+        if og_image and og_image.get("content"):
+            img_url = og_image.get("content")
+            # 画像をダウンロード
+            img_response = requests.get(img_url, headers=headers, timeout=10)
+            img_response.raise_for_status()
+            
+            # Base64エンコード
+            img_base64 = base64.b64encode(img_response.content).decode("utf-8")
+            return f"data:{img_response.headers.get('Content-Type', 'image/png')};base64,{img_base64}"
+            
+        return None
+    except Exception as e:
+        print(f"Error fetching OGP image: {e}")
+        return None
 
 @eel.expose
 def init():
