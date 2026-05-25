@@ -29,6 +29,10 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
   const isHtmlFolder = type === 'folder';
   const isHtmlNormal = type === 'normal';
 
+  let themeColor = '#4c9ac0'; // デフォルトの青色
+  if (isHtmlFile) themeColor = '#52c41a'; // 緑色
+  if (isHtmlFolder) themeColor = '#faad14'; // 黄色
+
   // 基本コンテナスタイル
   const baseContainerStyle: React.CSSProperties = {
     padding: `${15 * SCALE}px`,
@@ -93,7 +97,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
     const sId = style_id || 1;
     specificStyle = {
       background: 'white',
-      border: `${2 * SCALE}px solid #4c9ac0`,
+      border: `${2 * SCALE}px solid ${themeColor}`,
       borderRadius: `${10 * SCALE}px`,
       minWidth: `${200 * SCALE}px`,
       maxWidth: 'max-content',
@@ -119,7 +123,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
           height: 0,
           borderWidth: `0 ${20 * SCALE}px ${20 * SCALE}px 0`,
           borderStyle: 'solid',
-          borderColor: `transparent transparent #4c9ac0 transparent`,
+          borderColor: `transparent transparent ${themeColor} transparent`,
           boxShadow: `-${1 * SCALE}px ${1 * SCALE}px ${1 * SCALE}px rgba(0, 0, 0, 0.15)`
         }} />
       );
@@ -155,7 +159,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
         top: 0,
         width: `${10 * SCALE}px`,
         height: '100%',
-        background: '#4c9ac0'
+        background: themeColor
       }} />
     );
   }
@@ -191,7 +195,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
 
   // SVGアイコンの再現
   const LinkIcon = () => (
-    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke="#4c9ac0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
       <polyline points="15 3 21 3 21 9"></polyline>
       <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -199,7 +203,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
   );
 
   const FileIcon = () => (
-    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke="#4c9ac0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
       <polyline points="14 2 14 8 20 8"></polyline>
       <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -209,7 +213,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
   );
 
   const FolderIcon = () => (
-    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke="#4c9ac0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
     </svg>
   );
@@ -255,17 +259,17 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
       )}
 
       {isHtmlLink && url && (
-        <div style={{ ...infoStyle, color: '#4c9ac0', fontSize: `${10 * SCALE}px` }}>
+        <div style={{ ...infoStyle, color: themeColor, fontSize: `${10 * SCALE}px` }}>
           {url}
         </div>
       )}
       {(isHtmlFile && file_path) && (
-        <div style={{ ...infoStyle, color: '#4c9ac0', fontSize: `${10 * SCALE}px` }}>
+        <div style={{ ...infoStyle, color: themeColor, fontSize: `${10 * SCALE}px` }}>
           {file_path}
         </div>
       )}
       {(isHtmlFolder && folder_path) && (
-        <div style={{ ...infoStyle, color: '#4c9ac0', fontSize: `${10 * SCALE}px` }}>
+        <div style={{ ...infoStyle, color: themeColor, fontSize: `${10 * SCALE}px` }}>
           {folder_path}
         </div>
       )}
