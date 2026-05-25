@@ -364,9 +364,17 @@ def get_ogp_image(url):
     """URLからOGP画像を取得してBase64形式で返す"""
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "max-age=0",
+            "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Upgrade-Insecure-Requests": "1",
         }
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.text, "html.parser")
@@ -375,9 +383,20 @@ def get_ogp_image(url):
         og_image = soup.find("meta", property="og:image")
         if not og_image:
             og_image = soup.find("meta", attrs={"name": "twitter:image"})
+        if not og_image:
+            # ファビコンをバックアップとして探す
+            og_image = soup.find("link", rel=lambda x: x and 'icon' in x.lower())
+            if og_image:
+                og_image["content"] = og_image.get("href")
             
-        if og_image and og_image.get("content"):
-            img_url = og_image.get("content")
+        if og_image and (og_image.get("content") or og_image.get("href")):
+            img_url = og_image.get("content") or og_image.get("href")
+            
+            # 相対パスの場合は絶対パスに変換
+            if not img_url.startswith(('http://', 'https://')):
+                from urllib.parse import urljoin
+                img_url = urljoin(url, img_url)
+
             # 画像をダウンロード
             img_response = requests.get(img_url, headers=headers, timeout=10)
             img_response.raise_for_status()
