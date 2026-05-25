@@ -1007,11 +1007,6 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     };
 
     const handleBackgroundClick = (event:any) => {
-        // Space（宇宙）背景以外の場合は、背景クリックでの新規ノード作成を行わない
-        if (graphData.globalBackground && graphData.globalBackground !== 'space') {
-            return;
-        }
-
         let camera = fgRef.current.camera();
         let distance = 800;
         if (selectedNode) {
@@ -1213,11 +1208,6 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     colorWrite: false, // WebGLキャンバス上には何も色を描画しない（HTMLがそのまま見えるようにする）
                     depthWrite: true,  // ただし深度（Zバッファ）には書き込むことで、奥にある3Dオブジェクトの描画をブロックする
                     depthTest: true,
-                    // ステンシルバッファにマスクを書き込む
-                    stencilWrite: true,
-                    stencilRef: 1,
-                    stencilFunc: THREE.AlwaysStencilFunc,
-                    stencilZPass: THREE.ReplaceStencilOp,
                 });
                 const hitBox = new THREE.Sprite(spriteMaterial);
                 hitBox.renderOrder = -1; // 最優先で深度を書き込む
@@ -1677,39 +1667,29 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 showNavInfo={false}
                 backgroundColor={backgroundColor}
                 linkColor={(link) => {
-                    let opacity = 1;
-                    if (link.source.disabled || link.target.disabled) {
-                        opacity = 0.1;
-                    }
-                    
-                    // 背景の種類ごとのリンク色（RGB）の定義一覧
-                    const linkColorMap: { [key: string]: string } = {
-                        'sky': '33, 33, 33',       // skyのときは黒系の色
-                        'snow': '255, 255, 255',
-                        'sunset': '255, 255, 255',
-                        'space': '255, 255, 255',
-                        'default': '255, 255, 255'
+                    // 背景の種類ごとのリンクスタイル（RGBとベース透明度）の定義一覧
+                    const linkStyleMap: { [key: string]: { rgb: string, opacity: number } } = {
+                        'sky': { rgb: '33, 33, 33', opacity: 0.3 },       // skyのときは黒色で透明度を高くする
+                        'snow': { rgb: '255, 255, 255', opacity: 1.0 },
+                        'sunset': { rgb: '255, 255, 255', opacity: 1.0 },
+                        'space': { rgb: '255, 255, 255', opacity: 1.0 },
+                        'default': { rgb: '255, 255, 255', opacity: 1.0 }
                     };
-                    const bgType = graphData.globalBackground || 'default';
-                    const rgbColor = linkColorMap[bgType] || linkColorMap['default'];
                     
-                    let color = `rgba(${rgbColor}, ${opacity})`;
+                    const bgType = graphData.globalBackground || 'default';
+                    const style = linkStyleMap[bgType] || linkStyleMap['default'];
+                    
+                    // 無効化されている場合はベースの透明度からさらに下げる
+                    let finalOpacity = (link.source.disabled || link.target.disabled) ? style.opacity * 0.1 : style.opacity;
+                    
+                    let color = `rgba(${style.rgb}, ${finalOpacity})`;
                     
                     if (link === interimLink) {
-                        color = `rgba(246, 147, 177, ${opacity})`;
+                        color = `rgba(246, 147, 177, ${finalOpacity})`;
                     }
-                    return color
+                    return color;
                 }}
                 linkWidth={(link) => link === interimLink ? 4 : 2}
-                linkMaterial={new THREE.LineBasicMaterial({
-                    transparent: true,
-                    depthWrite: false,
-                    // ノード（stencilRef: 1）の手前には線の本体を描画しない
-                    stencilWrite: true,
-                    stencilRef: 0,
-                    stencilFunc: THREE.EqualStencilFunc,
-                    vertexColors: true // ForceGraph3Dが色を制御できるようにする
-                })}
                 nodeId="id"
                 //linkDirectionalArrowLength={6}
                 //linkDirectionalArrowRelPos={1}
@@ -1724,11 +1704,6 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         link_name = ``;
                     }
                     const sprite = new SpriteText(`${link_name}`);
-                    
-                    // ノード（stencilRef: 1）の手前にはテキストを描画しない
-                    sprite.material.stencilWrite = true;
-                    sprite.material.stencilRef = 0;
-                    sprite.material.stencilFunc = THREE.EqualStencilFunc;
                     
                     const linkTextColorMap: { [key: string]: string } = {
                         'sky': '#333333',       // skyのときは黒系の色
