@@ -305,7 +305,8 @@ node_issue_styles = [
 @eel.expose  # Expose function to JavaScript
 def say_hello_py(x):
     """Print message from JavaScript on app initialization, then call a JS function."""
-    eel.say_hello_js('')
+    # eel.say_hello_js('') # JavaScript側で未定義のため無効化
+    pass
 
 @eel.expose
 def load_json(path):
@@ -452,8 +453,8 @@ def start_eel(develop):
         pyi_splash.close()
 
     # These will be queued until the first connection is made, but won't be repeated on a page reload
-    say_hello_py('')
-    eel.say_hello_js('')   # Call a JavaScript function (must be after `eel.init()`)
+    # say_hello_py('')  # JavaScript側で未定義のため無効化
+    # eel.say_hello_js('')   # Call a JavaScript function (must be after `eel.init()`)
 
     #eel.show_log('https://github.com/samuelhwilliams/Eel/issues/363 (show_log)')
 
