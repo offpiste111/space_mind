@@ -217,10 +217,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     updatedAt: now
                 };
                 
-                setGraphData({
+                setGraphData((prev: any) => ({
+                    ...prev,
                     nodes: [new_node],
                     links: []
-                });
+                }));
                 
                 // 編集モーダルを表示
                 //props.onNodeEdit(new_node);
@@ -691,8 +692,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     // node.idと一致するnodeをgraphDataから削除する関数
     const deleteNode = (nodeId: number) => {
         setGraphData(prevData => ({
-        nodes: prevData.nodes.filter(node => node.id !== nodeId),
-        links: prevData.links.filter(link => link.source.id !== nodeId && link.target.id !== nodeId)
+            ...prevData,
+            nodes: prevData.nodes.filter(node => node.id !== nodeId),
+            links: prevData.links.filter(link => link.source.id !== nodeId && link.target.id !== nodeId)
         }));
     };
     // リンクを削除する関数
@@ -1005,6 +1007,11 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     };
 
     const handleBackgroundClick = (event:any) => {
+        // Space（宇宙）背景以外の場合は、背景クリックでの新規ノード作成を行わない
+        if (graphData.globalBackground && graphData.globalBackground !== 'space') {
+            return;
+        }
+
         let camera = fgRef.current.camera();
         let distance = 800;
         if (selectedNode) {
@@ -1206,6 +1213,11 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     colorWrite: false, // WebGLキャンバス上には何も色を描画しない（HTMLがそのまま見えるようにする）
                     depthWrite: true,  // ただし深度（Zバッファ）には書き込むことで、奥にある3Dオブジェクトの描画をブロックする
                     depthTest: true,
+                    // ステンシルバッファにマスクを書き込む
+                    stencilWrite: true,
+                    stencilRef: 1,
+                    stencilFunc: THREE.AlwaysStencilFunc,
+                    stencilZPass: THREE.ReplaceStencilOp,
                 });
                 const hitBox = new THREE.Sprite(spriteMaterial);
                 hitBox.renderOrder = -1; // 最優先で深度を書き込む
@@ -1689,6 +1701,15 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     return color
                 }}
                 linkWidth={(link) => link === interimLink ? 4 : 2}
+                linkMaterial={new THREE.LineBasicMaterial({
+                    transparent: true,
+                    depthWrite: false,
+                    // ノード（stencilRef: 1）の手前には線の本体を描画しない
+                    stencilWrite: true,
+                    stencilRef: 0,
+                    stencilFunc: THREE.EqualStencilFunc,
+                    vertexColors: true // ForceGraph3Dが色を制御できるようにする
+                })}
                 nodeId="id"
                 //linkDirectionalArrowLength={6}
                 //linkDirectionalArrowRelPos={1}
@@ -1703,6 +1724,11 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         link_name = ``;
                     }
                     const sprite = new SpriteText(`${link_name}`);
+                    
+                    // ノード（stencilRef: 1）の手前にはテキストを描画しない
+                    sprite.material.stencilWrite = true;
+                    sprite.material.stencilRef = 0;
+                    sprite.material.stencilFunc = THREE.EqualStencilFunc;
                     
                     const linkTextColorMap: { [key: string]: string } = {
                         'sky': '#333333',       // skyのときは黒系の色

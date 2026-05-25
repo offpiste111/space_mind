@@ -19,7 +19,7 @@ const MovingClouds = () => {
                 speed={0.4} // Rotation speed
                 bounds={[10, 2, 2]}
                 volume={10}
-                segments={20} // Number of particles
+                segments={100} // Number of particles
                 position={[0, -10, -20]}
             />
             <Cloud
@@ -27,7 +27,7 @@ const MovingClouds = () => {
                 speed={0.4}
                 bounds={[20, 2, 2]}
                 volume={15}
-                segments={30}
+                segments={150}
                 position={[20, -15, 0]}
             />
             <Cloud
@@ -35,7 +35,7 @@ const MovingClouds = () => {
                 speed={0.4}
                 bounds={[15, 2, 2]}
                 volume={10}
-                segments={20}
+                segments={100}
                 position={[-20, -5, 10]}
             />
             {/* Added 3 more clouds to double the amount */}
