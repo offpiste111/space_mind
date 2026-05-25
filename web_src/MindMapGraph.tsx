@@ -1668,10 +1668,23 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     let opacity = 1;
                     if (link.source.disabled || link.target.disabled) {
                         opacity = 0.1;
-                    } 
-                    let color = `rgba(255,255,255,${opacity})`;
+                    }
+                    
+                    // 背景の種類ごとのリンク色（RGB）の定義一覧
+                    const linkColorMap: { [key: string]: string } = {
+                        'sky': '33, 33, 33',       // skyのときは黒系の色
+                        'snow': '255, 255, 255',
+                        'sunset': '255, 255, 255',
+                        'space': '255, 255, 255',
+                        'default': '255, 255, 255'
+                    };
+                    const bgType = graphData.globalBackground || 'default';
+                    const rgbColor = linkColorMap[bgType] || linkColorMap['default'];
+                    
+                    let color = `rgba(${rgbColor}, ${opacity})`;
+                    
                     if (link === interimLink) {
-                        color = `rgb(246, 147, 177,${opacity})`;
+                        color = `rgba(246, 147, 177, ${opacity})`;
                     }
                     return color
                 }}
@@ -1690,7 +1703,17 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         link_name = ``;
                     }
                     const sprite = new SpriteText(`${link_name}`);
-                    sprite.color = 'lightgrey';
+                    
+                    const linkTextColorMap: { [key: string]: string } = {
+                        'sky': '#333333',       // skyのときは黒系の色
+                        'snow': 'lightgrey',
+                        'sunset': 'lightgrey',
+                        'space': 'lightgrey',
+                        'default': 'lightgrey'
+                    };
+                    const bgType = graphData.globalBackground || 'default';
+                    sprite.color = linkTextColorMap[bgType] || linkTextColorMap['default'];
+                    
                     sprite.textHeight = 10.5;
 
                     if (link.source.disabled || link.target.disabled) {
