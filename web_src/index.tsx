@@ -631,6 +631,15 @@ const App = () => {
                 }
             }
         }
+        else if (event.key === "F2" && !event.repeat) {
+            event.preventDefault();
+            if (mindMapGraphRef.current) {
+                const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                if (selectedNode) {
+                    handleNodeEdit(selectedNode);
+                }
+            }
+        }
       }, [handleSave, isNodeEditorOpen, isLinkEditorOpen]);
     
       useEffect(() => {
