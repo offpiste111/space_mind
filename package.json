@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:web": "vite --mode web",
     "build": "tsc && vite build",
+    "build:web": "tsc && vite build --mode web --outDir ../dist_web",
+    "build:eel": "tsc && vite build --mode eel --outDir ../dist_vite",
     "preview": "vite preview"
   },
   "dependencies": {

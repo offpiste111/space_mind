@@ -16,17 +16,24 @@ import LinkEditor from './LinkEditor'
 import { FloatButton } from 'antd';
 import { NODE_CONSTANTS } from './constants';
 
+import { storageService } from './services';
+
 declare const window: any;
-export const eel = window.eel
-eel.set_host( 'ws://localhost:5169' )
+export const eel = window.eel;
 
 // Expose the `sayHelloJS` function to Python as `say_hello_js`
 function sayHelloJS( x: any ) {
   //console.log( 'Hello from ' + x )
 }
-// WARN: must use window.eel to keep parse-able eel.expose{...}
-//window.eel.expose( sayHelloJS, 'say_hello_js' )
-window.eel.expose( sayHelloJS, '' )
+
+if (eel && import.meta.env.VITE_APP_MODE !== 'web') {
+  try {
+    eel.set_host( 'ws://localhost:5169' );
+    window.eel.expose( sayHelloJS, '' );
+  } catch (e) {
+    console.warn("Failed to initialize Eel:", e);
+  }
+}
 
 type MenuItem = Required<MenuProps>['items'][number];
 
@@ -47,7 +54,7 @@ const App = () => {
     const handleOpenRecent = async (path: string) => {
         setLoading(true);
         try {
-            const node_data = await eel.load_json_by_path(path)();
+            const node_data = await storageService.loadJsonByPath(path);
             if (node_data) {
                 if (mindMapGraphRef.current) {
                     mindMapGraphRef.current.setGraphData(node_data);
@@ -133,15 +140,9 @@ const App = () => {
     const handleFileSelect = async () => {
         setLoading(true);
         try {
-            const node_data = await eel.select_file_dialog()();
+            const node_data = await storageService.selectFileDialog();
             if (node_data) {
                 node_data.nodes = node_data.nodes.map((node: any) => {
-                    //node['fx'] = node['x']
-                    //node['fy'] = node['y']
-                    //node['fz'] = node['z']
-                    //delete node['fx']; 
-                    //delete node['fy']; 
-                    //delete node['fz']; 
                     return node;
                 });
                 if (mindMapGraphRef.current) {
@@ -161,7 +162,7 @@ const App = () => {
         if (!node || !node.file_path) return;
         
         try {
-            const result = await eel.open_file(node.file_path)();
+            const result = await storageService.openFile(node.file_path);
             if (result) {
                 console.log(`File opened: ${node.file_path}`);
                 message.success(`ファイルを開きました: ${node.file_path}`);
@@ -169,9 +170,9 @@ const App = () => {
                 console.error(`Failed to open file: ${node.file_path}`);
                 message.error(`ファイルを開けませんでした: ${node.file_path}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error opening file:', error);
-            message.error('ファイルを開く際にエラーが発生しました');
+            message.error(error.message || 'ファイルを開く際にエラーが発生しました');
         }
     };
 
@@ -180,7 +181,7 @@ const App = () => {
         if (!node || !node.folder_path) return;
         
         try {
-            const result = await eel.open_folder(node.folder_path)();
+            const result = await storageService.openFolder(node.folder_path);
             if (result) {
                 console.log(`Folder opened: ${node.folder_path}`);
                 message.success(`フォルダを開きました: ${node.folder_path}`);
@@ -188,16 +189,16 @@ const App = () => {
                 console.error(`Failed to open folder: ${node.folder_path}`);
                 message.error(`フォルダを開けませんでした: ${node.folder_path}`);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error opening folder:', error);
-            message.error('フォルダを開く際にエラーが発生しました');
+            message.error(error.message || 'フォルダを開く際にエラーが発生しました');
         }
     };
 
     // 初期データの読み込み
     useEffect(() => {
         if (mindMapGraphRef.current) {
-            eel.init();
+            storageService.init();
             mindMapGraphRef.current.setGraphData({nodes:[],links:[]});
         }
     }, []);
@@ -241,7 +242,7 @@ const App = () => {
     const linkAddModalRef = useRef<ModalRef>(null)
 
     useEffect(() => {
-        if (mindMapGraphRef.current) {
+        if (window.eel && mindMapGraphRef.current) {
             window.eel.expose(mindMapGraphRef.current.getGraphData, 'get_graph_data');
         }
     }, [mindMapGraphRef.current]);
@@ -271,7 +272,9 @@ const App = () => {
     }, []);
 
     useEffect(() => {
-        window.eel.expose(resetGraph, 'reset_graph');
+        if (window.eel) {
+            window.eel.expose(resetGraph, 'reset_graph');
+        }
     }, [resetGraph]);
 
     const [menuPosition, setMenuPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
@@ -384,7 +387,11 @@ const App = () => {
 
     const handleRefreshNode = (node:any) => {
         sayHelloJS( 'Javascript World!' )
-        eel.say_hello_py( 'Javascript World!' )
+        if (window.eel && import.meta.env.VITE_APP_MODE !== 'web') {
+            try {
+                window.eel.say_hello_py( 'Javascript World!' );
+            } catch (e) {}
+        }
         
         // HTMLノードのデフォルトサイズ設定
         if (node.type && node.type !== '3dobject' && node.type !== 'image') {
@@ -423,7 +430,7 @@ const App = () => {
     }
 
 
-    const saveData = useCallback(async (saveFunction: (data: any) => ((result: any) => void)) => {
+    const saveData = useCallback(async (isSaveAs: boolean) => {
         if(!mindMapGraphRef.current) return;
         
         let data = mindMapGraphRef.current.getGraphData();
@@ -441,9 +448,10 @@ const App = () => {
         }
 
         try {
-            const result = await new Promise<any>((resolve) => {
-                saveFunction(data)(resolve);
-            });
+            const result = isSaveAs 
+                ? await storageService.saveAsData(data)
+                : await storageService.saveData(data);
+            
             console.log("Save result:", result);
             if (result && result[0]) {
                 const filename = result[1];
@@ -451,7 +459,7 @@ const App = () => {
                     content: `${filename}に保存しました`,
                     duration: 3,
                 });
-                setCurrentFileName(filename);
+                if (filename) setCurrentFileName(filename);
             } else {
                 message.error('保存に失敗しました');
             }
@@ -462,11 +470,11 @@ const App = () => {
     }, []);
 
     const handleSave = useCallback(() => {
-        return saveData(eel.save_data);
+        return saveData(false);
     }, [saveData]);
 
     const handleSaveAs = useCallback(() => {
-        return saveData(eel.save_as_data);
+        return saveData(true);
     }, [saveData]);
 
     const handleSearch = useCallback((text: string) => {
@@ -730,7 +738,7 @@ const App = () => {
                         selectedKeys={[current]}
                         onOpenChange={async (keys) => {
                             if (keys.includes('file')) {
-                                const files = await eel.get_recent_files()();
+                                const files = await storageService.getRecentFiles();
                                 setRecentFiles(files);
                             }
                         }}

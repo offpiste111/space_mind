@@ -15,7 +15,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["@emotion/react/types/css-prop"],
+    "types": ["@emotion/react/types/css-prop", "vite/client"],
   },
   "include": ["web_src"],
   "references": [{ "path": "./tsconfig.node.json" }]

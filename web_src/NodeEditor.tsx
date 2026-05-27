@@ -1,9 +1,9 @@
 import React,{useState, forwardRef, useImperativeHandle, useEffect } from 'react'
-import { Modal, Input, Button, Flex, Select, Upload, Slider, ColorPicker } from 'antd';
+import { Modal, Input, Button, Flex, Select, Upload, Slider, ColorPicker, message } from 'antd';
 import { UploadOutlined, FolderOutlined, UserOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import type { UploadProps } from 'antd';
-import { eel } from './index';
+import { storageService } from './services';
 
 interface ModalRef {
     showModal: (data: any) => void;
@@ -162,12 +162,12 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                     
                     // URLが有効で、かつ変更されている場合にOGP画像を取得
                     if (url && url !== editNode.url) {
-                        eel.get_ogp_image(url)((imgData: string | null) => {
+                        storageService.getOgpImage(url).then((imgData: string | null) => {
                             if (imgData) {
                                 nodeToUpdate.icon_img = imgData;
                                 props.onRefreshNode(nodeToUpdate);
                             }
-                        });
+                        }).catch((err) => console.error("Error getting OGP image:", err));
                     }
                     break;
                 case "file":
@@ -226,23 +226,25 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
 
     const handleFileSelect = async () => {
         try {
-            const selectedPath = await eel.select_any_file()();
+            const selectedPath = await storageService.selectAnyFile();
             if (selectedPath) {
                 setFilePath(selectedPath);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error selecting file:', error);
+            message.error(error.message || 'ファイルの選択に失敗しました');
         }
     };
 
     const handleFolderSelect = async () => {
         try {
-            const selectedPath = await eel.select_folder()();
+            const selectedPath = await storageService.selectFolder();
             if (selectedPath) {
                 setFolderPath(selectedPath);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error selecting folder:', error);
+            message.error(error.message || 'フォルダの選択に失敗しました');
         }
     };
     
