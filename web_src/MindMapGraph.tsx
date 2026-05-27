@@ -151,6 +151,85 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
     const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
 
+    const textureCache = useRef(new Map<string, {
+        texture: THREE.Texture,
+        material: THREE.SpriteMaterial
+    }>());
+
+    useEffect(() => {
+        if (!graphData || !graphData.nodes) return;
+        const activeNodeIds = new Set(graphData.nodes.map((n: any) => n.id));
+        htmlNodeCache.current.forEach((cache, nodeId) => {
+            if (!activeNodeIds.has(nodeId)) {
+                try {
+                    if (cache.root) {
+                        cache.root.unmount();
+                    }
+                    if (cache.div) {
+                        cache.div.remove();
+                    }
+                    if (cache.group) {
+                        cache.group.clear();
+                    }
+                    if (cache.hitBox) {
+                        if (cache.hitBox.material) cache.hitBox.material.dispose();
+                        if (cache.hitBox.geometry) cache.hitBox.geometry.dispose();
+                    }
+                } catch (e) {
+                    console.error("Failed to unmount cached HTML node:", e);
+                }
+                htmlNodeCache.current.delete(nodeId);
+            }
+        });
+    }, [graphData]);
+
+    useEffect(() => {
+        return () => {
+            // アンマウント時にすべてのキャッシュをクリーンアップ
+            htmlNodeCache.current.forEach((cache) => {
+                try {
+                    if (cache.root) cache.root.unmount();
+                    if (cache.div) cache.div.remove();
+                    if (cache.group) cache.group.clear();
+                    if (cache.hitBox) {
+                        if (cache.hitBox.material) cache.hitBox.material.dispose();
+                        if (cache.hitBox.geometry) cache.hitBox.geometry.dispose();
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            });
+            htmlNodeCache.current.clear();
+
+            // テクスチャキャッシュのクリア
+            textureCache.current.forEach((cached) => {
+                try {
+                    if (cached.material) cached.material.dispose();
+                    if (cached.texture) cached.texture.dispose();
+                } catch (e) {
+                    // ignore
+                }
+            });
+            textureCache.current.clear();
+
+            // 3Dモデルリソースのクリア
+            [catModel, birdModel, bird2Model, airplaneModel].forEach(modelRef => {
+                if (modelRef && modelRef.current) {
+                    modelRef.current.traverse((child: any) => {
+                        if (child.isMesh) {
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) {
+                                const materials = Array.isArray(child.material) ? child.material : [child.material];
+                                materials.forEach((m: any) => m.dispose());
+                            }
+                        }
+                    });
+                    modelRef.current = null;
+                }
+            });
+        };
+    }, []);
+
     const [windowDimensions, setWindowDimensions] = useState({
         width: window.innerWidth,
         height: window.innerHeight
@@ -1115,70 +1194,73 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     const birdModel = useRef<THREE.Group | null>(null);
     const bird2Model = useRef<THREE.Group | null>(null);
     const airplaneModel = useRef<THREE.Group | null>(null);
+    const loadingModels = useRef<Set<number>>(new Set());
 
-    useEffect(() => {
-        // // Load Tree model
-        // const tdsLoader = new TDSLoader();
-        // tdsLoader.load('./assets/Plants1/Plants1.3ds', (object) => {
-        //     setTrexModel(object);
-        // });
+    const loadModelOnDemand = useCallback((styleId: number) => {
+        if (loadingModels.current.has(styleId)) return;
 
-        // Load Cat model
-        const mtlLoader = new MTLLoader();
-        mtlLoader.setPath('./assets/cat/');
-        mtlLoader.load('12221_Cat_v1_l3.mtl', (materials) => {
-            materials.preload();
-            
-            const objLoader = new OBJLoader();
-            objLoader.setMaterials(materials);
-            objLoader.setPath('./assets/cat/');
-            objLoader.load('12221_Cat_v1_l3.obj', (object) => {
-                catModel.current = object;
-            });
-        });
-
-        // Load Bird model
-        const birdMtlLoader = new MTLLoader();
-        birdMtlLoader.setPath('./assets/bird1/');
-        birdMtlLoader.load('12213_Bird_v1_l3.mtl', (materials) => {
-            materials.preload();
-            
-            const objLoader = new OBJLoader();
-            objLoader.setMaterials(materials);
-            objLoader.setPath('./assets/bird1/');
-            objLoader.load('12213_Bird_v1_l3.obj', (object) => {
-                birdModel.current = object;
-            });
-        });
-
-        // Load Bird2 model
-        const bird2MtlLoader = new MTLLoader();
-        bird2MtlLoader.setPath('./assets/bird2/');
-        bird2MtlLoader.load('12249_Bird_v1_L2.mtl', (materials) => {
-            materials.preload();
-            
-            const objLoader = new OBJLoader();
-            objLoader.setMaterials(materials);
-            objLoader.setPath('./assets/bird2/');
-            objLoader.load('12249_Bird_v1_L2.obj', (object) => {
-                bird2Model.current = object;
-            });
-        });
-
-        // Load Airplane model
-        const airplaneMtlLoader = new MTLLoader();
-        airplaneMtlLoader.setPath('./assets/airplane/');
-        airplaneMtlLoader.load('11803_Airplane_v1_l1.mtl', (materials) => {
-            materials.preload();
-            
-            const objLoader = new OBJLoader();
-            objLoader.setMaterials(materials);
-            objLoader.setPath('./assets/airplane/');
-            objLoader.load('11803_Airplane_v1_l1.obj', (object) => {
-                airplaneModel.current = object;
-            });
-        });
-    }, []);
+        if (styleId === 3 && !catModel.current) {
+            loadingModels.current.add(styleId);
+            const mtlLoader = new MTLLoader();
+            mtlLoader.setPath('./assets/cat/');
+            mtlLoader.load('12221_Cat_v1_l3.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('./assets/cat/');
+                objLoader.load('12221_Cat_v1_l3.obj', (object) => {
+                    catModel.current = object;
+                    loadingModels.current.delete(styleId);
+                    if (fgRef.current) fgRef.current.refresh();
+                }, undefined, () => { loadingModels.current.delete(styleId); });
+            }, undefined, () => { loadingModels.current.delete(styleId); });
+        } else if (styleId === 4 && !birdModel.current) {
+            loadingModels.current.add(styleId);
+            const birdMtlLoader = new MTLLoader();
+            birdMtlLoader.setPath('./assets/bird1/');
+            birdMtlLoader.load('12213_Bird_v1_l3.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('./assets/bird1/');
+                objLoader.load('12213_Bird_v1_l3.obj', (object) => {
+                    birdModel.current = object;
+                    loadingModels.current.delete(styleId);
+                    if (fgRef.current) fgRef.current.refresh();
+                }, undefined, () => { loadingModels.current.delete(styleId); });
+            }, undefined, () => { loadingModels.current.delete(styleId); });
+        } else if (styleId === 5 && !bird2Model.current) {
+            loadingModels.current.add(styleId);
+            const bird2MtlLoader = new MTLLoader();
+            bird2MtlLoader.setPath('./assets/bird2/');
+            bird2MtlLoader.load('12249_Bird_v1_L2.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('./assets/bird2/');
+                objLoader.load('12249_Bird_v1_L2.obj', (object) => {
+                    bird2Model.current = object;
+                    loadingModels.current.delete(styleId);
+                    if (fgRef.current) fgRef.current.refresh();
+                }, undefined, () => { loadingModels.current.delete(styleId); });
+            }, undefined, () => { loadingModels.current.delete(styleId); });
+        } else if (styleId === 6 && !airplaneModel.current) {
+            loadingModels.current.add(styleId);
+            const airplaneMtlLoader = new MTLLoader();
+            airplaneMtlLoader.setPath('./assets/airplane/');
+            airplaneMtlLoader.load('11803_Airplane_v1_l1.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('./assets/airplane/');
+                objLoader.load('11803_Airplane_v1_l1.obj', (object) => {
+                    airplaneModel.current = object;
+                    loadingModels.current.delete(styleId);
+                    if (fgRef.current) fgRef.current.refresh();
+                }, undefined, () => { loadingModels.current.delete(styleId); });
+            }, undefined, () => { loadingModels.current.delete(styleId); });
+        }
+    }, [fgRef]);
 
     const nodeThreeObjectImageTexture = useCallback((node: any): THREE.Object3D | SpriteText => {
         if (node.id < 0) {
@@ -1307,7 +1389,17 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 innerGroup.add(scene);
                 added = true;
             } else if (node.style_id === 3 && catModel.current) {  // Cat.objモデル
-                const scene = catModel.current.clone();
+                const scene = catModel.current!.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
+                const scale = node.scale || 1; 
+                scene.scale.set(scale * 2, scale * 2, scale * 2);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = -Math.PI/6;
+                innerGroup.add(scene);
+                added = true;
+            } else if (node.style_id === 3) {
+                loadModelOnDemand(3);
+                const scene = catModel.current!.clone();
                 scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1; 
                 scene.scale.set(scale * 2, scale * 2, scale * 2);
@@ -1316,7 +1408,17 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 innerGroup.add(scene);
                 added = true;
             } else if (node.style_id === 4 && birdModel.current) {  // Bird.objモデル
-                const scene = birdModel.current.clone();
+                const scene = birdModel.current!.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
+                const scale = node.scale || 1;  
+                scene.scale.set(scale * 5, scale * 5, scale * 5);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = Math.PI/6;
+                innerGroup.add(scene);
+                added = true;
+            } else if (node.style_id === 4) {
+                loadModelOnDemand(4);
+                const scene = birdModel.current!.clone();
                 scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1  
                 scene.scale.set(scale * 5, scale * 5, scale * 5);
@@ -1325,7 +1427,17 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 innerGroup.add(scene);
                 added = true;
             } else if (node.style_id === 5 && bird2Model.current) {  // Bird2.objモデル
-                const scene = bird2Model.current.clone();
+                const scene = bird2Model.current!.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
+                const scale = node.scale || 1;  
+                scene.scale.set(scale, scale, scale);
+                scene.rotation.x = -Math.PI/2;
+                scene.rotation.z = Math.PI/6;
+                innerGroup.add(scene);
+                added = true;
+            } else if (node.style_id === 5) {
+                loadModelOnDemand(5);
+                const scene = bird2Model.current!.clone();
                 scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1;  
                 scene.scale.set(scale, scale, scale);
@@ -1334,7 +1446,17 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 innerGroup.add(scene);
                 added = true;
             } else if (node.style_id === 6 && airplaneModel.current) {  // Airplane.objモデル
-                const scene = airplaneModel.current.clone();
+                const scene = airplaneModel.current!.clone();
+                scene.traverse(child => { child.raycast = () => {}; });
+                const scale = node.scale || 1;  // デフォルトスケール0.05
+                scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
+                scene.rotation.x = -Math.PI/3;
+                scene.rotation.z = Math.PI/6;
+                innerGroup.add(scene);
+                added = true;
+            } else if (node.style_id === 6) {
+                loadModelOnDemand(6);
+                const scene = airplaneModel.current!.clone();
                 scene.traverse(child => { child.raycast = () => {}; });
                 const scale = node.scale || 1;  // デフォルトスケール0.05
                 scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
@@ -1362,10 +1484,29 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 // モデルの見た目上の中心にヒットボックスを合わせる
                 hitBox.position.copy(sphere.center);
                 group.add(hitBox);
+            } else {
+                // ロード完了前のプレースホルダー (ワイヤーフレームの立方体)
+                const placeholderGeometry = new THREE.BoxGeometry(15, 15, 15);
+                const placeholderMaterial = new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true, transparent: true, opacity: 0.5 });
+                const placeholderMesh = new THREE.Mesh(placeholderGeometry, placeholderMaterial);
+                innerGroup.add(placeholderMesh);
+                
+                // ヒットボックスも同サイズで作成
+                const hitBox = new THREE.Mesh(
+                    new THREE.SphereGeometry(12),
+                    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+                );
+                group.add(hitBox);
             }
             return group;
         }
-        const imgTexture = new THREE.TextureLoader().load(`./assets/${node['img']}`, (texture) => {
+        const imgPath = `./assets/${node['img']}`;
+        let cachedTexture = textureCache.current.get(imgPath);
+        
+        let sprite: THREE.Sprite;
+        if (cachedTexture) {
+            sprite = new THREE.Sprite(cachedTexture.material);
+            const texture = cachedTexture.texture;
             if (texture.image && texture.image.width && texture.image.height) {
                 const imageAspect = texture.image.width / texture.image.height;
                 let displaySizeX = node.size_x;
@@ -1381,10 +1522,30 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 }
                 sprite.scale.set(displaySizeX, displaySizeY, 1);
             }
-        });
-        imgTexture.colorSpace = THREE.SRGBColorSpace;
-        const material = new THREE.SpriteMaterial({ map: imgTexture });
-        const sprite = new THREE.Sprite(material);
+        } else {
+            const imgTexture = new THREE.TextureLoader().load(imgPath, (texture) => {
+                if (texture.image && texture.image.width && texture.image.height) {
+                    const imageAspect = texture.image.width / texture.image.height;
+                    let displaySizeX = node.size_x;
+                    let displaySizeY = node.size_x / imageAspect;
+                    
+                    if (node.type === "issue") {
+                        const maxSide = Math.max(displaySizeX, displaySizeY);
+                        if (maxSide > 0) {
+                            const ratio = NODE_CONSTANTS.ISSUE_MAX_LONG_SIDE / maxSide;
+                            displaySizeX *= ratio;
+                            displaySizeY *= ratio;
+                        }
+                    }
+                    sprite.scale.set(displaySizeX, displaySizeY, 1);
+                }
+            });
+            imgTexture.colorSpace = THREE.SRGBColorSpace;
+            const material = new THREE.SpriteMaterial({ map: imgTexture });
+            sprite = new THREE.Sprite(material);
+            
+            textureCache.current.set(imgPath, { texture: imgTexture, material });
+        }
         const aspectRatio = node.size_x / node.size_y;
         
         let initSizeX = node.size_x;

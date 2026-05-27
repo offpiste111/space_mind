@@ -5,7 +5,6 @@ npm run build
 python -m eel main.py dist_vite --onefile --splash splashfile.png --path env/lib/site-packages --noconsole
 """
 
-import datetime
 import json
 import os
 import platform
@@ -13,20 +12,11 @@ import random
 import sys
 import importlib
 import socket, errno
-import tkinter as tk
-from tkinter import filedialog
 from py_src.contrib.replace_in_file import replaceInfile, findFileRe
 from py_src.contrib.port_check import find_unused_port
-import shutil
 import eel
-import concurrent.futures
-from PIL import Image, ImageOps, ImageDraw
-import numpy as np
-import io
-import base64
 import subprocess
-import requests
-from bs4 import BeautifulSoup
+
 
 
 def get_resource_path(relative_path):
@@ -103,6 +93,9 @@ def select_folder():
     Returns:
         str: 選択されたフォルダのパス。キャンセルされた場合は空文字列
     """
+    import tkinter as tk
+    from tkinter import filedialog
+
     # Create and configure main Tkinter window
     root = tk.Tk()
     root.withdraw()
@@ -128,6 +121,9 @@ def select_any_file():
     Returns:
         str: 選択されたファイルのパス。キャンセルされた場合は空文字列
     """
+    import tkinter as tk
+    from tkinter import filedialog
+
     # Create and configure main Tkinter window
     root = tk.Tk()
     root.withdraw()
@@ -147,6 +143,9 @@ def select_any_file():
 
 @eel.expose
 def select_file_dialog():
+    import tkinter as tk
+    from tkinter import filedialog
+
     # Create and configure main Tkinter window
     root = tk.Tk()
     root.withdraw()
@@ -336,6 +335,9 @@ def save_data(data):
 @eel.expose
 def save_as_data(data):
     global g_current_file_path
+    import tkinter as tk
+    from tkinter import filedialog
+
     # 保存ダイアログを表示
     root = tk.Tk()
     root.withdraw()
@@ -362,6 +364,10 @@ def expand_user(folder):
 @eel.expose
 def get_ogp_image(url):
     """URLからOGP画像を取得してBase64形式で返す"""
+    import requests
+    from bs4 import BeautifulSoup
+    import base64
+
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
