@@ -4,6 +4,25 @@ import { Stars, Cloud } from '@react-three/drei';
 import { DoubleSide } from 'three';
 import * as THREE from 'three';
 
+const createGalaxyTexture = (): THREE.Texture => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+        // 円状のグラデーションを作成
+        const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(0.15, 'rgba(255, 255, 255, 0.9)');
+        gradient.addColorStop(0.4, 'rgba(128, 200, 255, 0.4)'); // ほんのり青い光彩
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 32, 32);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    return texture;
+};
+
 interface GalaxyProps {
     opacity: number;
     key?: number;  // keyをオプショナルプロパティとして追加
@@ -11,6 +30,7 @@ interface GalaxyProps {
 
 const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
     const galaxyRef = useRef<THREE.Group>(null);
+    const galaxyTexture = useMemo(() => createGalaxyTexture(), []);
     
     // 銀河のパラメータ
     const params = useMemo(() => ({
@@ -138,13 +158,14 @@ const Galaxy = ({ opacity }: GalaxyProps): JSX.Element => {
                     />
                 </bufferGeometry>
                 <pointsMaterial
+                    size={0.8}
                     sizeAttenuation={true}
                     depthWrite={false}
                     vertexColors={true}
                     blending={THREE.AdditiveBlending}
                     transparent={true}
-                    opacity={opacity * 0.4} // 星を少し明るく
-                    alphaTest={0.001}
+                    opacity={opacity * 0.7}
+                    map={galaxyTexture}
                 />
             </points>
             {/* 雲のようなネビュラ（星雲）表現 - より広く薄く */}
@@ -847,7 +868,7 @@ const BackgroundNebula = () => {
             </group>
             <group ref={group3}>
                 <Cloud
-                    opacity={0.5}
+                    opacity={0.08}
                     speed={0.01}
                     bounds={[1200, 150, 1200]}
                     volume={500}
