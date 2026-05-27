@@ -920,9 +920,26 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             if (dragNode.px !== undefined) {
                 let dx = dragNode.x - dragNode.px;
                 let dy = dragNode.y - dragNode.py;
+                let dz = dragNode.pz !== undefined ? dragNode.z - dragNode.pz : 0;
                 
-                dragNode.rot_y = (dragNode.rot_y || 0) + dx * 0.005;
-                dragNode.rot_x = (dragNode.rot_x || 0) + dy * 0.005;
+                let rotDx = dx;
+                let rotDy = dy;
+
+                if (fgRef.current) {
+                    const camera = fgRef.current.camera();
+                    if (camera) {
+                        // カメラの向きに基づいて、3D空間の移動ベクトルを画面上の左右・上下の移動量に変換
+                        const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                        const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+                        
+                        const dragVector = new THREE.Vector3(dx, dy, dz);
+                        rotDx = dragVector.dot(cameraRight);
+                        rotDy = dragVector.dot(cameraUp);
+                    }
+                }
+
+                dragNode.rot_y = (dragNode.rot_y || 0) + rotDx * 0.005;
+                dragNode.rot_x = (dragNode.rot_x || 0) + rotDy * 0.005;
 
                 if (dragNode.__threeObj) {
                     const innerGroup = dragNode.__threeObj.children.find((c:any) => c.name === "rotation_group");
@@ -935,10 +952,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 // 座標を元に戻す (移動させない)
                 dragNode.x = dragNode.px;
                 dragNode.y = dragNode.py;
-                dragNode.z = dragNode.pz;
+                dragNode.z = dragNode.pz !== undefined ? dragNode.pz : dragNode.z;
                 dragNode.fx = dragNode.px;
                 dragNode.fy = dragNode.py;
-                dragNode.fz = dragNode.pz;
+                dragNode.fz = dragNode.pz !== undefined ? dragNode.pz : dragNode.z;
             }
             dragNode.px = dragNode.x;
             dragNode.py = dragNode.y;
@@ -1610,16 +1627,22 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         // 3Dモデル（glbファイル等）の選択発光制御
         if (groupOrSprite instanceof THREE.Group && node.type === "3dobject") {
             groupOrSprite.traverse((child: any) => {
-                if (child.isMesh) {
-                    if (!child.userData.originalEmissive) {
-                        child.userData.originalEmissive = child.material.emissive ? child.material.emissive.clone() : new THREE.Color(0x000000);
-                    }
-                    if ((selectedNode && node.id === selectedNode.id) || selectedNodeList.some(n => n.id === node.id)) {
-                        // 選択時（単一・複数）: 白っぽく光らせる
-                        child.material.emissive = new THREE.Color(0x555555);
-                    } else {
-                        child.material.emissive = child.userData.originalEmissive;
-                    }
+                if (child.isMesh && child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach((material: any, index: number) => {
+                        if (material && 'emissive' in material) {
+                            const originalKey = `originalEmissive_${index}`;
+                            if (!child.userData[originalKey]) {
+                                child.userData[originalKey] = material.emissive ? material.emissive.clone() : new THREE.Color(0x000000);
+                            }
+                            if ((selectedNode && node.id === selectedNode.id) || selectedNodeList.some(n => n.id === node.id)) {
+                                // 選択時（単一・複数）: 白っぽく光らせる
+                                material.emissive = new THREE.Color(0x555555);
+                            } else {
+                                material.emissive = child.userData[originalKey];
+                            }
+                        }
+                    });
                 }
             });
         }
