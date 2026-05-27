@@ -467,9 +467,12 @@ def start_eel(develop):
 
     # Close splash screen after initialization
     if importlib.util.find_spec("pyi_splash"):
-        import pyi_splash
-        pyi_splash.update_text('UI Loaded ...')
-        pyi_splash.close()
+        try:
+            import pyi_splash
+            pyi_splash.update_text('UI Loaded ...')
+            pyi_splash.close()
+        except Exception:
+            pass
 
     # These will be queued until the first connection is made, but won't be repeated on a page reload
     # say_hello_py('')  # JavaScript側で未定義のため無効化
