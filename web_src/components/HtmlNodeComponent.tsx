@@ -218,8 +218,12 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
     </svg>
   );
 
+  const disabledStyle: React.CSSProperties = node.disabled ? {
+    opacity: 0.3,
+  } : {};
+
   return (
-    <div style={{ ...baseContainerStyle, ...specificStyle }} className={`node-html-content style-${style_id} type-${type}`}>
+    <div style={{ ...baseContainerStyle, ...specificStyle, ...disabledStyle }} className={`node-html-content style-${style_id} type-${type}`}>
       {backgroundElement}
       {leftBorder}
       {isHtmlLink && <LinkIcon />}

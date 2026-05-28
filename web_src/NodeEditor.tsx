@@ -1,4 +1,4 @@
-import React,{useState, forwardRef, useImperativeHandle, useEffect } from 'react'
+import React,{useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react'
 import { Modal, Input, Button, Flex, Select, Upload, Slider, ColorPicker, message } from 'antd';
 import { UploadOutlined, FolderOutlined, UserOutlined } from '@ant-design/icons';
 import _ from 'lodash';
@@ -8,9 +8,8 @@ import { storageService } from './services';
 interface ModalRef {
     showModal: (data: any) => void;
 }
-
 interface NodeEditorProps {
-    onRefreshNode: (node: any) => void;
+    onRefreshNode: (node: any, options?: { skipHistory?: boolean, initialNode?: any }) => void;
     onDeleteNode: (node: any) => void;
     onClose: () => void;
     open: boolean;
@@ -49,6 +48,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     
     const [editNode, setEditNode] = useState<Node | null>(null);
     const [iconImg, setIconImg] = useState<string>("");
+    const initialNodeRef = useRef<any>(null);
 
     const getBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -69,6 +69,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             }
             const base64 = await getBase64(file);
             setIconImg(base64);
+            // アイコン画像変更時もプレビューをトリガー
+            triggerPreview({ iconImg: base64 });
             return false;
         },
         customRequest: () => {},
@@ -76,6 +78,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
 
     useImperativeHandle(ref, () => ({
         showModal: (node: any) => {
+            initialNodeRef.current = _.cloneDeep(node);
             setContents(node.name);
             // style_idはnodeからそのまま取得する
             setStyleId(node.style_id || 1);
@@ -95,132 +98,195 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         }
     }));
 
+    const getUpdatedNode = (targetNode: any, currentStates: {
+        contents: string;
+        styleId: number;
+        deadline: string;
+        priority: number | null;
+        urgency: number | null;
+        assignee: string;
+        imageSize: number;
+        nodeType: string;
+        url: string;
+        filePath: string;
+        folderPath: string;
+        iconImg: string;
+        scale?: number;
+    }) => {
+        const nodeToUpdate: any = _.cloneDeep(targetNode);
+        
+        // 編集時にロゴ画像は削除する（最初だけ表示する仕様のため）
+        if (nodeToUpdate.img === "logo.png") {
+            delete nodeToUpdate.img;
+        }
+
+        nodeToUpdate.name = currentStates.contents;
+        nodeToUpdate.icon_img = currentStates.iconImg;
+        nodeToUpdate.icon_size = currentStates.imageSize; // 画像サイズの保存
+        nodeToUpdate.type = currentStates.nodeType; // ノードタイプの保存
+        
+        // タイプ固有の属性を保存
+        switch (currentStates.nodeType) {
+            case "normal":
+                nodeToUpdate.style_id = currentStates.styleId;
+                nodeToUpdate.size_x = 200; // デフォルトサイズ
+                nodeToUpdate.size_y = 120;
+                delete nodeToUpdate.deadline;
+                delete nodeToUpdate.priority;
+                delete nodeToUpdate.urgency;
+                delete nodeToUpdate.assignee;
+                delete nodeToUpdate.url;
+                delete nodeToUpdate.file_path;
+                delete nodeToUpdate.folder_path;
+                break;
+            case "issue":
+                nodeToUpdate.style_id = currentStates.styleId;
+                nodeToUpdate.size_x = 300; 
+                nodeToUpdate.size_y = 200;
+                delete nodeToUpdate.deadline;
+                delete nodeToUpdate.priority;
+                delete nodeToUpdate.urgency;
+                delete nodeToUpdate.assignee;
+                delete nodeToUpdate.url;
+                delete nodeToUpdate.file_path;
+                delete nodeToUpdate.folder_path;
+                break;
+            case "task":
+                nodeToUpdate.style_id = 1;
+                nodeToUpdate.deadline = currentStates.deadline;
+                nodeToUpdate.priority = currentStates.priority;
+                nodeToUpdate.urgency = currentStates.urgency;
+                nodeToUpdate.assignee = currentStates.assignee;
+                nodeToUpdate.size_x = 250;
+                nodeToUpdate.size_y = 150;
+                delete nodeToUpdate.url;
+                delete nodeToUpdate.file_path;
+                delete nodeToUpdate.folder_path;
+                break;
+            case "link":
+                nodeToUpdate.style_id = 1;
+                nodeToUpdate.url = currentStates.url;
+                nodeToUpdate.size_x = 250;
+                nodeToUpdate.size_y = 100;
+                delete nodeToUpdate.deadline;
+                delete nodeToUpdate.priority;
+                delete nodeToUpdate.urgency;
+                delete nodeToUpdate.assignee;
+                delete nodeToUpdate.file_path;
+                delete nodeToUpdate.folder_path;
+                break;
+            case "file":
+                nodeToUpdate.style_id = 1;
+                nodeToUpdate.file_path = currentStates.filePath;
+                nodeToUpdate.size_x = 250;
+                nodeToUpdate.size_y = 100;
+                delete nodeToUpdate.deadline;
+                delete nodeToUpdate.priority;
+                delete nodeToUpdate.urgency;
+                delete nodeToUpdate.assignee;
+                delete nodeToUpdate.url;
+                delete nodeToUpdate.folder_path;
+                break;
+            case "folder":
+                nodeToUpdate.style_id = 1;
+                nodeToUpdate.folder_path = currentStates.folderPath;
+                nodeToUpdate.size_x = 250;
+                nodeToUpdate.size_y = 100;
+                delete nodeToUpdate.deadline;
+                delete nodeToUpdate.priority;
+                delete nodeToUpdate.urgency;
+                delete nodeToUpdate.assignee;
+                delete nodeToUpdate.url;
+                delete nodeToUpdate.file_path;
+                break;
+            case "3dobject":
+                nodeToUpdate.style_id = currentStates.styleId;
+                nodeToUpdate.scale = currentStates.scale !== undefined ? currentStates.scale : (targetNode.scale || 1.0);
+                delete nodeToUpdate.deadline;
+                delete nodeToUpdate.priority;
+                delete nodeToUpdate.urgency;
+                delete nodeToUpdate.assignee;
+                delete nodeToUpdate.url;
+                delete nodeToUpdate.file_path;
+                delete nodeToUpdate.folder_path;
+                delete nodeToUpdate.icon_img;
+                delete nodeToUpdate.icon_size;
+                break;
+        }
+        return nodeToUpdate;
+    };
+
+    const triggerPreview = (updatedFields: any) => {
+        if (!editNode) return;
+
+        const currentStates = {
+            contents: updatedFields.contents !== undefined ? updatedFields.contents : contents,
+            styleId: updatedFields.styleId !== undefined ? updatedFields.styleId : styleId,
+            deadline: updatedFields.deadline !== undefined ? updatedFields.deadline : deadline,
+            priority: updatedFields.priority !== undefined ? updatedFields.priority : priority,
+            urgency: updatedFields.urgency !== undefined ? updatedFields.urgency : urgency,
+            assignee: updatedFields.assignee !== undefined ? updatedFields.assignee : assignee,
+            imageSize: updatedFields.imageSize !== undefined ? updatedFields.imageSize : imageSize,
+            nodeType: updatedFields.nodeType !== undefined ? updatedFields.nodeType : nodeType,
+            url: updatedFields.url !== undefined ? updatedFields.url : url,
+            filePath: updatedFields.filePath !== undefined ? updatedFields.filePath : filePath,
+            folderPath: updatedFields.folderPath !== undefined ? updatedFields.folderPath : folderPath,
+            iconImg: updatedFields.iconImg !== undefined ? updatedFields.iconImg : iconImg,
+            scale: updatedFields.scale !== undefined ? updatedFields.scale : editNode.scale,
+        };
+
+        const previewNode = getUpdatedNode(editNode, currentStates);
+        props.onRefreshNode(previewNode, { skipHistory: true });
+    };
     const handleOk = () => {
         if (editNode){
-            // 元のノードをディープコピーして、そのコピーに変更を適用する
-            const nodeToUpdate: any = _.cloneDeep(editNode);
-            
-            // 編集時にロゴ画像は削除する（最初だけ表示する仕様のため）
-            if (nodeToUpdate.img === "logo.png") {
-                delete nodeToUpdate.img;
-            }
+            const nodeToUpdate = getUpdatedNode(editNode, {
+                contents,
+                styleId,
+                deadline,
+                priority,
+                urgency,
+                assignee,
+                imageSize,
+                nodeType,
+                url,
+                filePath,
+                folderPath,
+                iconImg,
+                scale: editNode.scale
+            });
 
-            nodeToUpdate.name = contents;
-            nodeToUpdate.icon_img = iconImg;
-            nodeToUpdate.icon_size = imageSize; // 画像サイズの保存
-            nodeToUpdate.type = nodeType; // ノードタイプの保存
-            
-            // タイプ固有の属性を保存
-            switch (nodeType) {
-                case "normal":
-                    nodeToUpdate.style_id = styleId;
-                    nodeToUpdate.size_x = 200; // デフォルトサイズ
-                    nodeToUpdate.size_y = 120;
-                    delete nodeToUpdate.deadline;
-                    delete nodeToUpdate.priority;
-                    delete nodeToUpdate.urgency;
-                    delete nodeToUpdate.assignee;
-                    delete nodeToUpdate.url;
-                    delete nodeToUpdate.file_path;
-                    delete nodeToUpdate.folder_path;
-                    break;
-                case "issue":
-                    nodeToUpdate.style_id = styleId;
-                    nodeToUpdate.size_x = 300; 
-                    nodeToUpdate.size_y = 200;
-                    delete nodeToUpdate.deadline;
-                    delete nodeToUpdate.priority;
-                    delete nodeToUpdate.urgency;
-                    delete nodeToUpdate.assignee;
-                    delete nodeToUpdate.url;
-                    delete nodeToUpdate.file_path;
-                    delete nodeToUpdate.folder_path;
-                    break;
-                case "task":
-                    nodeToUpdate.style_id = 1;
-                    nodeToUpdate.deadline = deadline;
-                    nodeToUpdate.priority = priority;
-                    nodeToUpdate.urgency = urgency;
-                    nodeToUpdate.assignee = assignee;
-                    nodeToUpdate.size_x = 250;
-                    nodeToUpdate.size_y = 150;
-                    delete nodeToUpdate.url;
-                    delete nodeToUpdate.file_path;
-                    delete nodeToUpdate.folder_path;
-                    break;
-                case "link":
-                    nodeToUpdate.style_id = 1;
-                    nodeToUpdate.url = url;
-                    nodeToUpdate.size_x = 250;
-                    nodeToUpdate.size_y = 100;
-                    delete nodeToUpdate.deadline;
-                    delete nodeToUpdate.priority;
-                    delete nodeToUpdate.urgency;
-                    delete nodeToUpdate.assignee;
-                    delete nodeToUpdate.file_path;
-                    delete nodeToUpdate.folder_path;
-                    
-                    // URLが有効で、かつ変更されている場合にOGP画像を取得
-                    if (url && url !== editNode.url) {
-                        storageService.getOgpImage(url).then((imgData: string | null) => {
-                            if (imgData) {
-                                nodeToUpdate.icon_img = imgData;
-                                props.onRefreshNode(nodeToUpdate);
-                            }
-                        }).catch((err) => console.error("Error getting OGP image:", err));
+            // URLが有効で、かつ変更されている場合にOGP画像を取得
+            if (nodeType === "link" && url && url !== initialNodeRef.current?.url) {
+                storageService.getOgpImage(url).then((imgData: string | null) => {
+                    if (imgData) {
+                        const finalNode = { ...nodeToUpdate, icon_img: imgData };
+                        props.onRefreshNode(finalNode, { initialNode: initialNodeRef.current }); // 確定保存（履歴に追加、初期状態を指定）
+                    } else {
+                        props.onRefreshNode(nodeToUpdate, { initialNode: initialNodeRef.current });
                     }
-                    break;
-                case "file":
-                    nodeToUpdate.style_id = 1;
-                    nodeToUpdate.file_path = filePath;
-                    nodeToUpdate.size_x = 250;
-                    nodeToUpdate.size_y = 100;
-                    delete nodeToUpdate.deadline;
-                    delete nodeToUpdate.priority;
-                    delete nodeToUpdate.urgency;
-                    delete nodeToUpdate.assignee;
-                    delete nodeToUpdate.url;
-                    delete nodeToUpdate.folder_path;
-                    break;
-                case "folder":
-                    nodeToUpdate.style_id = 1;
-                    nodeToUpdate.folder_path = folderPath;
-                    nodeToUpdate.size_x = 250;
-                    nodeToUpdate.size_y = 100;
-                    delete nodeToUpdate.deadline;
-                    delete nodeToUpdate.priority;
-                    delete nodeToUpdate.urgency;
-                    delete nodeToUpdate.assignee;
-                    delete nodeToUpdate.url;
-                    delete nodeToUpdate.file_path;
-                    break;
-                case "3dobject":
-                    // 3Dオブジェクト用の属性を設定
-                    nodeToUpdate.style_id = styleId;
-                    nodeToUpdate.scale = editNode.scale || 1.0;
-                    // 不要な属性を削除
-                    delete nodeToUpdate.deadline;
-                    delete nodeToUpdate.priority;
-                    delete nodeToUpdate.urgency;
-                    delete nodeToUpdate.assignee;
-                    delete nodeToUpdate.url;
-                    delete nodeToUpdate.file_path;
-                    delete nodeToUpdate.folder_path;
-                    delete nodeToUpdate.icon_img;
-                    delete nodeToUpdate.icon_size;
-                    break;
+                }).catch((err) => {
+                    console.error("Error getting OGP image:", err);
+                    props.onRefreshNode(nodeToUpdate, { initialNode: initialNodeRef.current });
+                });
+            } else {
+                // 最新の入力内容で確定保存
+                props.onRefreshNode(nodeToUpdate, { initialNode: initialNodeRef.current });
             }
-            
-            // 変更を適用したコピーを渡す
-            props.onRefreshNode(nodeToUpdate);
         }
         props.onClose();
     };
+
   
     const handleCancel = () => {
         props.onClose();
-        if (editNode && _.has(editNode, 'isNew') && editNode.isNew){
-            props.onDeleteNode(editNode);
+        if (editNode) {
+            if (_.has(editNode, 'isNew') && editNode.isNew) {
+                props.onDeleteNode(editNode);
+            } else if (initialNodeRef.current) {
+                // プレビュー変更を破棄して、初期状態でノードを再描画（履歴登録はスキップ）
+                props.onRefreshNode(initialNodeRef.current, { skipHistory: true });
+            }
         }
     };
 
@@ -229,6 +295,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             const selectedPath = await storageService.selectAnyFile();
             if (selectedPath) {
                 setFilePath(selectedPath);
+                triggerPreview({ filePath: selectedPath });
             }
         } catch (error: any) {
             console.error('Error selecting file:', error);
@@ -241,6 +308,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             const selectedPath = await storageService.selectFolder();
             if (selectedPath) {
                 setFolderPath(selectedPath);
+                triggerPreview({ folderPath: selectedPath });
             }
         } catch (error: any) {
             console.error('Error selecting folder:', error);
@@ -264,7 +332,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                 style={{ flex: 1 }}
                                 type="datetime-local"
                                 value={deadline}
-                                onChange={(e) => setDeadline(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setDeadline(val);
+                                    triggerPreview({ deadline: val });
+                                }}
                             />
                         </Flex>
                         <Flex gap="middle" align="center">
@@ -272,7 +344,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                             <Select
                                 style={{ flex: 1 }}
                                 value={priority}
-                                onChange={(value) => setPriority(value)}
+                                onChange={(value) => {
+                                    setPriority(value);
+                                    triggerPreview({ priority: value });
+                                }}
                                 options={[
                                     { value: null, label: '未選択' },
                                     { value: 1, label: '最低' },
@@ -288,7 +363,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                             <Select
                                 style={{ flex: 1 }}
                                 value={urgency}
-                                onChange={(value) => setUrgency(value)}
+                                onChange={(value) => {
+                                    setUrgency(value);
+                                    triggerPreview({ urgency: value });
+                                }}
                                 options={[
                                     { value: null, label: '未選択' },
                                     { value: 1, label: '最低' },
@@ -305,7 +383,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                 style={{ flex: 1 }}
                                 prefix={<UserOutlined rev="" />}
                                 value={assignee}
-                                onChange={(e) => setAssignee(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setAssignee(val);
+                                    triggerPreview({ assignee: val });
+                                }}
                             />
                         </Flex>
                     </>
@@ -318,7 +400,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                             style={{ flex: 1 }}
                             placeholder="https://example.com"
                             value={url}
-                            onChange={(e) => setUrl(e.target.value)}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setUrl(val);
+                                triggerPreview({ url: val });
+                            }}
                         />
                     </Flex>
                 );
@@ -328,7 +414,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                         <Input
                             placeholder="ファイルパス"
                             value={filePath}
-                            onChange={(e) => setFilePath(e.target.value)}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setFilePath(val);
+                                triggerPreview({ filePath: val });
+                            }}
                             style={{ flex: 1 }}
                         />
                         <Button 
@@ -344,7 +434,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                         <Input
                             placeholder="フォルダパス"
                             value={folderPath}
-                            onChange={(e) => setFolderPath(e.target.value)}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setFolderPath(val);
+                                triggerPreview({ folderPath: val });
+                            }}
                             style={{ flex: 1 }}
                         />
                         <Button 
@@ -362,7 +456,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                             <Select
                                 style={{ flex: 1 }}
                                 value={styleId}
-                                onChange={(value) => setStyleId(value)}
+                                onChange={(value) => {
+                                    setStyleId(value);
+                                    triggerPreview({ styleId: value });
+                                }}
                                 options={[
                                     { value: 1, label: 'Horse' },
                                     { value: 2, label: 'Watch' },
@@ -385,6 +482,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                         if (editNode) {
                                             const updatedNode = { ...editNode, scale: value };
                                             setEditNode(updatedNode);
+                                            triggerPreview({ scale: value });
                                         }
                                     }}
                                 />
@@ -457,7 +555,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
               <Select
                 style={{ flex: 1 }}
                 value={nodeType}
-                onChange={(value) => setNodeType(value)}
+                onChange={(value) => {
+                    setNodeType(value);
+                    triggerPreview({ nodeType: value });
+                }}
                 options={[
                   { value: "normal", label: 'ノーマル' },
                   { value: "issue", label: '課題' },
@@ -472,10 +573,15 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             <Input.TextArea 
               placeholder="Contents" 
               value={contents} 
-              onChange={(e) => setContents(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setContents(val);
+                triggerPreview({ contents: val });
+              }}
               autoSize={{ minRows: 3, maxRows: 6 }}
               onPressEnter={(e) => {
-                if (e.shiftKey) {
+                // 改行はEnter、確定はCtrl+Enter（またはCmd+Enter）
+                if (e.ctrlKey || e.metaKey) {
                   e.preventDefault();
                   handleOk();
                 }
@@ -488,7 +594,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 <Select
                   style={{ flex: 1 }}
                   value={styleId}
-                  onChange={(value) => setStyleId(value)}
+                  onChange={(value) => {
+                      setStyleId(value);
+                      triggerPreview({ styleId: value });
+                  }}
                   options={[
                     { value: 1, label: 'スタイル1' },
                     { value: 2, label: 'スタイル2' },
@@ -505,7 +614,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 <Select
                   style={{ flex: 1 }}
                   value={styleId}
-                  onChange={(value) => setStyleId(value)}
+                  onChange={(value) => {
+                      setStyleId(value);
+                      triggerPreview({ styleId: value });
+                  }}
                   options={[
                     { value: 1, label: '電球' },
                     { value: 2, label: '土星' },
@@ -544,7 +656,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                         min={150}
                         max={1000}
                         value={imageSize}
-                        onChange={(value) => setImageSize(value)}
+                        onChange={(value) => {
+                            setImageSize(value);
+                            triggerPreview({ imageSize: value });
+                        }}
                       />
                     </Flex>
                   )}

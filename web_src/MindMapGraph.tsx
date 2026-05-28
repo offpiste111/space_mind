@@ -301,6 +301,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     nodes: [new_node],
                     links: []
                 }));
+                setSelectedNode(new_node);
                 
                 // 編集モーダルを表示
                 //props.onNodeEdit(new_node);
@@ -308,6 +309,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 // cameraプロパティがあれば分離（stateには含めない）
                 const { camera: cameraData, ...restGraphData } = graphData;
                 setGraphData(restGraphData);
+                
+                if (restGraphData.nodes && restGraphData.nodes.length > 0) {
+                    setSelectedNode(restGraphData.nodes[0]);
+                }
                 
                 // カメラ情報があれば復元（グラフの初期化完了後に実行）
                 if (cameraData && fgRef.current) {
@@ -332,12 +337,14 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 }
             }
         },
-        refreshNode: (node:any) => {
+        refreshNode: (node:any, options?: { skipHistory?: boolean, initialNode?: any }) => {
             console.log('refreshNode', node);
             
-            // 更新前のノードの状態を取得（ディープコピーを作成）
+            // 更新前のノードの状態を取得（オプションで渡されたinitialNodeを最優先し、なければ現在のコピーを作成）
             const originalNode = graphData.nodes.find(n => n.id === node.id);
-            const originalNodeCopy = originalNode ? cloneDeep(originalNode) : null;
+            const originalNodeCopy = options?.initialNode 
+                ? cloneDeep(options.initialNode) 
+                : (originalNode ? cloneDeep(originalNode) : null);
             const isNew = node && has(node, 'isNew');
             
             // nodeがコピーでないことを確認し、コピーを作成
@@ -352,13 +359,15 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 links.forEach(link => {
                     refreshLink(link);
                 });         
-                addToHistory('add_node', {"node":node, "links":links});
+                if (!options?.skipHistory) {
+                    addToHistory('add_node', {"node":node, "links":links});
+                }
             }
             // 更新日時を設定
             node.updatedAt = new Date().toISOString();
             
             // ノードが新規でない場合、履歴に追加
-            if (!isNew && originalNodeCopy) {
+            if (!isNew && originalNodeCopy && !options?.skipHistory) {
                 addToHistory('edit_node', {
                     before: originalNodeCopy,
                     after: node
@@ -506,26 +515,52 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         },
         // 新規ノード追加用のインターフェース
         addNode: (newNode:any) => {
-
             if (selectedNode){
-                newNode.fx = selectedNode.fx;
-                newNode.fy = selectedNode.fy;
-                newNode.fz = selectedNode.fz;                           
+                const px = selectedNode.fx !== undefined ? selectedNode.fx : (selectedNode.x || 0);
+                const py = selectedNode.fy !== undefined ? selectedNode.fy : (selectedNode.y || 0);
+                const pz = selectedNode.fz !== undefined ? selectedNode.fz : (selectedNode.z || 0);
+
+                let cx = 0, cy = 0, cz = 500;
+                if (fgRef.current) {
+                    const camera = fgRef.current.camera();
+                    if (camera && camera.position) {
+                        cx = camera.position.x;
+                        cy = camera.position.y;
+                        cz = camera.position.z;
+                    }
+                }
+
+                const dx = cx - px;
+                const dy = cy - py;
+                const dz = cz - pz;
+                const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+                const ux = len > 0 ? dx / len : 0;
+                const uy = len > 0 ? dy / len : 0;
+                const uz = len > 0 ? dz / len : 1;
+
+                const distanceToCamera = 150;
+                const randomOffsetRange = 60;
+                const rx = (Math.random() - 0.5) * randomOffsetRange;
+                const ry = (Math.random() - 0.5) * randomOffsetRange;
+
+                newNode.fx = px + ux * distanceToCamera + rx;
+                newNode.fy = py + uy * distanceToCamera + ry;
+                newNode.fz = pz + uz * distanceToCamera;
+            } else {
+                newNode.fx = (newNode.fx || 0) + (10 + Math.floor(Math.random() * 21));
+                newNode.fy = (newNode.fy || 0) + (10 + Math.floor(Math.random() * 21));
+                newNode.fz = (newNode.fz || 0) + (10 + Math.floor(Math.random() * 21));
             }
             
             const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
             newNode.id = nodeId;
-            newNode.fx = newNode.fx + (10 + Math.floor(Math.random() * 21));
-            newNode.fy = newNode.fy + (10 + Math.floor(Math.random() * 21));
-            newNode.fz = newNode.fz + (10 + Math.floor(Math.random() * 21));
             newNode.isNew = true;
             
             // 新規ノードを追加
             props.onRefreshNode(newNode);
             graphData.nodes.push(newNode);
             fgRef.current.refresh();
-
-
         },
         // 新規ノード追加用のインターフェース
         addNewNode: () => {
@@ -534,15 +569,53 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
             const groupId = selectedNode.group || 1;
             const now = new Date().toISOString();
+
+            // 親ノードの位置
+            const px = selectedNode.fx !== undefined ? selectedNode.fx : (selectedNode.x || 0);
+            const py = selectedNode.fy !== undefined ? selectedNode.fy : (selectedNode.y || 0);
+            const pz = selectedNode.fz !== undefined ? selectedNode.fz : (selectedNode.z || 0);
+
+            // カメラの位置を取得
+            let cx = 0, cy = 0, cz = 500;
+            if (fgRef.current) {
+                const camera = fgRef.current.camera();
+                if (camera && camera.position) {
+                    cx = camera.position.x;
+                    cy = camera.position.y;
+                    cz = camera.position.z;
+                }
+            }
+
+            // 親ノードからカメラへの方向ベクトル
+            const dx = cx - px;
+            const dy = cy - py;
+            const dz = cz - pz;
+            const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+            // カメラに向かう手前への方向（単位ベクトル）
+            const ux = len > 0 ? dx / len : 0;
+            const uy = len > 0 ? dy / len : 0;
+            const uz = len > 0 ? dz / len : 1;
+
+            // カメラ方向に一定距離（例えば 150px）進め、少しランダムにずらす
+            const distanceToCamera = 150;
+            const randomOffsetRange = 60;
+            const rx = (Math.random() - 0.5) * randomOffsetRange;
+            const ry = (Math.random() - 0.5) * randomOffsetRange;
+
+            const targetFx = px + ux * distanceToCamera + rx;
+            const targetFy = py + uy * distanceToCamera + ry;
+            const targetFz = pz + uz * distanceToCamera;
+
             const newNode = { 
                 id: nodeId, 
                 img: "new_node.png", 
                 type: "normal",
                 group: groupId, 
                 style_id: 1, 
-                fx: (selectedNode.fx || selectedNode.x || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
-                fy: (selectedNode.fy || selectedNode.y || 0) + (Math.random() < 0.5 ? -1 : 1) * (Math.floor(Math.random() * 51) + 50), 
-                fz: selectedNode.fz,
+                fx: targetFx, 
+                fy: targetFy, 
+                fz: targetFz,
                 size_x: 200,
                 size_y: 120,
                 name: "",
@@ -813,11 +886,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 currentList = [selectedNode];
             }
 
-            if (currentList.some(n => n.id === node.id)) {
+            if (currentList.some(n => String(n.id) === String(node.id))) {
                 // 既に選択されている場合は解除
-                currentList = currentList.filter(n => n.id !== node.id);
+                currentList = currentList.filter(n => String(n.id) !== String(node.id));
                 setSelectedNodeList(currentList);
-                if (selectedNode?.id === node.id) {
+                if (String(selectedNode?.id) === String(node.id)) {
                     setSelectedNode(currentList.length > 0 ? currentList[currentList.length - 1] : null);
                 }
             } else {
@@ -833,7 +906,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         const timeSinceLastClick = now - lastClickTime.current;
         
         // ダブルクリック検出（指定ms以内に同じノードをクリック）
-        const timeSinceLastClickInterval = 600
+        const timeSinceLastClickInterval = 300; // 600msから300msに短縮し、誤動作を防止
         const isSameNode = lastClickedNode.current && String(node.id) === String(lastClickedNode.current.id);
         
         if (timeSinceLastClick < timeSinceLastClickInterval && isSameNode) {
@@ -858,7 +931,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         }
 
         // 選択されたノードを更新（変更がある場合のみ）
-        if (selectedNode?.id !== node.id) {
+        if (String(selectedNode?.id) !== String(node.id)) {
             setSelectedNode(node);
         }
 
@@ -884,7 +957,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             }
             clickTimeout.current = null;
         }, timeSinceLastClickInterval); // ダブルクリック判定時間と同じms待つ
-    }, [fgRef,selectedNodeList, graphData,funcMode]);
+    }, [fgRef,selectedNodeList, selectedNode, graphData,funcMode]);
     
     // ノードのダブルクリックを処理する関数
     const handleDoubleClick = (node: any) => {
@@ -913,9 +986,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         else {
             // 通常の選択モード（カメラ移動）
             if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
-                if (selectedNodeList.some(n => n.id === node.id)) {
+                if (selectedNodeList.length > 0) {
                     setSelectedNodeList([]);
                 }
+                setSelectedNode(node); // ダブルクリック時にも選択状態に設定する！
+                
                 const distance = 1000;
                 setLookAtTarget(new THREE.Vector3(node.x, node.y, node.z));
 
@@ -1043,13 +1118,13 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         }
 
         // ドラッグ中のノードが複数選択リストに含まれている場合、他の選択ノードも同じ移動量で移動させる
-        if (selectedNodeList.some(node => node.id === dragNode.id)) {
+        if (selectedNodeList.some(node => String(node.id) === String(dragNode.id))) {
             if (dragNode.px !== undefined) {
                 dragNode.dx = dragNode.x - dragNode.px;
                 dragNode.dy = dragNode.y - dragNode.py;
                 dragNode.dz = dragNode.z - dragNode.pz;
                 selectedNodeList.forEach(node => {
-                    if (node.id !== dragNode.id) {
+                    if (String(node.id) !== String(dragNode.id)) {
                         node.x = node.x + dragNode.dx;
                         node.y = node.y + dragNode.dy;
                         node.z = node.z + dragNode.dz;
@@ -1282,7 +1357,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 type: node.type,
                 icon_size: node.icon_size, // アイコンサイズの変更を検知
                 icon_img: !!node.icon_img, // アイコンの有無
-                img: node.img // imgの変更を検知
+                img: node.img, // imgの変更を検知
+                disabled: !!node.disabled // 無効化状態の変更を検知
             });
 
             if (!cache) {
@@ -1736,10 +1812,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     useEffect(() => {
         htmlNodeCache.current.forEach((cache, nodeId) => {
             if (cache && cache.div) {
-                if (selectedNode && nodeId === selectedNode.id) {
+                if (selectedNode && String(nodeId) === String(selectedNode.id)) {
                     // 単一選択: 白色の強い光彩
                     cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
-                } else if (selectedNodeList.some(n => n.id === nodeId)) {
+                } else if (selectedNodeList.some(n => String(n.id) === String(nodeId))) {
                     // 複数選択: 白色の強い光彩 (単一と同じく白にする)
                     cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
                 } else {
@@ -1761,10 +1837,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         // 3Dオブジェクト（古い形式のスプライトなど）
         if (groupOrSprite instanceof THREE.Sprite) {
             const material = groupOrSprite.material as THREE.SpriteMaterial;
-            if (selectedNode && node.id === selectedNode.id) {
+            if (selectedNode && String(node.id) === String(selectedNode.id)) {
                 material.color = new THREE.Color(0xffffff);
                 material.opacity = (node.disabled) ? 0.1 : 1;
-            } else if (selectedNodeList.some(n => n.id === node.id)) {
+            } else if (selectedNodeList.some(n => String(n.id) === String(node.id))) {
                 material.color = new THREE.Color(0x4169e1);
                 material.opacity = (node.disabled) ? 0.1 : 1;
             } else {
@@ -1776,7 +1852,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         // HTMLノードの光彩（drop-shadow）制御
         const cache = htmlNodeCache.current.get(node.id);
         if (cache && cache.div) {
-            if ((selectedNode && node.id === selectedNode.id) || selectedNodeList.some(n => n.id === node.id)) {
+            if ((selectedNode && String(node.id) === String(selectedNode.id)) || selectedNodeList.some(n => String(n.id) === String(node.id))) {
                 // 選択時（単一・複数）: 白色の強い光彩で2倍の幅に
                 cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
             } else {
@@ -1796,7 +1872,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                             if (!child.userData[originalKey]) {
                                 child.userData[originalKey] = material.emissive ? material.emissive.clone() : new THREE.Color(0x000000);
                             }
-                            if ((selectedNode && node.id === selectedNode.id) || selectedNodeList.some(n => n.id === node.id)) {
+                            if ((selectedNode && String(node.id) === String(selectedNode.id)) || selectedNodeList.some(n => String(n.id) === String(node.id))) {
                                 // 選択時（単一・複数）: 白っぽく光らせる
                                 material.emissive = new THREE.Color(0x555555);
                             } else {

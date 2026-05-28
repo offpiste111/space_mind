@@ -206,7 +206,7 @@ const App = () => {
     interface MindMapGraphRef {
         getGraphData: () => any;
         setGraphData: (data: any) => void;
-        refreshNode: (node: any) => void;
+        refreshNode: (node: any, options?: { skipHistory?: boolean, initialNode?: any }) => void;
         deleteNode: (node: any) => void;
         refreshLink: (link: any) => void;
         deleteLink: (link: any) => void;
@@ -385,7 +385,7 @@ const App = () => {
         }
     }
 
-    const handleRefreshNode = (node:any) => {
+    const handleRefreshNode = (node:any, options?: { skipHistory?: boolean, initialNode?: any }) => {
         sayHelloJS( 'Javascript World!' )
         if (window.eel && import.meta.env.VITE_APP_MODE !== 'web') {
             try {
@@ -411,7 +411,7 @@ const App = () => {
         }
 
         if(mindMapGraphRef.current){
-            mindMapGraphRef.current.refreshNode(node);
+            mindMapGraphRef.current.refreshNode(node, options);
         }
     }
 
