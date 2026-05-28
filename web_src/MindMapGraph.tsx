@@ -1349,12 +1349,15 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             // 描画が必要なデータを文字列化して比較（キャッシュの無駄な更新を防ぐ）
             const currentData = JSON.stringify({
                 name: node.name,
+                contents: node.contents, // テキスト内容の変更を検知（プレビュー用）
                 deadline: node.deadline,
                 priority: node.priority,
                 urgency: node.urgency,
                 assignee: node.assignee,
                 style_id: node.style_id,
                 type: node.type,
+                url: node.url, // URLの変更を検知
+                scale: node.scale, // スケールの変更を検知
                 icon_size: node.icon_size, // アイコンサイズの変更を検知
                 icon_img: !!node.icon_img, // アイコンの有無
                 img: node.img, // imgの変更を検知
