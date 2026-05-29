@@ -231,10 +231,11 @@ const App = () => {
         arrangeNodes: (layout: string) => void;
         getCameraState: () => any;
         setGlobalBackground: (bg: string) => void;
+        getNodeScreenCoords: (node: any) => { x: number, y: number } | null;
     }
 
     interface ModalRef {
-        showModal: (data: any) => void;
+        showModal: (data: any, coords?: { x: number, y: number } | null) => void;
     }
 
     const mindMapGraphRef = useRef<MindMapGraphRef>(null)
@@ -282,8 +283,9 @@ const App = () => {
 
     const handleNodeEdit = (node:any) => {
         if(nodeEditorRef.current){
+            const coords = mindMapGraphRef.current?.getNodeScreenCoords(node);
             setIsNodeEditorOpen(true);
-            nodeEditorRef.current.showModal(node);
+            nodeEditorRef.current.showModal(node, coords);
         }
     }
 
@@ -313,8 +315,9 @@ const App = () => {
             onClick: () => {
                 const selectedNode = mindMapGraphRef.current?.getSelectedNode();
                 if (selectedNode && nodeEditorRef.current) {
+                    const coords = mindMapGraphRef.current?.getNodeScreenCoords(selectedNode);
                     setIsNodeEditorOpen(true);
-                    nodeEditorRef.current.showModal(selectedNode);
+                    nodeEditorRef.current.showModal(selectedNode, coords);
                 }
             }
         },

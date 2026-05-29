@@ -92,7 +92,19 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     
     const [editNode, setEditNode] = useState<Node | null>(null);
     const [iconImg, setIconImg] = useState<string>("");
+    const [popupCoords, setPopupCoords] = useState<{ x: number, y: number } | null>(null);
     const initialNodeRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (props.open) {
+            setTimeout(() => {
+                const textarea = document.querySelector('.node-editor-popup textarea') as HTMLTextAreaElement;
+                if (textarea) {
+                    textarea.focus();
+                }
+            }, 100);
+        }
+    }, [props.open]);
 
     const getBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -121,7 +133,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     };
 
     useImperativeHandle(ref, () => ({
-        showModal: (node: any) => {
+        showModal: (node: any, coords?: { x: number, y: number }) => {
             initialNodeRef.current = _.cloneDeep(node);
             setContents(node.name);
             // style_idはnodeからそのまま取得する
@@ -142,6 +154,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setNodePatternColor(node.node_pattern_color !== undefined ? node.node_pattern_color : 0); // 模様色
             setNodeCustomBgColor(node.node_custom_bg_color || '#ddeeff'); // カスタム背景色
             setEditNode(node);
+            setPopupCoords(coords || null);
         }
     }));
 
@@ -554,295 +567,372 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         }
     };
 
+    // 表示位置のインテリジェントな計算
+    const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const popupWidth = 380;
+    const popupHeight = 580; // 目安の高さ
+
+    let left = windowWidth / 2 - popupWidth / 2; // デフォルト画面中央
+    let top = Math.max(50, windowHeight / 2 - popupHeight / 2);
+    let direction: 'right' | 'left' | 'center' = 'center';
+
+    if (popupCoords) {
+        // スクリーン座標がある場合、ノードの右または左に配置
+        if (popupCoords.x < windowWidth / 2) {
+            direction = 'right';
+            left = popupCoords.x + 80; // ノードの右側（隙間80px）
+        } else {
+            direction = 'left';
+            left = popupCoords.x - popupWidth - 80; // ノードの左側（隙間80px）
+        }
+        // Y座標はノードの中心に合わせる（ポップアップ高さの中央をノードに合わせる）
+        top = Math.max(20, Math.min(windowHeight - popupHeight - 20, popupCoords.y - popupHeight / 2));
+    }
+
+    if (!props.open || !editNode) return null;
+
     return (
-        <>
-          <Modal 
-            title="Edit Node" 
-            open={props.open} 
-            onOk={handleOk} 
-            onCancel={handleCancel}
-            footer={
-              <Flex justify="space-between" align="center">
-                {editNode && !editNode.isNew && (
-                  <Flex gap="small">
-                    <Button danger onClick={() => {
-                      if (editNode) {
-                        props.onDeleteNode(editNode);
-                        props.onClose();
-                      }
-                    }}>
-                      削除
-                    </Button>
-                    <Button onClick={() => {
-                      if (editNode) {
-                        // 元のノードをディープコピーして、そのコピーに変更を適用する
-                        const nodeToUpdate = _.cloneDeep(editNode);
-                        nodeToUpdate.disabled = !nodeToUpdate.disabled;
-                        props.onRefreshNode(nodeToUpdate);
-                        props.onClose();
-                      }
-                    }}>
-                      {editNode.disabled ? '有効化' : '無効化'}
-                    </Button>
-                  </Flex>
-                )}
-                <Flex gap="small" style={{ marginLeft: editNode?.isNew ? 'auto' : 0 }}>
-                  <Button onClick={handleCancel}>
-                    キャンセル
-                  </Button>
-                  <Button type="primary" onClick={handleOk}>
-                    OK
-                  </Button>
-                </Flex>
-              </Flex>
-            }
-            afterOpenChange={(visible) => {
-              if (visible) {
-                setTimeout(() => {
-                  const textarea = document.querySelector('.ant-modal textarea') as HTMLTextAreaElement;
-                  if (textarea) {
-                    textarea.focus();
-                  }
-                }, 100);
-              }
-            }}
-          >
-          <Flex vertical gap="small">
-            
-            <Flex gap="middle" align="center">
-              <div style={{ width: '80px' }}>タイプ</div>
-              <Select
-                style={{ flex: 1 }}
-                value={nodeType}
-                onChange={(value) => {
-                    setNodeType(value);
-                    triggerPreview({ nodeType: value });
+        <div 
+            className="node-editor-popup"
+            style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 1000,
+                background: 'transparent', // コントラスト低下を防ぐため、完全に透明
+                pointerEvents: 'auto',
+            }} 
+            onClick={handleCancel}
+        >
+            <div 
+                style={{
+                    position: 'absolute',
+                    left: `${left}px`,
+                    top: `${top}px`,
+                    width: `${popupWidth}px`,
+                    background: '#ffffff',
+                    borderRadius: '16px',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.15), 0 1px 8px rgba(0, 0, 0, 0.06)',
+                    border: '1px solid #f0f0f0',
+                    padding: '24px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
+                    pointerEvents: 'auto',
+                    boxSizing: 'border-box',
                 }}
-                options={[
-                  { value: "normal", label: 'ノーマル' },
-                  { value: "issue", label: '課題' },
-                  { value: "task", label: 'タスク' },
-                  { value: "link", label: 'リンク' },
-                  { value: "file", label: 'ファイル' },
-                  { value: "folder", label: 'フォルダ' },
-                  { value: "3dobject", label: '3Dオブジェクト' },
-                ]}
-              />
-            </Flex>
-            <Input.TextArea 
-              placeholder="Contents" 
-              value={contents} 
-              onChange={(e) => {
-                const val = e.target.value;
-                setContents(val);
-                triggerPreview({ contents: val });
-              }}
-              autoSize={{ minRows: 3, maxRows: 6 }}
-              onPressEnter={(e) => {
-                // 改行はEnter、確定はCtrl+Enter（またはCmd+Enter）
-                if (e.ctrlKey || e.metaKey) {
-                  e.preventDefault();
-                  handleOk();
-                }
-              }}
-            />
-            {/* スタイル選択 */}
-            {(nodeType === "normal") ? (
-              <>
-              <Flex gap="middle" align="center">
-                <div style={{ width: '80px' }}>{"スタイル"}</div>
-                <Select
-                  style={{ flex: 1 }}
-                  value={styleId}
-                  onChange={(value) => {
-                      setStyleId(value);
-                      triggerPreview({ styleId: value });
-                  }}
-                  options={[
-                    { value: 1, label: 'シンプル' },
-                    { value: 3, label: 'メモ' },
-                    { value: 4, label: '強調' },
-                    { value: 5, label: 'ドット' },
-                    { value: 6, label: '破線' },
-                  ]}
-                />
-              </Flex>
-              {/* 背景色選択 */}
-              <Flex gap="middle" align="center">
-                <div style={{ width: '80px', fontSize: '13px' }}>背景色</div>
-                <Flex gap="6px" wrap="wrap" align="center">
-                  {(styleId === 4 ? EMPHASIS_BG_COLORS : BG_COLORS).map((color, idx) => (
-                    <div
-                      key={idx}
-                      title={COLOR_LABELS[idx]}
-                      onClick={() => {
-                        setNodeBgColor(idx);
-                        triggerPreview({ nodeBgColor: idx });
-                      }}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: '50%',
-                        background: color,
-                        border: nodeBgColor === idx ? '3px solid #333' : '2px solid #ccc',
-                        cursor: 'pointer',
-                        boxSizing: 'border-box',
-                        transition: 'border 0.15s',
-                      }}
-                    />
-                  ))}
-                  {/* カスタムカラーピッカー */}
-                  <ColorPicker
-                    value={nodeCustomBgColor}
-                    onChange={(color) => {
-                      const hex = color.toHexString();
-                      setNodeCustomBgColor(hex);
-                      setNodeBgColor(7);
-                      triggerPreview({ nodeBgColor: 7, nodeCustomBgColor: hex });
-                    }}
-                    trigger="click"
-                    size="small"
-                  >
-                    <div
-                      title="カスタムカラー"
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: '50%',
-                        background: nodeBgColor === 7
-                          ? nodeCustomBgColor
-                          : 'conic-gradient(red 0deg, yellow 60deg, lime 120deg, cyan 180deg, blue 240deg, magenta 300deg, red 360deg)',
-                        border: nodeBgColor === 7 ? '3px solid #333' : '2px solid #ccc',
-                        cursor: 'pointer',
-                        boxSizing: 'border-box',
-                        flexShrink: 0,
-                      }}
-                    />
-                  </ColorPicker>
-                </Flex>
-              </Flex>
-              {/* 模様色選択 */}
-              <Flex gap="middle" align="center">
-                <div style={{ width: '80px', fontSize: '13px' }}>模様色</div>
-                <Flex gap="6px" wrap="wrap">
-                  {(styleId === 4 ? EMPHASIS_PATTERN_COLORS : PATTERN_COLORS).map((color, idx) => (
-                    <div
-                      key={idx}
-                      title={COLOR_LABELS[idx]}
-                      onClick={() => {
-                        setNodePatternColor(idx);
-                        triggerPreview({ nodePatternColor: idx });
-                      }}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: '50%',
-                        background: color,
-                        border: nodePatternColor === idx ? '3px solid #333' : '2px solid #ccc',
-                        cursor: 'pointer',
-                        boxSizing: 'border-box',
-                        transition: 'border 0.15s',
-                      }}
-                    />
-                  ))}
-                  {/* 背景色と同じ（模様なし） */}
-                  {(() => {
-                    const currentBgColor = nodeBgColor === 7
-                      ? nodeCustomBgColor
-                      : (styleId === 4 ? EMPHASIS_BG_COLORS[nodeBgColor] : BG_COLORS[nodeBgColor]);
-                    return (
-                      <div
-                        key={7}
-                        title="背景色と同じ（模様なし）"
-                        onClick={() => {
-                          setNodePatternColor(7);
-                          triggerPreview({ nodePatternColor: 7 });
-                        }}
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: '50%',
-                          background: currentBgColor,
-                          border: nodePatternColor === 7 ? '3px solid #333' : '2px dashed #aaa',
-                          cursor: 'pointer',
-                          boxSizing: 'border-box',
-                          transition: 'border 0.15s',
-                        }}
-                      />
-                    );
-                  })()}
-                </Flex>
-              </Flex>
-              </>
-            ) : (nodeType === "issue") ? (
-              <Flex gap="middle" align="center">
-                <div style={{ width: '80px' }}>{"背景"}</div>
-                <Select
-                  style={{ flex: 1 }}
-                  value={styleId}
-                  onChange={(value) => {
-                      setStyleId(value);
-                      triggerPreview({ styleId: value });
-                  }}
-                  options={[
-                    { value: 1, label: '電球' },
-                    { value: 2, label: '土星' },
-                    { value: 3, label: '木' },
-                    { value: 4, label: '草花 1' },
-                    { value: 5, label: '草花 2' },
-                    { value: 6, label: '和紙' },
-                  ]}
-                />
-              </Flex>
-            ) : nodeType !== "3dobject" && (
-              <Flex gap="middle" align="center">
-                <div style={{ width: '80px' }}>スタイル</div>
-                <div style={{ flex: 1 }}>固定</div>
-              </Flex>
-            )}
-            {/* アイコン選択（3dobject以外で表示） */}
-            {nodeType !== "3dobject" && (
-              <Flex gap="middle" align="start">
-                <div style={{ width: '80px' }}>アイコン</div>
-                <Flex vertical style={{ flex: 1 }}>
-                  <Upload.Dragger {...uploadProps} style={{ padding: '6px', height: '70px', minHeight: 'auto' }}>
-                      <p className="ant-upload-drag-icon" style={{ marginTop: '2px', marginBottom: '2px' }}>
-                          <UploadOutlined rev="" style={{ fontSize: '16px' }} />
-                      </p>
-                      <p className="ant-upload-text" style={{ fontSize: '11px', marginBottom: '2px', lineHeight: '1.2' }}>クリックまたはドラッグで画像をアップロード</p>
-                  </Upload.Dragger>
-                  
-                  {(iconImg || imageSize !== 300) && (
-                    <Flex vertical style={{ marginTop: '8px' }}>
-                      <Flex align="center" style={{ marginBottom: '4px' }}>
-                        <div style={{ width: '360px', fontSize: '12px' }}>画像サイズ:</div>
-                        <div style={{ marginLeft: '8px', fontSize: '12px' }}>{imageSize}px</div>
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* 吹き出し of 矢印 */}
+                {direction === 'right' && (
+                    <div style={{
+                        position: 'absolute',
+                        left: '-12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderTop: '12px solid transparent',
+                        borderBottom: '12px solid transparent',
+                        borderRight: '12px solid #ffffff',
+                        filter: 'drop-shadow(-4px 0 2px rgba(0, 0, 0, 0.05))',
+                    }} />
+                )}
+                {direction === 'left' && (
+                    <div style={{
+                        position: 'absolute',
+                        right: '-12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderTop: '12px solid transparent',
+                        borderBottom: '12px solid transparent',
+                        borderLeft: '12px solid #ffffff',
+                        filter: 'drop-shadow(4px 0 2px rgba(0, 0, 0, 0.05))',
+                    }} />
+                )}
+
+                {/* タイトル領域 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#262626' }}>Edit Node</span>
+                    <Button type="text" onClick={handleCancel} style={{ color: '#8c8c8c' }}>✕</Button>
+                </div>
+
+                {/* 入力フォーム本体 */}
+                <div style={{ flex: 1, overflowY: 'auto', maxHeight: '60vh', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
+                    <Flex vertical gap="small">
+                      <Flex gap="middle" align="center">
+                        <div style={{ width: '80px' }}>タイプ</div>
+                        <Select
+                          style={{ flex: 1 }}
+                          value={nodeType}
+                          onChange={(value) => {
+                              setNodeType(value);
+                              triggerPreview({ nodeType: value });
+                          }}
+                          options={[
+                            { value: "normal", label: 'ノーマル' },
+                            { value: "issue", label: '課題' },
+                            { value: "task", label: 'タスク' },
+                            { value: "link", label: 'リンク' },
+                            { value: "file", label: 'ファイル' },
+                            { value: "folder", label: 'フォルダ' },
+                            { value: "3dobject", label: '3Dオブジェクト' },
+                          ]}
+                        />
                       </Flex>
-                      <Slider
-                        min={150}
-                        max={1000}
-                        value={imageSize}
-                        onChange={(value) => {
-                            setImageSize(value);
-                            triggerPreview({ imageSize: value });
+                      <Input.TextArea 
+                        placeholder="Contents" 
+                        value={contents} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setContents(val);
+                          triggerPreview({ contents: val });
+                        }}
+                        autoSize={{ minRows: 3, maxRows: 6 }}
+                        onPressEnter={(e) => {
+                          // 改行はEnter、確定はCtrl+Enter（またはCmd+Enter）
+                          if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            handleOk();
+                          }
                         }}
                       />
+                      {/* スタイル選択 */}
+                      {(nodeType === "normal") ? (
+                        <>
+                        <Flex gap="middle" align="center">
+                          <div style={{ width: '80px' }}>{"スタイル"}</div>
+                          <Select
+                            style={{ flex: 1 }}
+                            value={styleId}
+                            onChange={(value) => {
+                                setStyleId(value);
+                                triggerPreview({ styleId: value });
+                            }}
+                            options={[
+                              { value: 1, label: 'シンプル' },
+                              { value: 3, label: 'メモ' },
+                              { value: 4, label: '強調' },
+                              { value: 5, label: 'ドット' },
+                              { value: 6, label: '破線' },
+                            ]}
+                          />
+                        </Flex>
+                        {/* 背景色選択 */}
+                        <Flex gap="middle" align="center">
+                          <div style={{ width: '80px', fontSize: '13px' }}>背景色</div>
+                          <Flex gap="6px" wrap="wrap" align="center">
+                            {(styleId === 4 ? EMPHASIS_BG_COLORS : BG_COLORS).map((color, idx) => (
+                              <div
+                                key={idx}
+                                title={COLOR_LABELS[idx]}
+                                onClick={() => {
+                                  setNodeBgColor(idx);
+                                  triggerPreview({ nodeBgColor: idx });
+                                }}
+                                style={{
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: '50%',
+                                  background: color,
+                                  border: nodeBgColor === idx ? '3px solid #333' : '2px solid #ccc',
+                                  cursor: 'pointer',
+                                  boxSizing: 'border-box',
+                                  transition: 'border 0.15s',
+                                }}
+                              />
+                            ))}
+                            {/* カスタムカラーピッカー */}
+                            <ColorPicker
+                              value={nodeCustomBgColor}
+                              onChange={(color) => {
+                                const hex = color.toHexString();
+                                setNodeCustomBgColor(hex);
+                                setNodeBgColor(7);
+                                triggerPreview({ nodeBgColor: 7, nodeCustomBgColor: hex });
+                              }}
+                              trigger="click"
+                              size="small"
+                            >
+                              <div
+                                title="カスタムカラー"
+                                style={{
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: '50%',
+                                  background: nodeBgColor === 7
+                                    ? nodeCustomBgColor
+                                    : 'conic-gradient(red 0deg, yellow 60deg, lime 120deg, cyan 180deg, blue 240deg, magenta 300deg, red 360deg)',
+                                  border: nodeBgColor === 7 ? '3px solid #333' : '2px solid #ccc',
+                                  cursor: 'pointer',
+                                  boxSizing: 'border-box',
+                                  flexShrink: 0,
+                                }}
+                              />
+                            </ColorPicker>
+                          </Flex>
+                        </Flex>
+                        {/* 模様色選択 */}
+                        <Flex gap="middle" align="center">
+                          <div style={{ width: '80px', fontSize: '13px' }}>模様色</div>
+                          <Flex gap="6px" wrap="wrap">
+                            {(styleId === 4 ? EMPHASIS_PATTERN_COLORS : PATTERN_COLORS).map((color, idx) => (
+                              <div
+                                key={idx}
+                                title={COLOR_LABELS[idx]}
+                                onClick={() => {
+                                  setNodePatternColor(idx);
+                                  triggerPreview({ nodePatternColor: idx });
+                                }}
+                                style={{
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: '50%',
+                                  background: color,
+                                  border: nodePatternColor === idx ? '3px solid #333' : '2px solid #ccc',
+                                  cursor: 'pointer',
+                                  boxSizing: 'border-box',
+                                  transition: 'border 0.15s',
+                                }}
+                              />
+                            ))}
+                            {/* 背景色と同じ（模様なし） */}
+                            {(() => {
+                              const currentBgColor = nodeBgColor === 7
+                                ? nodeCustomBgColor
+                                : (styleId === 4 ? EMPHASIS_BG_COLORS[nodeBgColor] : BG_COLORS[nodeBgColor]);
+                              return (
+                                <div
+                                  key={7}
+                                  title="背景色と同じ（模様なし）"
+                                  onClick={() => {
+                                    setNodePatternColor(7);
+                                    triggerPreview({ nodePatternColor: 7 });
+                                  }}
+                                  style={{
+                                    width: 26,
+                                    height: 26,
+                                    borderRadius: '50%',
+                                    background: currentBgColor,
+                                    border: nodePatternColor === 7 ? '3px solid #333' : '2px dashed #aaa',
+                                    cursor: 'pointer',
+                                    boxSizing: 'border-box',
+                                    transition: 'border 0.15s',
+                                  }}
+                                />
+                              );
+                            })()}
+                          </Flex>
+                        </Flex>
+                        </>
+                      ) : (nodeType === "issue") ? (
+                        <Flex gap="middle" align="center">
+                          <div style={{ width: '80px' }}>{"背景"}</div>
+                          <Select
+                            style={{ flex: 1 }}
+                            value={styleId}
+                            onChange={(value) => {
+                                setStyleId(value);
+                                triggerPreview({ styleId: value });
+                            }}
+                            options={[
+                              { value: 1, label: '電球' },
+                              { value: 2, label: '土星' },
+                              { value: 3, label: '木' },
+                              { value: 4, label: '草花 1' },
+                              { value: 5, label: '草花 2' },
+                              { value: 6, label: '和紙' },
+                            ]}
+                          />
+                        </Flex>
+                      ) : nodeType !== "3dobject" && (
+                        <Flex gap="middle" align="center">
+                          <div style={{ width: '80px' }}>スタイル</div>
+                          <div style={{ flex: 1 }}>固定</div>
+                        </Flex>
+                      )}
+                      {/* アイコン選択（3dobject以外で表示） */}
+                      {nodeType !== "3dobject" && (
+                        <Flex gap="middle" align="start">
+                          <div style={{ width: '80px' }}>アイコン</div>
+                          <Flex vertical style={{ flex: 1 }}>
+                            <Upload.Dragger {...uploadProps} style={{ padding: '6px', height: '70px', minHeight: 'auto' }}>
+                                <p className="ant-upload-drag-icon" style={{ marginTop: '2px', marginBottom: '2px' }}>
+                                    <UploadOutlined rev="" style={{ fontSize: '16px' }} />
+                                </p>
+                                <p className="ant-upload-text" style={{ fontSize: '11px', marginBottom: '2px', lineHeight: '1.2' }}>クリックまたはドラッグで画像をアップロード</p>
+                            </Upload.Dragger>
+                            
+                            {(iconImg || imageSize !== 300) && (
+                              <Flex vertical style={{ marginTop: '8px' }}>
+                                <Flex align="center" style={{ marginBottom: '4px' }}>
+                                  <div style={{ width: '360px', fontSize: '12px' }}>画像サイズ:</div>
+                                  <div style={{ marginLeft: '8px', fontSize: '12px' }}>{imageSize}px</div>
+                                </Flex>
+                                <Slider
+                                  min={150}
+                                  max={1000}
+                                  value={imageSize}
+                                  onChange={(value) => {
+                                      setImageSize(value);
+                                      triggerPreview({ imageSize: value });
+                                  }}
+                                />
+                              </Flex>
+                            )}
+                            
+                            {iconImg && (
+                                <img src={iconImg} alt="Node icon" style={{ maxWidth: '100%', maxHeight: '120px', objectFit: 'contain', marginTop: '8px' }} />
+                            )}
+                          </Flex>
+                        </Flex>
+                      )}
+                      
+                      {renderTypeSpecificFields()}
                     </Flex>
-                  )}
-                  
-                  {iconImg && (
-                      <img src={iconImg} alt="Node icon" style={{ maxWidth: '100%', maxHeight: '120px', objectFit: 'contain', marginTop: '8px' }} />
-                  )}
-                </Flex>
-              </Flex>
-            )}
-            
-            {renderTypeSpecificFields()}
-            
-          </Flex>
-          </Modal>
-        </>
-      );
+                </div>
+
+                {/* フッター領域 */}
+                <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '16px', marginTop: '8px' }}>
+                  <Flex justify="space-between" align="center">
+                    {editNode && !editNode.isNew && (
+                      <Flex gap="small">
+                        <Button danger onClick={() => {
+                          if (editNode) {
+                            props.onDeleteNode(editNode);
+                            props.onClose();
+                          }
+                        }}>
+                          削除
+                        </Button>
+                        <Button onClick={() => {
+                          if (editNode) {
+                            // 元のノードをディープコピーして、そのコピーに変更を適用する
+                            const nodeToUpdate = _.cloneDeep(editNode);
+                            nodeToUpdate.disabled = !nodeToUpdate.disabled;
+                            props.onRefreshNode(nodeToUpdate);
+                            props.onClose();
+                          }
+                        }}>
+                          {editNode.disabled ? '有効化' : '無効化'}
+                        </Button>
+                      </Flex>
+                    )}
+                    <Flex gap="small" style={{ marginLeft: editNode?.isNew ? 'auto' : 0 }}>
+                      <Button onClick={handleCancel}>
+                        キャンセル
+                      </Button>
+                      <Button type="primary" onClick={handleOk}>
+                        OK
+                      </Button>
+                    </Flex>
+                  </Flex>
+                </div>
+            </div>
+        </div>
+    );
 });
 
 export default NodeEditor;

@@ -259,6 +259,16 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const [rotateVec, setRotateVec] = useState<THREE.Vector3>(setRotateVecFunc);
     const [lookAtTarget, setLookAtTarget] = useState<THREE.Vector3>(new THREE.Vector3(0, 0, z_layer));
     useImperativeHandle(ref, () => ({
+        getNodeScreenCoords: (node: any) => {
+            if (fgRef.current && node) {
+                return fgRef.current.graph2ScreenCoords(
+                    node.x !== undefined ? node.x : 0,
+                    node.y !== undefined ? node.y : 0,
+                    node.z !== undefined ? node.z : 0
+                );
+            }
+            return null;
+        },
         getGraphData: () => {
             //const jsonData = JSON.stringify(graphData, null, 2);
             return graphData;
