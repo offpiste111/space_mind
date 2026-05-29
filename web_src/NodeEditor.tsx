@@ -599,12 +599,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                       triggerPreview({ styleId: value });
                   }}
                   options={[
-                    { value: 1, label: 'スタイル1' },
-                    { value: 2, label: 'スタイル2' },
-                    { value: 3, label: 'スタイル3' },
-                    { value: 4, label: 'スタイル4' },
-                    { value: 5, label: 'スタイル5' },
-                    { value: 6, label: 'スタイル6' },
+                    { value: 1, label: 'シンプル' },
+                    { value: 3, label: 'メモ' },
+                    { value: 4, label: '強調' },
+                    { value: 5, label: 'ドット' },
+                    { value: 6, label: '破線' },
                   ]}
                 />
               </Flex>
