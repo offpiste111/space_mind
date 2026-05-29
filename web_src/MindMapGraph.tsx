@@ -353,6 +353,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             //nodeにisNewがある場合、キーを削除する
             if (isNew) {
                 delete node.isNew;
+                if (originalNode) {
+                    delete originalNode.isNew;
+                }
 
                 const links = graphData.links.filter(l => l.source.id === node.id || l.target.id === node.id);
                 
