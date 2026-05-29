@@ -224,7 +224,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
       background: '#f3f2f3',
       minWidth: `${200 * SCALE}px`,
       maxWidth: 'max-content',
-      paddingLeft: (isHtmlLink || isHtmlFile || isHtmlFolder) ? `${55 * SCALE}px` : `${20 * SCALE}px`,
+      paddingLeft: (isHtmlLink || isHtmlFile || isHtmlFolder) ? `${45 * SCALE}px` : `${20 * SCALE}px`,
       alignItems: 'flex-start',
       textAlign: 'left',
     };
@@ -276,7 +276,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
 
   // SVGアイコンの再現
   const LinkIcon = () => (
-    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${25 * SCALE}px`, height: `${25 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
       <polyline points="15 3 21 3 21 9"></polyline>
       <line x1="10" y1="14" x2="21" y2="3"></line>
@@ -284,7 +284,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
   );
 
   const FileIcon = () => (
-    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${25 * SCALE}px`, height: `${25 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
       <polyline points="14 2 14 8 20 8"></polyline>
       <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -294,7 +294,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
   );
 
   const FolderIcon = () => (
-    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${35 * SCALE}px`, height: `${35 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg style={{ position: 'absolute', left: `${10 * SCALE}px`, top: '50%', transform: 'translateY(-50%)', width: `${25 * SCALE}px`, height: `${25 * SCALE}px` }} viewBox="0 0 24 24" fill="none" stroke={themeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
     </svg>
   );
