@@ -176,8 +176,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         switch (currentStates.nodeType) {
             case "normal":
                 nodeToUpdate.style_id = currentStates.styleId;
-                nodeToUpdate.node_bg_color = currentStates.nodeBgColor !== undefined ? currentStates.nodeBgColor : 0;
-                nodeToUpdate.node_pattern_color = currentStates.nodePatternColor !== undefined ? currentStates.nodePatternColor : 0;
+                nodeToUpdate.node_bg_color = currentStates.nodeBgColor ?? 0;
+                nodeToUpdate.node_pattern_color = currentStates.nodePatternColor ?? 0;
                 nodeToUpdate.size_x = 200; // デフォルトサイズ
                 nodeToUpdate.size_y = 120;
                 delete nodeToUpdate.deadline;
@@ -304,7 +304,9 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 filePath,
                 folderPath,
                 iconImg,
-                scale: editNode.scale
+                scale: editNode.scale,
+                nodeBgColor,
+                nodePatternColor,
             });
 
             // URLが有効で、かつ変更されている場合にOGP画像を取得

@@ -341,7 +341,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             console.log('refreshNode', node);
             
             // 更新前のノードの状態を取得（オプションで渡されたinitialNodeを最優先し、なければ現在のコピーを作成）
-            const originalNode = graphData.nodes.find(n => n.id === node.id);
+            const originalNode = graphData.nodes.find(n => String(n.id) === String(node.id));
             const originalNodeCopy = options?.initialNode 
                 ? cloneDeep(options.initialNode) 
                 : (originalNode ? cloneDeep(originalNode) : null);
@@ -374,21 +374,18 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 });
             }
 
-            // graphData内のノードを新しいノードで置き換え
+            // graphData内のノードを新しいノードで置き換え（参照を保ちつつプロパティを上書き）
+            // react-force-graph-3d は内部でノードオブジェクトの参照をキャッシュするため、
+            // 配列要素を差し替えるのではなく、同じ参照にプロパティをマージして更新する
             if (originalNode) {
-                const nodeIndex = graphData.nodes.findIndex(n => n.id === node.id);
-                if (nodeIndex !== -1) {
-                    graphData.nodes[nodeIndex] = node;
-                }
+                Object.assign(originalNode, node);
 
                 // リンクのsource/targetが更新された場合、リンクも更新
                 graphData.links.forEach(link => {
-                    if (link.source.id === node.id) {
-                        link.source = node;
+                    if (String(link.source.id) === String(node.id)) {
                         refreshLink(link);
                     }
-                    if (link.target.id === node.id) {
-                        link.target = node;
+                    if (String(link.target.id) === String(node.id)) {
                         refreshLink(link);
                     }
                 });
