@@ -29,6 +29,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [folderPath, setFolderPath] = useState<string>(""); // フォルダタイプ用のフォルダパス
     const [nodeBgColor, setNodeBgColor] = useState<number>(0); // 背景色インデックス（デフォルト: 青系）
     const [nodePatternColor, setNodePatternColor] = useState<number>(0); // 模様色インデックス（デフォルト: 青系）
+    const [nodeCustomBgColor, setNodeCustomBgColor] = useState<string>('#ddeeff'); // カスタム背景色
 
     // ノーマルノード用カラーパレット（虹色パステル）
     // 背景色: 薄いパステル、模様色: 濃い色（強調は逆）
@@ -139,6 +140,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setFolderPath(node.folder_path || ""); // フォルダパス
             setNodeBgColor(node.node_bg_color !== undefined ? node.node_bg_color : 0); // 背景色
             setNodePatternColor(node.node_pattern_color !== undefined ? node.node_pattern_color : 0); // 模様色
+            setNodeCustomBgColor(node.node_custom_bg_color || '#ddeeff'); // カスタム背景色
             setEditNode(node);
         }
     }));
@@ -159,6 +161,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         scale?: number;
         nodeBgColor?: number;
         nodePatternColor?: number;
+        nodeCustomBgColor?: string;
     }) => {
         const nodeToUpdate: any = _.cloneDeep(targetNode);
         
@@ -178,6 +181,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 nodeToUpdate.style_id = currentStates.styleId;
                 nodeToUpdate.node_bg_color = currentStates.nodeBgColor ?? 0;
                 nodeToUpdate.node_pattern_color = currentStates.nodePatternColor ?? 0;
+                nodeToUpdate.node_custom_bg_color = currentStates.nodeCustomBgColor ?? '#ddeeff';
                 nodeToUpdate.size_x = 200; // デフォルトサイズ
                 nodeToUpdate.size_y = 120;
                 delete nodeToUpdate.deadline;
@@ -284,6 +288,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             scale: updatedFields.scale !== undefined ? updatedFields.scale : editNode.scale,
             nodeBgColor: updatedFields.nodeBgColor !== undefined ? updatedFields.nodeBgColor : nodeBgColor,
             nodePatternColor: updatedFields.nodePatternColor !== undefined ? updatedFields.nodePatternColor : nodePatternColor,
+            nodeCustomBgColor: updatedFields.nodeCustomBgColor !== undefined ? updatedFields.nodeCustomBgColor : nodeCustomBgColor,
         };
 
         const previewNode = getUpdatedNode(editNode, currentStates);
@@ -307,6 +312,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 scale: editNode.scale,
                 nodeBgColor,
                 nodePatternColor,
+                nodeCustomBgColor,
             });
 
             // URLが有効で、かつ変更されている場合にOGP画像を取得
@@ -664,7 +670,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
               {/* 背景色選択 */}
               <Flex gap="middle" align="center">
                 <div style={{ width: '80px', fontSize: '13px' }}>背景色</div>
-                <Flex gap="6px" wrap="wrap">
+                <Flex gap="6px" wrap="wrap" align="center">
                   {(styleId === 4 ? EMPHASIS_BG_COLORS : BG_COLORS).map((color, idx) => (
                     <div
                       key={idx}
@@ -685,6 +691,34 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                       }}
                     />
                   ))}
+                  {/* カスタムカラーピッカー */}
+                  <ColorPicker
+                    value={nodeCustomBgColor}
+                    onChange={(color) => {
+                      const hex = color.toHexString();
+                      setNodeCustomBgColor(hex);
+                      setNodeBgColor(7);
+                      triggerPreview({ nodeBgColor: 7, nodeCustomBgColor: hex });
+                    }}
+                    trigger="click"
+                    size="small"
+                  >
+                    <div
+                      title="カスタムカラー"
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: '50%',
+                        background: nodeBgColor === 7
+                          ? nodeCustomBgColor
+                          : 'conic-gradient(red 0deg, yellow 60deg, lime 120deg, cyan 180deg, blue 240deg, magenta 300deg, red 360deg)',
+                        border: nodeBgColor === 7 ? '3px solid #333' : '2px solid #ccc',
+                        cursor: 'pointer',
+                        boxSizing: 'border-box',
+                        flexShrink: 0,
+                      }}
+                    />
+                  </ColorPicker>
                 </Flex>
               </Flex>
               {/* 模様色選択 */}
@@ -711,6 +745,32 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                       }}
                     />
                   ))}
+                  {/* 背景色と同じ（模様なし） */}
+                  {(() => {
+                    const currentBgColor = nodeBgColor === 7
+                      ? nodeCustomBgColor
+                      : (styleId === 4 ? EMPHASIS_BG_COLORS[nodeBgColor] : BG_COLORS[nodeBgColor]);
+                    return (
+                      <div
+                        key={7}
+                        title="背景色と同じ（模様なし）"
+                        onClick={() => {
+                          setNodePatternColor(7);
+                          triggerPreview({ nodePatternColor: 7 });
+                        }}
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: '50%',
+                          background: currentBgColor,
+                          border: nodePatternColor === 7 ? '3px solid #333' : '2px dashed #aaa',
+                          cursor: 'pointer',
+                          boxSizing: 'border-box',
+                          transition: 'border 0.15s',
+                        }}
+                      />
+                    );
+                  })()}
                 </Flex>
               </Flex>
               </>

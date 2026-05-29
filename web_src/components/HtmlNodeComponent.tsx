@@ -69,10 +69,11 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
     folder_path,
     node_bg_color = 0,
     node_pattern_color = 0,
+    node_custom_bg_color = '#ddeeff',
   } = node;
 
-  const bgIdx = typeof node_bg_color === 'number' ? Math.max(0, Math.min(6, node_bg_color)) : 0;
-  const ptIdx = typeof node_pattern_color === 'number' ? Math.max(0, Math.min(6, node_pattern_color)) : 0;
+  const bgIdx = typeof node_bg_color === 'number' ? Math.max(0, Math.min(7, node_bg_color)) : 0;
+  const ptIdx = typeof node_pattern_color === 'number' ? Math.max(0, Math.min(7, node_pattern_color)) : 0;
 
   // 高解像度化のための倍率
   const SCALE = 4;
@@ -152,9 +153,14 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
     const sId = style_id || 1;
 
     // スタイルごとに色を解決
-    const bgColor   = sId === 4 ? EMPHASIS_BG_COLORS[bgIdx]      : BG_COLORS[bgIdx];
-    const ptColor   = sId === 4 ? EMPHASIS_PATTERN_COLORS[ptIdx]  : PATTERN_COLORS[ptIdx];
-    const textColor = sId === 4 ? ptColor : '#333'; // 強調は模様色（薄い）をテキストに
+    // bgIdx=7の場合はカスタム色、強調は逆配色
+    const bgColor = bgIdx === 7
+      ? (node_custom_bg_color || '#ddeeff')
+      : (sId === 4 ? EMPHASIS_BG_COLORS[bgIdx] : BG_COLORS[bgIdx]);
+    // ptIdx=7の場合は背景色と同じ（模様なし）
+    const ptColor = ptIdx === 7
+      ? bgColor
+      : (sId === 4 ? EMPHASIS_PATTERN_COLORS[ptIdx] : PATTERN_COLORS[ptIdx]);
 
     specificStyle = {
       background: bgColor,
@@ -197,8 +203,8 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
       specificStyle.fontWeight = 'bold';
       specificStyle.borderRadius = `${10 * SCALE}px`;
     } else if (sId === 5) {
-      // ドット: 薄い背景 + ドット模様（模様色より少し濃いドット）
-      const dotColor = DOT_PATTERN_COLORS[ptIdx];
+      // ドット: 薄い背景 + ドット模様（ptIdx=7のとき模様なし）
+      const dotColor = ptIdx === 7 ? bgColor : DOT_PATTERN_COLORS[ptIdx];
       specificStyle.background = bgColor;
       specificStyle.backgroundImage = `radial-gradient(${dotColor} 10%, transparent 25%), radial-gradient(${dotColor} 10%, transparent 25%)`;
       specificStyle.backgroundPosition = `0 0, ${10 * SCALE}px ${10 * SCALE}px`;

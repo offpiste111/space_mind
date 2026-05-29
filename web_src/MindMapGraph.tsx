@@ -1354,6 +1354,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 style_id: node.style_id,
                 node_bg_color: node.node_bg_color, // 背景色の変更を検知
                 node_pattern_color: node.node_pattern_color, // 模様色の変更を検知
+                node_custom_bg_color: node.node_custom_bg_color, // カスタム背景色の変更を検知
                 type: node.type,
                 url: node.url, // URLの変更を検知
                 scale: node.scale, // スケールの変更を検知
