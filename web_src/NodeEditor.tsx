@@ -27,6 +27,49 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [url, setUrl] = useState<string>(""); // リンクタイプ用のURL
     const [filePath, setFilePath] = useState<string>(""); // ファイルタイプ用のファイルパス
     const [folderPath, setFolderPath] = useState<string>(""); // フォルダタイプ用のフォルダパス
+    const [nodeBgColor, setNodeBgColor] = useState<number>(0); // 背景色インデックス（デフォルト: 青系）
+    const [nodePatternColor, setNodePatternColor] = useState<number>(0); // 模様色インデックス（デフォルト: 青系）
+
+    // ノーマルノード用カラーパレット（虹色パステル）
+    // 背景色: 薄いパステル、模様色: 濃い色（強調は逆）
+    const BG_COLORS = [
+        '#ddeeff', // 青系（デフォルト）
+        '#ddffee', // 緑系
+        '#fffadd', // 黄系
+        '#ffeedd', // 橙系
+        '#ffddee', // ピンク系
+        '#eeddff', // 紫系
+        '#f0f0f0', // グレー系
+    ];
+    const PATTERN_COLORS = [
+        '#4c9ac0', // 青系（デフォルト）
+        '#3aaa6a', // 緑系
+        '#c8a000', // 黄系
+        '#d06020', // 橙系
+        '#c04070', // ピンク系
+        '#7040c0', // 紫系
+        '#808080', // グレー系
+    ];
+    // 強調スタイル用: 背景が濃く、模様が薄い（逆配色）
+    const EMPHASIS_BG_COLORS = [
+        '#2255aa', // 青系（デフォルト）
+        '#226644', // 緑系
+        '#886600', // 黄系
+        '#aa4400', // 橙系
+        '#993366', // ピンク系
+        '#553399', // 紫系
+        '#444444', // グレー系
+    ];
+    const EMPHASIS_PATTERN_COLORS = [
+        '#d0e8ff', // 青系（デフォルト）
+        '#ccffee', // 緑系
+        '#fff8cc', // 黄系
+        '#ffeedd', // 橙系
+        '#ffd0e8', // ピンク系
+        '#ead0ff', // 紫系
+        '#e8e8e8', // グレー系
+    ];
+    const COLOR_LABELS = ['青', '緑', '黄', '橙', 'ピンク', '紫', 'グレー'];
     
     interface Node {
         name: string;
@@ -94,6 +137,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setUrl(node.url || ""); // リンク用URL
             setFilePath(node.file_path || ""); // ファイルパス
             setFolderPath(node.folder_path || ""); // フォルダパス
+            setNodeBgColor(node.node_bg_color !== undefined ? node.node_bg_color : 0); // 背景色
+            setNodePatternColor(node.node_pattern_color !== undefined ? node.node_pattern_color : 0); // 模様色
             setEditNode(node);
         }
     }));
@@ -112,6 +157,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         folderPath: string;
         iconImg: string;
         scale?: number;
+        nodeBgColor?: number;
+        nodePatternColor?: number;
     }) => {
         const nodeToUpdate: any = _.cloneDeep(targetNode);
         
@@ -129,6 +176,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         switch (currentStates.nodeType) {
             case "normal":
                 nodeToUpdate.style_id = currentStates.styleId;
+                nodeToUpdate.node_bg_color = currentStates.nodeBgColor !== undefined ? currentStates.nodeBgColor : 0;
+                nodeToUpdate.node_pattern_color = currentStates.nodePatternColor !== undefined ? currentStates.nodePatternColor : 0;
                 nodeToUpdate.size_x = 200; // デフォルトサイズ
                 nodeToUpdate.size_y = 120;
                 delete nodeToUpdate.deadline;
@@ -233,6 +282,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             folderPath: updatedFields.folderPath !== undefined ? updatedFields.folderPath : folderPath,
             iconImg: updatedFields.iconImg !== undefined ? updatedFields.iconImg : iconImg,
             scale: updatedFields.scale !== undefined ? updatedFields.scale : editNode.scale,
+            nodeBgColor: updatedFields.nodeBgColor !== undefined ? updatedFields.nodeBgColor : nodeBgColor,
+            nodePatternColor: updatedFields.nodePatternColor !== undefined ? updatedFields.nodePatternColor : nodePatternColor,
         };
 
         const previewNode = getUpdatedNode(editNode, currentStates);
@@ -589,6 +640,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             />
             {/* スタイル選択 */}
             {(nodeType === "normal") ? (
+              <>
               <Flex gap="middle" align="center">
                 <div style={{ width: '80px' }}>{"スタイル"}</div>
                 <Select
@@ -607,6 +659,59 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                   ]}
                 />
               </Flex>
+              {/* 背景色選択 */}
+              <Flex gap="middle" align="center">
+                <div style={{ width: '80px', fontSize: '13px' }}>背景色</div>
+                <Flex gap="6px" wrap="wrap">
+                  {(styleId === 4 ? EMPHASIS_BG_COLORS : BG_COLORS).map((color, idx) => (
+                    <div
+                      key={idx}
+                      title={COLOR_LABELS[idx]}
+                      onClick={() => {
+                        setNodeBgColor(idx);
+                        triggerPreview({ nodeBgColor: idx });
+                      }}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: '50%',
+                        background: color,
+                        border: nodeBgColor === idx ? '3px solid #333' : '2px solid #ccc',
+                        cursor: 'pointer',
+                        boxSizing: 'border-box',
+                        transition: 'border 0.15s',
+                      }}
+                    />
+                  ))}
+                </Flex>
+              </Flex>
+              {/* 模様色選択 */}
+              <Flex gap="middle" align="center">
+                <div style={{ width: '80px', fontSize: '13px' }}>模様色</div>
+                <Flex gap="6px" wrap="wrap">
+                  {(styleId === 4 ? EMPHASIS_PATTERN_COLORS : PATTERN_COLORS).map((color, idx) => (
+                    <div
+                      key={idx}
+                      title={COLOR_LABELS[idx]}
+                      onClick={() => {
+                        setNodePatternColor(idx);
+                        triggerPreview({ nodePatternColor: idx });
+                      }}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: '50%',
+                        background: color,
+                        border: nodePatternColor === idx ? '3px solid #333' : '2px solid #ccc',
+                        cursor: 'pointer',
+                        boxSizing: 'border-box',
+                        transition: 'border 0.15s',
+                      }}
+                    />
+                  ))}
+                </Flex>
+              </Flex>
+              </>
             ) : (nodeType === "issue") ? (
               <Flex gap="middle" align="center">
                 <div style={{ width: '80px' }}>{"背景"}</div>

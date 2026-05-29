@@ -4,6 +4,56 @@ interface HtmlNodeComponentProps {
   node: any;
 }
 
+// ノーマルノード用カラーパレット（NodeEditorと同一）
+const BG_COLORS = [
+  '#ddeeff', // 青系（デフォルト）
+  '#ddffee', // 緑系
+  '#fffadd', // 黄系
+  '#ffeedd', // 橙系
+  '#ffddee', // ピンク系
+  '#eeddff', // 紫系
+  '#f0f0f0', // グレー系
+];
+const PATTERN_COLORS = [
+  '#4c9ac0', // 青系（デフォルト）
+  '#3aaa6a', // 緑系
+  '#c8a000', // 黄系
+  '#d06020', // 橙系
+  '#c04070', // ピンク系
+  '#7040c0', // 紫系
+  '#808080', // グレー系
+];
+// 強調スタイル用: 背景が濃く、模様が薄い（逆配色）
+const EMPHASIS_BG_COLORS = [
+  '#2255aa', // 青系（デフォルト）
+  '#226644', // 緑系
+  '#886600', // 黄系
+  '#aa4400', // 橙系
+  '#993366', // ピンク系
+  '#553399', // 紫系
+  '#444444', // グレー系
+];
+const EMPHASIS_PATTERN_COLORS = [
+  '#d0e8ff', // 青系（デフォルト）
+  '#ccffee', // 緑系
+  '#fff8cc', // 黄系
+  '#ffeedd', // 橙系
+  '#ffd0e8', // ピンク系
+  '#ead0ff', // 紫系
+  '#e8e8e8', // グレー系
+];
+
+// ドット背景用: 背景色より少し濃いパステル
+const DOT_PATTERN_COLORS = [
+  '#bbd8f0', // 青系
+  '#bbeecc', // 緑系
+  '#f0e8aa', // 黄系
+  '#f0ccaa', // 橙系
+  '#f0bbcc', // ピンク系
+  '#d8bbf0', // 紫系
+  '#d0d0d0', // グレー系
+];
+
 const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
   const { 
     name, 
@@ -16,8 +66,13 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
     type,
     url,
     file_path,
-    folder_path
+    folder_path,
+    node_bg_color = 0,
+    node_pattern_color = 0,
   } = node;
+
+  const bgIdx = typeof node_bg_color === 'number' ? Math.max(0, Math.min(6, node_bg_color)) : 0;
+  const ptIdx = typeof node_pattern_color === 'number' ? Math.max(0, Math.min(6, node_pattern_color)) : 0;
 
   // 高解像度化のための倍率
   const SCALE = 4;
@@ -71,12 +126,12 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
 
   if (isHtmlIssue) {
     specificStyle = {
-      background: hasCustomImg ? 'transparent' : 'white', // カスタム画像の場合は透明、それ以外は白
-      borderRadius: `${20 * SCALE}px`, // 角丸を追加
+      background: hasCustomImg ? 'transparent' : 'white',
+      borderRadius: `${20 * SCALE}px`,
       minWidth: `${300 * SCALE}px`,
       minHeight: `${200 * SCALE}px`,
       maxWidth: 'max-content',
-      boxShadow: hasCustomImg ? 'none' : `0 ${4 * SCALE}px ${6 * SCALE}px rgba(0,0,0,0.1)`, // 他のノードと同様の影
+      boxShadow: hasCustomImg ? 'none' : `0 ${4 * SCALE}px ${6 * SCALE}px rgba(0,0,0,0.1)`,
     };
     backgroundElement = (
       <div style={{
@@ -86,33 +141,40 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
         width: '100%',
         height: '100%',
         backgroundImage: hasCustomImg ? `url(./assets/${customImg})` : `url(./assets/issue${style_id}.png)`,
-        backgroundSize: 'cover', // カスタム画像もカバーにして枠いっぱいに広げ角丸を適用
+        backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
         zIndex: -1, 
-        opacity: hasCustomImg ? 1.0 : 0.6, // カスタム画像の場合は半透明化しない
+        opacity: hasCustomImg ? 1.0 : 0.6,
       }} />
     );
   } else if (isHtmlNormal) {
     const sId = style_id || 1;
+
+    // スタイルごとに色を解決
+    const bgColor   = sId === 4 ? EMPHASIS_BG_COLORS[bgIdx]      : BG_COLORS[bgIdx];
+    const ptColor   = sId === 4 ? EMPHASIS_PATTERN_COLORS[ptIdx]  : PATTERN_COLORS[ptIdx];
+    const textColor = sId === 4 ? ptColor : '#333'; // 強調は模様色（薄い）をテキストに
+
     specificStyle = {
-      background: 'white',
-      border: `${2 * SCALE}px solid ${themeColor}`,
+      background: bgColor,
+      border: `${2 * SCALE}px solid ${ptColor}`,
       borderRadius: `${10 * SCALE}px`,
       minWidth: `${200 * SCALE}px`,
       maxWidth: 'max-content',
       boxShadow: `0 ${4 * SCALE}px ${6 * SCALE}px rgba(0,0,0,0.1)`,
+      color: '#333',
     };
 
-    // 詳細なスタイル再現
-    if (sId === 1) specificStyle.background = '#e1eef5';
-    if (sId === 2) {
-      specificStyle.border = `${3 * SCALE}px solid #ffc06e`;
-      specificStyle.borderRadius = `${4 * SCALE}px`;
-    }
-    if (sId === 3) {
-      specificStyle.background = `linear-gradient(-135deg, transparent ${14.14 * SCALE}px, #eeebcc 0)`;
-      specificStyle.border = 'none';
+    if (sId === 1) {
+      // シンプル: 薄い背景色 + 模様色の枠線
+      specificStyle.background = bgColor;
+      specificStyle.border = `${2 * SCALE}px solid ${ptColor}`;
+      specificStyle.borderRadius = `${10 * SCALE}px`;
+    } else if (sId === 3) {
+      // メモ: 折れ曲がり角＋枠線
+      specificStyle.background = bgColor;
+      specificStyle.border = `${2 * SCALE}px solid ${ptColor}`;
       specificStyle.borderRadius = '0';
       backgroundElement = (
         <div style={{
@@ -123,24 +185,30 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
           height: 0,
           borderWidth: `0 ${20 * SCALE}px ${20 * SCALE}px 0`,
           borderStyle: 'solid',
-          borderColor: `transparent transparent ${themeColor} transparent`,
+          borderColor: `transparent transparent ${ptColor} transparent`,
           boxShadow: `-${1 * SCALE}px ${1 * SCALE}px ${1 * SCALE}px rgba(0, 0, 0, 0.15)`
         }} />
       );
-    }
-    if (sId === 4) {
-      specificStyle.background = '#b22222';
-      specificStyle.color = '#ffffff';
+    } else if (sId === 4) {
+      // 強調: 濃い背景色 + 薄い模様色の枠線・テキスト
+      specificStyle.background = bgColor;
+      specificStyle.border = `${3 * SCALE}px solid ${ptColor}`;
+      specificStyle.color = ptColor;
       specificStyle.fontWeight = 'bold';
-    }
-    if (sId === 5) {
-      specificStyle.background = '#ffebf0';
-      specificStyle.backgroundImage = `radial-gradient(#fad6de 10%, transparent 25%), radial-gradient(#fad6de 10%, transparent 25%)`;
+      specificStyle.borderRadius = `${10 * SCALE}px`;
+    } else if (sId === 5) {
+      // ドット: 薄い背景 + ドット模様（模様色より少し濃いドット）
+      const dotColor = DOT_PATTERN_COLORS[ptIdx];
+      specificStyle.background = bgColor;
+      specificStyle.backgroundImage = `radial-gradient(${dotColor} 10%, transparent 25%), radial-gradient(${dotColor} 10%, transparent 25%)`;
       specificStyle.backgroundPosition = `0 0, ${10 * SCALE}px ${10 * SCALE}px`;
       specificStyle.backgroundSize = `${20 * SCALE}px ${20 * SCALE}px`;
-    }
-    if (sId === 6) {
-      specificStyle.border = `${3 * SCALE}px dashed #ffc3c3`;
+      specificStyle.border = `${2 * SCALE}px solid ${ptColor}`;
+      specificStyle.borderRadius = `${10 * SCALE}px`;
+    } else if (sId === 6) {
+      // 破線: 薄い背景 + 破線枠
+      specificStyle.background = bgColor;
+      specificStyle.border = `${3 * SCALE}px dashed ${ptColor}`;
       specificStyle.borderRadius = `${4 * SCALE}px`;
     }
   } else if (isHtmlTask || isHtmlLink || isHtmlFile || isHtmlFolder) {
@@ -164,12 +232,17 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
     );
   }
 
+  // 強調スタイルのテキスト色を上書き
+  const isEmphasis = isHtmlNormal && (style_id || 1) === 4;
+  const textColorOverride = isEmphasis ? EMPHASIS_PATTERN_COLORS[ptIdx] : undefined;
+
   const nameStyle: React.CSSProperties = {
     fontSize: isHtmlIssue ? `${28 * SCALE}px` : `${18 * SCALE}px`,
     fontWeight: 'bold',
     marginBottom: `${8 * SCALE}px`,
     whiteSpace: 'pre',
     lineHeight: 1.2,
+    color: textColorOverride,
     textShadow: isHtmlIssue ? 
       `${2 * SCALE}px ${2 * SCALE}px 0 #fff, -${2 * SCALE}px -${2 * SCALE}px 0 #fff, ${2 * SCALE}px -${2 * SCALE}px 0 #fff, -${2 * SCALE}px ${2 * SCALE}px 0 #fff, 0 ${2 * SCALE}px 0 #fff, 0 -${2 * SCALE}px 0 #fff, ${2 * SCALE}px 0 0 #fff, -${2 * SCALE}px 0 0 #fff` 
       : 'none',
@@ -187,7 +260,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
 
   const iconStyle: React.CSSProperties = {
     maxWidth: '100%',
-    height: `${(icon_size / 3) * SCALE}px`, // サイズを明示的に指定
+    height: `${(icon_size / 3) * SCALE}px`,
     objectFit: 'contain',
     marginBottom: `${10 * SCALE}px`,
     display: 'block',
