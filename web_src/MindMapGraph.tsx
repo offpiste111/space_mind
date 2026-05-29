@@ -86,6 +86,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const [selectedNodeList, setSelectedNodeList] = useState<NodeData[]>([]);
     // 機能モードを管理するstate
     const [funcMode, setFuncMode] = useState<boolean>(false);
+    // 矩形選択用のRef (パフォーマンス最適化のためReactステートではなく生DOMとRefで処理)
+    const selectionBoxRef = useRef<{ startX: number, startY: number, endX: number, endY: number } | null>(null);
     const copiedNodeRef = useRef<any>(null);
     // ダブルクリック検出用の変数
     const lastClickTime = useRef<number>(0);
@@ -150,6 +152,153 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     }, []);
 
     const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
+
+    // 矩形選択用のマウスドラッグ追跡および生DOM描画処理（React再レンダリング回数ゼロによる高速化）
+    useEffect(() => {
+        const container = document.querySelector('.css3d-renderer-container')?.parentElement;
+        if (!container) return;
+
+        let selectionDiv: HTMLDivElement | null = null;
+
+        const handlePointerMove = (e: PointerEvent) => {
+            const currentBox = selectionBoxRef.current;
+            if (!currentBox || !selectionDiv) return;
+
+            const rect = container.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+
+            currentBox.endX = currentX;
+            currentBox.endY = currentY;
+
+            const minX = Math.min(currentBox.startX, currentBox.endX);
+            const maxX = Math.max(currentBox.startX, currentBox.endX);
+            const minY = Math.min(currentBox.startY, currentBox.endY);
+            const maxY = Math.max(currentBox.startY, currentBox.endY);
+
+            selectionDiv.style.left = `${minX}px`;
+            selectionDiv.style.top = `${minY}px`;
+            selectionDiv.style.width = `${maxX - minX}px`;
+            selectionDiv.style.height = `${maxY - minY}px`;
+        };
+
+        const handlePointerUp = (e: PointerEvent) => {
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', handlePointerUp);
+
+            const currentBox = selectionBoxRef.current;
+            const controls = fgRef.current?.controls();
+            if (controls) {
+                controls.enabled = true;
+            }
+
+            if (selectionDiv) {
+                selectionDiv.style.display = 'none';
+            }
+
+            if (currentBox) {
+                const rect = container.getBoundingClientRect();
+                const minX = Math.min(currentBox.startX, currentBox.endX);
+                const maxX = Math.max(currentBox.startX, currentBox.endX);
+                const minY = Math.min(currentBox.startY, currentBox.endY);
+                const maxY = Math.max(currentBox.startY, currentBox.endY);
+
+                const dist = Math.sqrt(Math.pow(currentBox.endX - currentBox.startX, 2) + Math.pow(currentBox.endY - currentBox.startY, 2));
+                
+                if (dist > 5) {
+                    const camera = fgRef.current?.camera();
+                    const rectWidth = rect.width;
+                    const rectHeight = rect.height;
+                    const selectedNodes: NodeData[] = [];
+
+                    if (camera && graphData.nodes) {
+                        graphData.nodes.forEach((node: NodeData) => {
+                            if (node.disabled) return;
+                            const x = node.x ?? 0;
+                            const y = node.y ?? 0;
+                            const z = node.z ?? 0;
+
+                            const vector = new THREE.Vector3(x, y, z);
+                            vector.project(camera);
+
+                            const screenX = (vector.x * 0.5 + 0.5) * rectWidth;
+                            const screenY = (-(vector.y * 0.5) + 0.5) * rectHeight;
+
+                            if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
+                                selectedNodes.push(node);
+                            }
+                        });
+                    }
+
+                    if (selectedNodes.length > 0) {
+                        setSelectedNodeList(selectedNodes);
+                        setSelectedNode(selectedNodes[selectedNodes.length - 1]);
+                    } else {
+                        setSelectedNodeList([]);
+                        setSelectedNode(null);
+                    }
+                }
+            }
+
+            selectionBoxRef.current = null;
+        };
+
+        const handlePointerDownCapture = (e: PointerEvent) => {
+            // funcMode（Ctrlキー押下中）かつ左クリック（button === 0）の場合に矩形選択を開始
+            if (funcMode && e.button === 0) {
+                const rect = container.getBoundingClientRect();
+                const startX = e.clientX - rect.left;
+                const startY = e.clientY - rect.top;
+                
+                // OrbitControlsを一時無効化してカメラ回転を防ぐ
+                const controls = fgRef.current?.controls();
+                if (controls) {
+                    controls.enabled = false;
+                }
+
+                selectionBoxRef.current = { startX, startY, endX: startX, endY: startY };
+
+                // セレクションボックスの DOM 要素の取得または作成
+                if (!selectionDiv) {
+                    selectionDiv = document.getElementById('selection-box-overlay') as HTMLDivElement;
+                    if (!selectionDiv) {
+                       selectionDiv = document.createElement('div');
+                       selectionDiv.id = 'selection-box-overlay';
+                       selectionDiv.style.position = 'absolute';
+                       selectionDiv.style.border = '1px solid #1890ff';
+                       selectionDiv.style.backgroundColor = 'rgba(24, 144, 255, 0.15)';
+                       selectionDiv.style.pointerEvents = 'none';
+                       selectionDiv.style.zIndex = '9999';
+                       selectionDiv.style.borderRadius = '2px';
+                       container.appendChild(selectionDiv);
+                    }
+                }
+
+                selectionDiv.style.display = 'block';
+                selectionDiv.style.left = `${startX}px`;
+                selectionDiv.style.top = `${startY}px`;
+                selectionDiv.style.width = '0px';
+                selectionDiv.style.height = '0px';
+
+                document.addEventListener('pointermove', handlePointerMove);
+                document.addEventListener('pointerup', handlePointerUp);
+
+                // キャプチャフェーズでイベントを停止し、OrbitControlsへの伝播を完全に阻止
+                e.stopPropagation();
+            }
+        };
+
+        container.addEventListener('pointerdown', handlePointerDownCapture, true);
+
+        return () => {
+            container.removeEventListener('pointerdown', handlePointerDownCapture, true);
+            document.removeEventListener('pointermove', handlePointerMove);
+            document.removeEventListener('pointerup', handlePointerUp);
+            if (selectionDiv && selectionDiv.parentNode) {
+                selectionDiv.parentNode.removeChild(selectionDiv);
+            }
+        };
+    }, [funcMode, graphData]);
 
     const textureCache = useRef(new Map<string, {
         texture: THREE.Texture,
@@ -2009,14 +2158,16 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 </div>
             )}
             {/* Force Graphのレイヤー */}
-            <div style={{
-                position: "absolute", 
-                top: 0, 
-                left: 0, 
-                width: "100%", 
-                height: "100%", 
-                zIndex: 1 
-            }}>
+            <div 
+                style={{
+                    position: "absolute", 
+                    top: 0, 
+                    left: 0, 
+                    width: "100%", 
+                    height: "100%", 
+                    zIndex: 1 
+                }}
+            >
                 <ForceGraph3D
                 width={windowDimensions.width}
                 height={windowDimensions.height}
@@ -2106,6 +2257,11 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 //dagMode={"radialin"}
                 //nodeThreeObjectExtend={true}
                 onBackgroundRightClick={handleBackgroundClick}
+                onBackgroundClick={(event) => {
+                    // 背景左クリック時にすべての選択を解除（Escキーと同じ挙動）
+                    setSelectedNode(null);
+                    setSelectedNodeList([]);
+                }}
                 onNodeDragEnd={(node:any) => {
 
                     // // ノードにfx,fy,fzのキーがあれば、そのキーを消す
