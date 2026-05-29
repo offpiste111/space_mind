@@ -954,7 +954,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                         </Button>
                       </Flex>
                     )}
-                    <Flex gap="small" style={{ marginLeft: editNode?.isNew ? 'auto' : 0 }}>
+                    <Flex gap="small" style={{ marginLeft: 'auto' }}>
                       <Button onClick={handleCancel}>
                         キャンセル
                       </Button>
