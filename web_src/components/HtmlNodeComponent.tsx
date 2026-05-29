@@ -179,9 +179,11 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
       specificStyle.borderRadius = `${10 * SCALE}px`;
     } else if (sId === 3) {
       // メモ: 折れ曲がり角＋枠線
+      const cutSize = 20 * SCALE;
       specificStyle.background = bgColor;
       specificStyle.border = `${2 * SCALE}px solid ${ptColor}`;
       specificStyle.borderRadius = '0';
+      specificStyle.clipPath = `polygon(0 0, calc(100% - ${cutSize}px) 0, 100% ${cutSize}px, 100% 100%, 0 100%)`;
       backgroundElement = (
         <div style={{
           position: 'absolute',
