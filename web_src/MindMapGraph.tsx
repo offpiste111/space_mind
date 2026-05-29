@@ -261,11 +261,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     useImperativeHandle(ref, () => ({
         getNodeScreenCoords: (node: any) => {
             if (fgRef.current && node) {
-                return fgRef.current.graph2ScreenCoords(
-                    node.x !== undefined ? node.x : 0,
-                    node.y !== undefined ? node.y : 0,
-                    node.z !== undefined ? node.z : 0
-                );
+                const px = node.fx !== undefined ? node.fx : (node.x !== undefined ? node.x : 0);
+                const py = node.fy !== undefined ? node.fy : (node.y !== undefined ? node.y : 0);
+                const pz = node.fz !== undefined ? node.fz : (node.z !== undefined ? node.z : 0);
+                return fgRef.current.graph2ScreenCoords(px, py, pz);
             }
             return null;
         },
@@ -493,7 +492,35 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             copiedNodeRef.current = selectedNode;
         },
         getCopiedNode: () => {
-            return cloneDeep(copiedNodeRef.current);
+            if (!copiedNodeRef.current) return null;
+            const copied = cloneDeep(copiedNodeRef.current);
+            const keys = [
+                'name', 
+                'group', 
+                'style_id', 
+                'deadline', 
+                'priority', 
+                'urgency', 
+                'disabled', 
+                'icon_img', 
+                'size_x', 
+                'size_y', 
+                'img', 
+                'type', 
+                'url', 
+                'file_path', 
+                'folder_path',
+                'node_bg_color',
+                'node_pattern_color',
+                'node_custom_bg_color'
+            ];
+            // 不要なオブジェクトプロパティ（__threeObjなど）やレイアウト座標をクリーンアップ
+            Object.keys(copied).forEach(key => {
+                if (!keys.includes(key)) {
+                    delete copied[key];
+                }
+            });
+            return copied;
         },
         // 複数選択中のノードリストを取得する関数を追加
         getSelectedNodeList: () => {
@@ -524,11 +551,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             }
         },
         // 新規ノード追加用のインターフェース
-        addNode: (newNode:any) => {
-            if (selectedNode){
-                const px = selectedNode.fx !== undefined ? selectedNode.fx : (selectedNode.x || 0);
-                const py = selectedNode.fy !== undefined ? selectedNode.fy : (selectedNode.y || 0);
-                const pz = selectedNode.fz !== undefined ? selectedNode.fz : (selectedNode.z || 0);
+        addNode: (newNode:any, parentNode?: any) => {
+            const actualParent = parentNode !== undefined ? parentNode : selectedNode;
+            if (actualParent){
+                const px = actualParent.fx !== undefined ? actualParent.fx : (actualParent.x || 0);
+                const py = actualParent.fy !== undefined ? actualParent.fy : (actualParent.y || 0);
+                const pz = actualParent.fz !== undefined ? actualParent.fz : (actualParent.z || 0);
 
                 let cx = 0, cy = 0, cz = 500;
                 if (fgRef.current) {
@@ -567,10 +595,56 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             newNode.id = nodeId;
             newNode.isNew = true;
             
-            // 新規ノードを追加
-            props.onRefreshNode(newNode);
-            graphData.nodes.push(newNode);
-            fgRef.current.refresh();
+            const now = new Date().toISOString();
+            newNode.createdAt = now;
+            newNode.updatedAt = now;
+
+            if (actualParent && newNode.group === undefined) {
+                newNode.group = actualParent.group || 1;
+            }
+
+            let newLink: any = null;
+            if (actualParent) {
+                newLink = {
+                    index: graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1,
+                    source: actualParent,
+                    target: newNode,
+                    isNew: true,
+                };
+            }
+
+            // 履歴に手動で追加（ノードとリンクを一括）
+            addToHistory('add_node', {
+                node: cloneDeep(newNode),
+                links: newLink ? [cloneDeep(newLink)] : []
+            });
+
+            // 新規ノードを追加（履歴追加をスキップ）
+            props.onRefreshNode(newNode, { skipHistory: true });
+
+            if (newLink) {
+                delete newLink.isNew;
+                newLink.name = "";
+            }
+            delete newNode.isNew;
+
+            setGraphData(prev => {
+                const nextNodes = [...prev.nodes, newNode];
+                const nextLinks = newLink ? [...prev.links, newLink] : prev.links;
+                return {
+                    ...prev,
+                    nodes: nextNodes,
+                    links: nextLinks
+                };
+            });
+            
+            setTimeout(() => {
+                if (fgRef.current) {
+                    fgRef.current.refresh();
+                }
+            }, 50);
+            
+            return newNode;
         },
         // 新規ノード追加用のインターフェース
         addNewNode: () => {
@@ -634,14 +708,25 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 updatedAt: now
             };
 
-            // 新規ノードを追加
-            graphData.nodes.push(newNode);
-            graphData.links.push({
+            const newLink = {
                 index: graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1,
                 source: selectedNode,
                 target: newNode,
                 isNew: true,
-            });
+            };
+
+            // 新規ノードを追加
+            setGraphData(prev => ({
+                ...prev,
+                nodes: [...prev.nodes, newNode],
+                links: [...prev.links, newLink]
+            }));
+
+            setTimeout(() => {
+                if (fgRef.current) {
+                    fgRef.current.refresh();
+                }
+            }, 50);
 
             // 編集モーダルを表示
             props.onNodeEdit(newNode);

@@ -13,6 +13,7 @@ interface NodeEditorProps {
     onDeleteNode: (node: any) => void;
     onClose: () => void;
     open: boolean;
+    getNodeScreenCoords?: (node: any) => { x: number, y: number } | null | undefined;
 }
 
 const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
@@ -88,6 +89,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         file_path?: string;
         folder_path?: string;
         scale?: number;  // 3Dオブジェクトのスケール
+        size_x?: number;
+        size_y?: number;
+        node_bg_color?: number;
+        node_pattern_color?: number;
+        node_custom_bg_color?: string;
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
@@ -157,6 +163,31 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setPopupCoords(coords || null);
         }
     }));
+
+    // 編集対象ノードのスクリーン座標を動的に更新する（力学計算や新規追加時の座標確定、カメラ回転に対応）
+    useEffect(() => {
+        if (!props.open || !editNode || !props.getNodeScreenCoords) return;
+
+        let active = true;
+        const updateCoords = () => {
+            if (!active) return;
+            const currentCoords = props.getNodeScreenCoords?.(editNode);
+            if (currentCoords) {
+                // NaNや不正な座標を防ぐ
+                if (!isNaN(currentCoords.x) && !isNaN(currentCoords.y)) {
+                    setPopupCoords(currentCoords);
+                }
+            }
+            requestAnimationFrame(updateCoords);
+        };
+
+        // ループの開始
+        updateCoords();
+
+        return () => {
+            active = false;
+        };
+    }, [props.open, editNode, props.getNodeScreenCoords]);
 
     const getUpdatedNode = (targetNode: any, currentStates: {
         contents: string;
@@ -570,7 +601,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     // 表示位置のインテリジェントな計算
     const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const windowHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const popupWidth = 380;
+    const popupWidth = 480;
     const popupHeight = 580; // 目安の高さ
 
     let left = windowWidth / 2 - popupWidth / 2; // デフォルト画面中央
@@ -578,13 +609,14 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     let direction: 'right' | 'left' | 'center' = 'center';
 
     if (popupCoords) {
+        const halfWidth = (editNode?.size_x || 200) / 2;
         // スクリーン座標がある場合、ノードの右または左に配置
         if (popupCoords.x < windowWidth / 2) {
             direction = 'right';
-            left = popupCoords.x + 80; // ノードの右側（隙間80px）
+            left = popupCoords.x + halfWidth + 24; // ノードの右端から24pxの隙間
         } else {
             direction = 'left';
-            left = popupCoords.x - popupWidth - 80; // ノードの左側（隙間80px）
+            left = popupCoords.x - halfWidth - popupWidth - 24; // ノードの左端から24pxの隙間
         }
         // Y座標はノードの中心に合わせる（ポップアップ高さの中央をノードに合わせる）
         top = Math.max(20, Math.min(windowHeight - popupHeight - 20, popupCoords.y - popupHeight / 2));
@@ -723,7 +755,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                         {/* 背景色選択 */}
                         <Flex gap="middle" align="center">
                           <div style={{ width: '80px', fontSize: '13px' }}>背景色</div>
-                          <Flex gap="6px" wrap="wrap" align="center">
+                          <Flex gap="6px" wrap="wrap" align="center" style={{ flex: 1, minWidth: 0 }}>
                             {(styleId === 4 ? EMPHASIS_BG_COLORS : BG_COLORS).map((color, idx) => (
                               <div
                                 key={idx}
@@ -777,7 +809,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                         {/* 模様色選択 */}
                         <Flex gap="middle" align="center">
                           <div style={{ width: '80px', fontSize: '13px' }}>模様色</div>
-                          <Flex gap="6px" wrap="wrap">
+                          <Flex gap="6px" wrap="wrap" style={{ flex: 1, minWidth: 0 }}>
                             {(styleId === 4 ? EMPHASIS_PATTERN_COLORS : PATTERN_COLORS).map((color, idx) => (
                               <div
                                 key={idx}

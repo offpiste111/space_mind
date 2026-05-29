@@ -220,7 +220,7 @@ const App = () => {
         clearSelectedNode: () => void;
         clearSelectedNodeList: () => void;
         setSelectedNodeList: (nodes: any[]) => void;
-        addNode: (node: any) => void;
+        addNode: (node: any, parentNode?: any) => any;
         addNewNode: () => void;
         addLink: (source: any, target: any) => void;
         setFuncMode: (mode: boolean) => void;
@@ -339,20 +339,19 @@ const App = () => {
                     const selectedNode = mindMapGraphRef.current.getSelectedNode();
                     
                     if (copied) {
-                        const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img","type","url","file_path","folder_path"];
+                        const keys = [
+                            'name', 'group', 'style_id', 'deadline', 'priority', 'urgency', 
+                            'disabled', 'icon_img', 'size_x', 'size_y', 'img', 'type', 
+                            'url', 'file_path', 'folder_path', 'node_bg_color', 
+                            'node_pattern_color', 'node_custom_bg_color'
+                        ];
                         Object.keys(copied).forEach(key => {
                             if (!keys.includes(key)) {
                                 delete copied[key];
                             }
                         });
 
-                        mindMapGraphRef.current.addNode(copied);
-                        
-                        if (selectedNode) {
-                            const data = mindMapGraphRef.current.getGraphData();
-                            const pastedNode = data.nodes[data.nodes.length - 1];
-                            mindMapGraphRef.current.addLink(selectedNode, pastedNode);
-                        }
+                        mindMapGraphRef.current.addNode(copied, selectedNode);
                     }
                 }
             }
@@ -566,7 +565,12 @@ const App = () => {
                     
                     if(copied) {
                         //必要なキーのリスト
-                        const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img"];
+                        const keys = [
+                            'name', 'group', 'style_id', 'deadline', 'priority', 'urgency', 
+                            'disabled', 'icon_img', 'size_x', 'size_y', 'img', 'type', 
+                            'url', 'file_path', 'folder_path', 'node_bg_color', 
+                            'node_pattern_color', 'node_custom_bg_color'
+                        ];
                         //必要なキーだけを残し他は削除する
                         Object.keys(copied).forEach(key => {
                             if(!keys.includes(key)){
@@ -574,14 +578,7 @@ const App = () => {
                             }
                         });
 
-                        mindMapGraphRef.current.addNode(copied);
-                        
-                        // 選択中のノードがある場合、貼り付けたノードとのリンクを作成
-                        if (selectedNode) {
-                            const data = mindMapGraphRef.current.getGraphData();
-                            const pastedNode = data.nodes[data.nodes.length - 1]; // 最後に追加されたノード
-                            mindMapGraphRef.current.addLink(selectedNode, pastedNode);
-                        }
+                        mindMapGraphRef.current.addNode(copied, selectedNode);
                         
                         console.log("Add Node:",copied);
                     } else {
@@ -789,20 +786,19 @@ const App = () => {
                                 const selectedNode = mindMapGraphRef.current.getSelectedNode();
                                 
                                 if (copied) {
-                                    const keys = ['id','name','group','style_id','deadline','priority','urgency','disabled','icon_img',"size_x","size_y","fx","fy","fz","img","type","url","file_path","folder_path"];
+                                    const keys = [
+                                        'name', 'group', 'style_id', 'deadline', 'priority', 'urgency', 
+                                        'disabled', 'icon_img', 'size_x', 'size_y', 'img', 'type', 
+                                        'url', 'file_path', 'folder_path', 'node_bg_color', 
+                                        'node_pattern_color', 'node_custom_bg_color'
+                                    ];
                                     Object.keys(copied).forEach(key => {
                                         if (!keys.includes(key)) {
                                             delete copied[key];
                                         }
                                     });
 
-                                    mindMapGraphRef.current.addNode(copied);
-                                    
-                                    if (selectedNode) {
-                                        const data = mindMapGraphRef.current.getGraphData();
-                                        const pastedNode = data.nodes[data.nodes.length - 1];
-                                        mindMapGraphRef.current.addLink(selectedNode, pastedNode);
-                                    }
+                                    mindMapGraphRef.current.addNode(copied, selectedNode);
                                 }
                             }
                         } else if (key === 'find') {
@@ -898,7 +894,8 @@ const App = () => {
             onRefreshNode={handleRefreshNode}
             onDeleteNode={handleDeleteNode}
             onClose={() => setIsNodeEditorOpen(false)}
-            open={isNodeEditorOpen} />
+            open={isNodeEditorOpen}
+            getNodeScreenCoords={(node) => mindMapGraphRef.current?.getNodeScreenCoords(node) || null} />
 
         <LinkEditor
             ref={linkAddModalRef}
