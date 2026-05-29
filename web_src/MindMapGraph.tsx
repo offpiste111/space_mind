@@ -539,7 +539,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             // react-force-graph-3d は内部でノードオブジェクトの参照をキャッシュするため、
             // 配列要素を差し替えるのではなく、同じ参照にプロパティをマージして更新する
             if (originalNode) {
-                Object.assign(originalNode, node);
+                // プレビュー等の cloneDeep で複製され壊れた __threeObj で上書きされるのを防ぐため、
+                // __threeObj を除外してプロパティをマージします。
+                const { __threeObj, ...cleanNode } = node;
+                Object.assign(originalNode, cleanNode);
 
                 // リンクのsource/targetが更新された場合、リンクも更新
                 graphData.links.forEach(link => {
@@ -1700,7 +1703,14 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
             if (node.style_id === 1) {  // Horse.glbモデル
                 const scene = horseModel.scene.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
+                scene.traverse((child: any) => { 
+                    child.raycast = () => {}; 
+                    if (child.isMesh && child.material) {
+                        child.material = Array.isArray(child.material)
+                            ? child.material.map((m: any) => m.clone())
+                            : child.material.clone();
+                    }
+                });
                 const scale = node.scale || 1;  
                 scene.scale.set(scale * 0.7, scale * 0.7, scale * 0.7);
                 scene.rotation.y = Math.PI/2;
@@ -1708,88 +1718,99 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 added = true;
             } else if (node.style_id === 2 && watchModel) {  // watchモデル
                 const scene = watchModel.scene.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
+                scene.traverse((child: any) => { 
+                    child.raycast = () => {}; 
+                    if (child.isMesh && child.material) {
+                        child.material = Array.isArray(child.material)
+                            ? child.material.map((m: any) => m.clone())
+                            : child.material.clone();
+                    }
+                });
                 const scale = node.scale || 1; 
                 scene.scale.set(scale* 0.1, scale * 0.1, scale* 0.1);
                 scene.rotation.y = Math.PI/12;
                 innerGroup.add(scene);
                 added = true;
-            } else if (node.style_id === 3 && catModel.current) {  // Cat.objモデル
-                const scene = catModel.current!.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
-                const scale = node.scale || 1; 
-                scene.scale.set(scale * 2, scale * 2, scale * 2);
-                scene.rotation.x = -Math.PI/2;
-                scene.rotation.z = -Math.PI/6;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 3) {
-                loadModelOnDemand(3);
-                const scene = catModel.current!.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
-                const scale = node.scale || 1; 
-                scene.scale.set(scale * 2, scale * 2, scale * 2);
-                scene.rotation.x = -Math.PI/2;
-                scene.rotation.z = -Math.PI/6;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 4 && birdModel.current) {  // Bird.objモデル
-                const scene = birdModel.current!.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
-                const scale = node.scale || 1;  
-                scene.scale.set(scale * 5, scale * 5, scale * 5);
-                scene.rotation.x = -Math.PI/2;
-                scene.rotation.z = Math.PI/6;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 4) {
-                loadModelOnDemand(4);
-                const scene = birdModel.current!.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
-                const scale = node.scale || 1  
-                scene.scale.set(scale * 5, scale * 5, scale * 5);
-                scene.rotation.x = -Math.PI/2;
-                scene.rotation.z = Math.PI/6;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 5 && bird2Model.current) {  // Bird2.objモデル
-                const scene = bird2Model.current!.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
-                const scale = node.scale || 1;  
-                scene.scale.set(scale, scale, scale);
-                scene.rotation.x = -Math.PI/2;
-                scene.rotation.z = Math.PI/6;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 5) {
-                loadModelOnDemand(5);
-                const scene = bird2Model.current!.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
-                const scale = node.scale || 1;  
-                scene.scale.set(scale, scale, scale);
-                scene.rotation.x = -Math.PI/2;
-                scene.rotation.z = Math.PI/6;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 6 && airplaneModel.current) {  // Airplane.objモデル
-                const scene = airplaneModel.current!.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
-                const scale = node.scale || 1;  // デフォルトスケール0.05
-                scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
-                scene.rotation.x = -Math.PI/3;
-                scene.rotation.z = Math.PI/6;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 6) {
-                loadModelOnDemand(6);
-                const scene = airplaneModel.current!.clone();
-                scene.traverse(child => { child.raycast = () => {}; });
-                const scale = node.scale || 1;  // デフォルトスケール0.05
-                scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
-                scene.rotation.x = -Math.PI/3;
-                scene.rotation.z = Math.PI/6;
-                innerGroup.add(scene);
-                added = true;
+            } else if (node.style_id === 3) {  // Cat.objモデル
+                if (catModel.current) {
+                    const scene = catModel.current.clone();
+                    scene.traverse((child: any) => { 
+                        child.raycast = () => {}; 
+                        if (child.isMesh && child.material) {
+                            child.material = Array.isArray(child.material)
+                                ? child.material.map((m: any) => m.clone())
+                                : child.material.clone();
+                        }
+                    });
+                    const scale = node.scale || 1; 
+                    scene.scale.set(scale * 2, scale * 2, scale * 2);
+                    scene.rotation.x = -Math.PI/2;
+                    scene.rotation.z = -Math.PI/6;
+                    innerGroup.add(scene);
+                    added = true;
+                } else {
+                    loadModelOnDemand(3);
+                }
+            } else if (node.style_id === 4) {  // Bird.objモデル
+                if (birdModel.current) {
+                    const scene = birdModel.current.clone();
+                    scene.traverse((child: any) => { 
+                        child.raycast = () => {}; 
+                        if (child.isMesh && child.material) {
+                            child.material = Array.isArray(child.material)
+                                ? child.material.map((m: any) => m.clone())
+                                : child.material.clone();
+                        }
+                    });
+                    const scale = node.scale || 1;  
+                    scene.scale.set(scale * 5, scale * 5, scale * 5);
+                    scene.rotation.x = -Math.PI/2;
+                    scene.rotation.z = Math.PI/6;
+                    innerGroup.add(scene);
+                    added = true;
+                } else {
+                    loadModelOnDemand(4);
+                }
+            } else if (node.style_id === 5) {  // Bird2.objモデル
+                if (bird2Model.current) {
+                    const scene = bird2Model.current.clone();
+                    scene.traverse((child: any) => { 
+                        child.raycast = () => {}; 
+                        if (child.isMesh && child.material) {
+                            child.material = Array.isArray(child.material)
+                                ? child.material.map((m: any) => m.clone())
+                                : child.material.clone();
+                        }
+                    });
+                    const scale = node.scale || 1;  
+                    scene.scale.set(scale, scale, scale);
+                    scene.rotation.x = -Math.PI/2;
+                    scene.rotation.z = Math.PI/6;
+                    innerGroup.add(scene);
+                    added = true;
+                } else {
+                    loadModelOnDemand(5);
+                }
+            } else if (node.style_id === 6) {  // Airplane.objモデル
+                if (airplaneModel.current) {
+                    const scene = airplaneModel.current.clone();
+                    scene.traverse((child: any) => { 
+                        child.raycast = () => {}; 
+                        if (child.isMesh && child.material) {
+                            child.material = Array.isArray(child.material)
+                                ? child.material.map((m: any) => m.clone())
+                                : child.material.clone();
+                        }
+                    });
+                    const scale = node.scale || 1;  // デフォルトスケール0.05
+                    scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
+                    scene.rotation.x = -Math.PI/3;
+                    scene.rotation.z = Math.PI/6;
+                    innerGroup.add(scene);
+                    added = true;
+                } else {
+                    loadModelOnDemand(6);
+                }
             }
 
             if (added) {
