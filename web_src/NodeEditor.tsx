@@ -31,6 +31,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [nodeBgColor, setNodeBgColor] = useState<number>(0); // 背景色インデックス（デフォルト: 青系）
     const [nodePatternColor, setNodePatternColor] = useState<number>(0); // 模様色インデックス（デフォルト: 青系）
     const [nodeCustomBgColor, setNodeCustomBgColor] = useState<string>('#ddeeff'); // カスタム背景色
+    const [isNewNode, setIsNewNode] = useState<boolean>(false); // 新規ノード作成フラグの保持
 
     // ノーマルノード用カラーパレット（虹色パステル）
     // 背景色: 薄いパステル、模様色: 濃い色（強調は逆）
@@ -141,6 +142,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     useImperativeHandle(ref, () => ({
         showModal: (node: any, coords?: { x: number, y: number }) => {
             initialNodeRef.current = _.cloneDeep(node);
+            setIsNewNode(!!node.isNew);
             setContents(node.name);
             // style_idはnodeからそのまま取得する
             setStyleId(node.style_id || 1);
@@ -929,7 +931,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 {/* フッター領域 */}
                 <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '16px', marginTop: '8px' }}>
                   <Flex justify="space-between" align="center">
-                    {editNode && !editNode.isNew && (
+                    {editNode && !isNewNode && (
                       <Flex gap="small">
                         <Button danger onClick={() => {
                           if (editNode) {
