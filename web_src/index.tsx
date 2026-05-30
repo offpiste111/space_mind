@@ -13,6 +13,7 @@ import { Menu } from 'antd';
 import MindMapGraph from './MindMapGraph'
 import NodeEditor from './NodeEditor'
 import LinkEditor from './LinkEditor'
+import GroupEditor from './GroupEditor'
 import { FloatButton } from 'antd';
 import { NODE_CONSTANTS } from './constants';
 
@@ -35,9 +36,51 @@ if (eel && import.meta.env.VITE_APP_MODE !== 'web') {
   }
 }
 
+interface MindMapGraphRef {
+    getGraphData: () => any;
+    setGraphData: (data: any) => void;
+    refreshNode: (node: any, options?: { skipHistory?: boolean, initialNode?: any }) => void;
+    deleteNode: (node: any) => void;
+    refreshLink: (link: any) => void;
+    deleteLink: (link: any) => void;
+    searchNodes: (text: string) => any[];
+    selectNode: (node: any) => void;
+    focusOnNode: (node: any) => void;
+    copyNode: () => void;
+    getCopiedNode: () => any;
+    getSelectedNode: () => any;
+    getSelectedNodeList: () => any[];
+    getGroups: () => any[];
+    updateGroup: (group: any, nodeIds: number[]) => void;
+    deleteGroup: (groupId: number) => void;
+    clearSelectedNode: () => void;
+    clearSelectedNodeList: () => void;
+    setSelectedNodeList: (nodes: any[]) => void;
+    addNode: (node: any, parentNode?: any) => any;
+    addNewNode: () => void;
+    addLink: (source: any, target: any) => void;
+    setFuncMode: (mode: boolean) => void;
+    canUndo: () => boolean;
+    undo: () => boolean;
+    canRedo: () => boolean;
+    redo: () => boolean;
+    arrangeNodes: (layout: string) => void;
+    getCameraState: () => any;
+    setGlobalBackground: (bg: string) => void;
+    getNodeScreenCoords: (node: any) => { x: number, y: number } | null;
+}
+
+interface ModalRef {
+    showModal: (data: any, coords?: { x: number, y: number } | null) => void;
+}
+
 type MenuItem = Required<MenuProps>['items'][number];
 
 const App = () => {
+    const mindMapGraphRef = useRef<MindMapGraphRef>(null)
+    const nodeEditorRef = useRef<ModalRef>(null)
+    const linkAddModalRef = useRef<ModalRef>(null)
+    const groupEditorRef = useRef<any>(null)
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
     const [drawerVisible, setDrawerVisible] = useState(false);
@@ -45,6 +88,8 @@ const App = () => {
     const [loading, setLoading] = useState(false);
     const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
     const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+    const [isGroupEditorOpen, setIsGroupEditorOpen] = useState(false);
+    const [groupActiveNode, setGroupActiveNode] = useState<any>(null);
     const [current, setCurrent] = useState('mail');
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [searchText, setSearchText] = useState('');
@@ -195,52 +240,17 @@ const App = () => {
         }
     };
 
+    const hasInitialized = useRef(false);
     // 初期データの読み込み
     useEffect(() => {
-        if (mindMapGraphRef.current) {
+        if (mindMapGraphRef.current && !hasInitialized.current) {
+            hasInitialized.current = true;
             storageService.init();
             mindMapGraphRef.current.setGraphData({nodes:[],links:[]});
         }
-    }, []);
+    }, [mindMapGraphRef.current]);
 
-    interface MindMapGraphRef {
-        getGraphData: () => any;
-        setGraphData: (data: any) => void;
-        refreshNode: (node: any, options?: { skipHistory?: boolean, initialNode?: any }) => void;
-        deleteNode: (node: any) => void;
-        refreshLink: (link: any) => void;
-        deleteLink: (link: any) => void;
-        searchNodes: (text: string) => any[];
-        selectNode: (node: any) => void;
-        focusOnNode: (node: any) => void;
-        copyNode: () => void;
-        getCopiedNode: () => any;
-        getSelectedNode: () => any;
-        getSelectedNodeList: () => any[];
-        clearSelectedNode: () => void;
-        clearSelectedNodeList: () => void;
-        setSelectedNodeList: (nodes: any[]) => void;
-        addNode: (node: any, parentNode?: any) => any;
-        addNewNode: () => void;
-        addLink: (source: any, target: any) => void;
-        setFuncMode: (mode: boolean) => void;
-        canUndo: () => boolean;
-        undo: () => boolean;
-        canRedo: () => boolean;
-        redo: () => boolean;
-        arrangeNodes: (layout: string) => void;
-        getCameraState: () => any;
-        setGlobalBackground: (bg: string) => void;
-        getNodeScreenCoords: (node: any) => { x: number, y: number } | null;
-    }
 
-    interface ModalRef {
-        showModal: (data: any, coords?: { x: number, y: number } | null) => void;
-    }
-
-    const mindMapGraphRef = useRef<MindMapGraphRef>(null)
-    const nodeEditorRef = useRef<ModalRef>(null)
-    const linkAddModalRef = useRef<ModalRef>(null)
 
     useEffect(() => {
         if (window.eel && mindMapGraphRef.current) {
@@ -291,6 +301,9 @@ const App = () => {
 
     
     const handleNodeRightClick = (node: any, x: number, y: number) => {
+        if (mindMapGraphRef.current) {
+            mindMapGraphRef.current.selectNode(node);
+        }
         setMenuPosition({x, y});
         setMenuOpen(true);
     };
@@ -365,8 +378,175 @@ const App = () => {
                     mindMapGraphRef.current?.deleteNode(selectedNode);
                 }
             }
+        },
+        {
+            key: 'group_submenu',
+            label: 'グループ',
+            children: (() => {
+                const activeNode = mindMapGraphRef.current?.getSelectedNode();
+                const selectedNodes = mindMapGraphRef.current?.getSelectedNodeList() || [];
+                const allNodes = mindMapGraphRef.current?.getGraphData().nodes || [];
+                const groups = mindMapGraphRef.current?.getGroups() || [];
+
+                // 「追加」のアクション
+                const handleAddGroup = () => {
+                    if (!activeNode) return;
+                    // 新規グループを作成
+                    const newGroupId = groups.length > 0 ? Math.max(...groups.map((g: any) => g.id)) + 1 : 1;
+                    const newGroup = {
+                        id: newGroupId,
+                        name: `グループ ${newGroupId}`,
+                        color: '#4c9ac0'
+                    };
+
+                    // 選択中の全ノード、もしくはアクティブノード
+                    const nodesToAssign = selectedNodes.length > 0 ? selectedNodes : [activeNode];
+                    const initialMemberIds = nodesToAssign.map((n: any) => n.id);
+
+                    mindMapGraphRef.current?.updateGroup(newGroup, initialMemberIds);
+
+                    if (groupEditorRef.current) {
+                        const coords = mindMapGraphRef.current?.getNodeScreenCoords(activeNode);
+                        setGroupActiveNode(activeNode);
+                        setIsGroupEditorOpen(true);
+                        groupEditorRef.current.showModal(newGroup, initialMemberIds, coords, true);
+                    }
+                };
+
+                // 「編集」のための所属グループ一覧を取得
+                let nodeGroups: any[] = [];
+                if (activeNode) {
+                    let activeNodeGroupIds: number[] = [];
+                    if (activeNode.groupIds && Array.isArray(activeNode.groupIds)) {
+                        activeNodeGroupIds = activeNode.groupIds;
+                    } else if (activeNode.groupId !== undefined) {
+                        activeNodeGroupIds = [activeNode.groupId];
+                    }
+                    nodeGroups = groups.filter((g: any) => activeNodeGroupIds.includes(g.id));
+                }
+
+                const submenuItems: any[] = [
+                    {
+                        key: 'group_add',
+                        label: '追加',
+                        onClick: handleAddGroup,
+                        disabled: !activeNode
+                    }
+                ];
+
+                if (nodeGroups.length > 0) {
+                    submenuItems.push({
+                        key: 'group_edit_submenu',
+                        label: '編集',
+                        children: nodeGroups.map((g: any) => ({
+                            key: `group_edit_${g.id}`,
+                            label: g.name || `グループ ${g.id}`,
+                            onClick: () => {
+                                const nodesInGroup = allNodes.filter((n: any) => {
+                                    if (n.groupIds && Array.isArray(n.groupIds)) {
+                                        return n.groupIds.includes(g.id);
+                                    }
+                                    return n.groupId === g.id;
+                                });
+                                const initialMemberIds = nodesInGroup.map((n: any) => n.id);
+
+                                if (groupEditorRef.current && activeNode) {
+                                    const coords = mindMapGraphRef.current?.getNodeScreenCoords(activeNode);
+                                    setGroupActiveNode(activeNode);
+                                    setIsGroupEditorOpen(true);
+                                    groupEditorRef.current.showModal(g, initialMemberIds, coords);
+                                }
+                            }
+                        }))
+                    });
+                } else {
+                    submenuItems.push({
+                        key: 'group_edit_disabled',
+                        label: '編集 (所属グループなし)',
+                        disabled: true
+                    });
+                }
+
+                // 「離脱」のアクションと所属グループの共通集合（インターセクション）の計算
+                const nodesToProcess = selectedNodes.length > 0 ? selectedNodes : (activeNode ? [activeNode] : []);
+                
+                const getNodeGroupIds = (n: any): number[] => {
+                    if (n.groupIds && Array.isArray(n.groupIds)) {
+                        return n.groupIds;
+                    } else if (n.groupId !== undefined) {
+                        return [n.groupId];
+                    }
+                    return [];
+                };
+
+                let sharedGroupIds: number[] = [];
+                if (nodesToProcess.length > 0) {
+                    sharedGroupIds = getNodeGroupIds(nodesToProcess[0]);
+                    for (let i = 1; i < nodesToProcess.length; i++) {
+                        const nGroupIds = getNodeGroupIds(nodesToProcess[i]);
+                        sharedGroupIds = sharedGroupIds.filter(id => nGroupIds.includes(id));
+                    }
+                }
+                const sharedGroups = groups.filter((g: any) => sharedGroupIds.includes(g.id));
+
+                if (sharedGroups.length > 0) {
+                    submenuItems.push({
+                        key: 'group_leave_submenu',
+                        label: '離脱',
+                        children: sharedGroups.map((g: any) => ({
+                            key: `group_leave_${g.id}`,
+                            label: g.name || `グループ ${g.id}`,
+                            onClick: () => {
+                                const nodesToLeaveIds = nodesToProcess.map((n: any) => n.id);
+                                const nodesInGroup = allNodes.filter((n: any) => {
+                                    if (n.groupIds && Array.isArray(n.groupIds)) {
+                                        return n.groupIds.includes(g.id);
+                                    }
+                                    return n.groupId === g.id;
+                                });
+                                const remainingMemberIds = nodesInGroup
+                                    .map((n: any) => n.id)
+                                    .filter((id: number) => !nodesToLeaveIds.includes(id));
+
+                                mindMapGraphRef.current?.updateGroup(g, remainingMemberIds);
+                                message.success(`グループ「${g.name || `グループ ${g.id}`}」から離脱しました。`);
+                            }
+                        }))
+                    });
+                } else {
+                    submenuItems.push({
+                        key: 'group_leave_disabled',
+                        label: '離脱 (共通所属グループなし)',
+                        disabled: true
+                    });
+                }
+
+                return submenuItems;
+            })()
         }
     ];
+
+    const handleGroupRightClick = (groupId: number, x: number, y: number) => {
+        if (!mindMapGraphRef.current) return;
+        const groups = mindMapGraphRef.current.getGroups() || [];
+        const targetGroup = groups.find((g: any) => g.id === groupId);
+        if (!targetGroup) return;
+
+        const allNodes = mindMapGraphRef.current.getGraphData().nodes || [];
+        const nodesInGroup = allNodes.filter((n: any) => {
+            if (n.groupIds && Array.isArray(n.groupIds)) {
+                return n.groupIds.includes(groupId);
+            }
+            return n.groupId === groupId;
+        });
+        const initialMemberIds = nodesInGroup.map((n: any) => n.id);
+
+        if (groupEditorRef.current) {
+            setGroupActiveNode(nodesInGroup[0] || null);
+            setIsGroupEditorOpen(true);
+            groupEditorRef.current.showModal(targetGroup, initialMemberIds, { x, y });
+        }
+    };
 
     const handleLinkEdit = (link:any) => {
         if(linkAddModalRef.current){
@@ -857,7 +1037,8 @@ const App = () => {
             onNodeRightClick={handleNodeRightClick}
             onLinkEdit={handleLinkEdit}
             onOpenFile={handleOpenFile}
-            onOpenFolder={handleOpenFolder} />
+            onOpenFolder={handleOpenFolder}
+            onGroupRightClick={handleGroupRightClick} />
             
         <div style={{ position: 'relative' }}>
             <Dropdown 
@@ -895,7 +1076,8 @@ const App = () => {
             onDeleteNode={handleDeleteNode}
             onClose={() => setIsNodeEditorOpen(false)}
             open={isNodeEditorOpen}
-            getNodeScreenCoords={(node) => mindMapGraphRef.current?.getNodeScreenCoords(node) || null} />
+            getNodeScreenCoords={(node) => mindMapGraphRef.current?.getNodeScreenCoords(node) || null}
+            groups={mindMapGraphRef.current?.getGroups() || []} />
 
         <LinkEditor
             ref={linkAddModalRef}
@@ -904,6 +1086,23 @@ const App = () => {
             onSelectNode={handleNodeSelect}
             onClose={() => setIsLinkEditorOpen(false)}
             open={isLinkEditorOpen} />
+
+        <GroupEditor
+            ref={groupEditorRef}
+            onSaveGroup={(group, nodeIds) => {
+                mindMapGraphRef.current?.updateGroup(group, nodeIds);
+            }}
+            onPreviewGroup={(group, nodeIds) => {
+                mindMapGraphRef.current?.updateGroup(group, nodeIds);
+            }}
+            onDeleteGroup={(groupId) => {
+                mindMapGraphRef.current?.deleteGroup(groupId);
+            }}
+            onClose={() => setIsGroupEditorOpen(false)}
+            open={isGroupEditorOpen}
+            allNodes={mindMapGraphRef.current?.getGraphData().nodes || []}
+            getNodeScreenCoords={(node) => mindMapGraphRef.current?.getNodeScreenCoords(node) || null}
+            activeNode={groupActiveNode} />
 
 
         <Modal

@@ -9,7 +9,8 @@ import * as THREE from 'three'
 
 import {CSS2DObject, CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRenderer'
 import {CSS3DRenderer, CSS3DSprite} from 'three/examples/jsm/renderers/CSS3DRenderer'
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass';
+
+
 import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
@@ -32,6 +33,10 @@ import { executeCircleLayout } from './layouts/CircleLayout';
 import './index.css'
 import { useHistory } from './hooks/useHistory';
 import { NODE_CONSTANTS } from './constants';
+import { NodeData, GroupData, GraphData } from './types/graph';
+import { useGroupVisuals } from './hooks/useGroupVisuals';
+import { useForceGraphSettings } from './hooks/useForceGraphSettings';
+
 
 // バッチ更新用のカスタムフック
 const useBatchUpdate = () => {
@@ -89,6 +94,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     // 矩形選択用のRef (パフォーマンス最適化のためReactステートではなく生DOMとRefで処理)
     const selectionBoxRef = useRef<{ startX: number, startY: number, endX: number, endY: number } | null>(null);
     const copiedNodeRef = useRef<any>(null);
+    const mountTime = useRef<number>(Date.now());
     // ダブルクリック検出用の変数
     const lastClickTime = useRef<number>(0);
     const clickTimeout = useRef<any>(null);
@@ -96,43 +102,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
     const { scheduleBatchedUpdate, isPending } = useBatchUpdate();
 
-    interface NodeData {
-        id: number;
-        img: string;
-        name?: string;
-        _originalX?: number;
-        _originalY?: number;
-        _originalZ?: number;
-        _tempX?: number;
-        _tempY?: number;
-        _tempZ?: number;
-        group?: number;
-        x?: number;
-        y?: number;
-        z?: number;
-        fx?: number;
-        fy?: number;
-        fz?: number;
-        isNew?: boolean;
-        deadline?: string;
-        createdAt?: string;
-        updatedAt?: string;
-        disabled?: boolean;
-        type?: string;      // "folder" | "file" | "link" などのタイプを指定
-        folder_path?: string;  // フォルダパスを保存
-        style_id?: number;  // 1: Horse.glb, 2: 次のモデル... などのスタイルを指定
-        scale?: number;     // 3Dオブジェクトのスケール (0.3 to 2.0)
-        size_x?: number;    // ノードの幅
-        size_y?: number;    // ノードの高さ
-        rot_x?: number;
-        rot_y?: number;
-    }
 
-    interface GraphData {
-        nodes: NodeData[];
-        links: any[];
-        globalBackground?: string;
-    }
 
     const isShiftDown = useRef<boolean>(false);
 
@@ -151,7 +121,21 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         };
     }, []);
 
-    const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[]});
+    const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[], groups: []});
+
+    // 形状計算のパフォーマンス最適化のため、メッシュ用のジオメトリをメモ化して再利用
+    const sphereGeom = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
+    const cylinderGeom = useMemo(() => new THREE.CylinderGeometry(1, 1, 1, 8, 1, true), []);
+
+    // ギャラクシーと同じ高品質な雲（星雲）のテクスチャをロード
+    const cloudTexture = useMemo(() => {
+        const loader = new THREE.TextureLoader();
+        const texture = loader.load('./assets/cloud.png');
+        return texture;
+    }, []);
+
+    const groupVisualsRef = useGroupVisuals(fgRef, graphData, cloudTexture, htmlNodeCache);
+
 
     // 矩形選択用のマウスドラッグ追跡および生DOM描画処理（React再レンダリング回数ゼロによる高速化）
     useEffect(() => {
@@ -213,7 +197,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
                     if (camera && graphData.nodes) {
                         graphData.nodes.forEach((node: NodeData) => {
-                            if (node.disabled) return;
                             const x = node.x ?? 0;
                             const y = node.y ?? 0;
                             const z = node.z ?? 0;
@@ -429,6 +412,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             setFuncMode(mode);
         },
         setGraphData: (graphData:any) => {
+            // 背景の誤クリックによる選択解除を防ぐため、 mountTime をリセットする
+            mountTime.current = Date.now();
             // nodesとlinksが空の場合、を作成
             if (graphData.nodes.length === 0 && graphData.links.length === 0) {
                 let camera = fgRef.current.camera();
@@ -469,7 +454,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 setGraphData(restGraphData);
                 
                 if (restGraphData.nodes && restGraphData.nodes.length > 0) {
-                    setSelectedNode(restGraphData.nodes[0]);
+                    // idが1のルートノードがあればそれを優先し、なければ配列の先頭ノードを初期選択とする
+                    const initialNode = restGraphData.nodes.find((n: any) => String(n.id) === '1') || restGraphData.nodes[0];
+                    setSelectedNode(initialNode);
                 }
                 
                 // カメラ情報があれば復元（グラフの初期化完了後に実行）
@@ -677,6 +664,89 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         // 複数選択中のノードリストを取得する関数を追加
         getSelectedNodeList: () => {
             return selectedNodeList;
+        },
+        // グループ情報を取得する関数
+        getGroups: () => {
+            return graphData.groups || [];
+        },
+        // グループ情報を更新する関数
+        updateGroup: (group: any, nodeIds: number[]) => {
+            setGraphData((prev: any) => {
+                const groups = prev.groups ? [...prev.groups] : [];
+                const idx = groups.findIndex((g: any) => g.id === group.id);
+                if (idx !== -1) {
+                    groups[idx] = group;
+                } else {
+                    groups.push(group);
+                }
+
+                // 参照を維持したまま、所属グループ情報を更新
+                prev.nodes.forEach((node: any) => {
+                    const shouldBeInGroup = nodeIds.includes(node.id);
+                    if (!node.groupIds) {
+                        node.groupIds = [];
+                        if (node.groupId !== undefined) {
+                            node.groupIds.push(node.groupId);
+                        }
+                    }
+                    
+                    const isCurrentlyInGroup = node.groupIds.includes(group.id);
+                    if (shouldBeInGroup) {
+                        if (!isCurrentlyInGroup) {
+                            node.groupIds.push(group.id);
+                        }
+                        // For legacy/fallback, set groupId to the last/main group
+                        node.groupId = group.id;
+                    } else {
+                        if (isCurrentlyInGroup) {
+                            node.groupIds = node.groupIds.filter((id: number) => id !== group.id);
+                        }
+                        if (node.groupId === group.id) {
+                            node.groupId = node.groupIds.length > 0 ? node.groupIds[node.groupIds.length - 1] : undefined;
+                        }
+                    }
+                    
+                    // Clean up if array is empty
+                    if (node.groupIds.length === 0) {
+                        delete node.groupIds;
+                        delete node.groupId;
+                    }
+                });
+
+                return { ...prev, groups };
+            });
+
+            setTimeout(() => {
+                if (fgRef.current) fgRef.current.refresh();
+            }, 50);
+        },
+        // グループを削除する関数
+        deleteGroup: (groupId: number) => {
+            setGraphData((prev: any) => {
+                const groups = prev.groups ? prev.groups.filter((g: any) => g.id !== groupId) : [];
+                
+                // 参照を維持したまま、所属グループ情報を削除
+                prev.nodes.forEach((node: any) => {
+                    if (node.groupIds && Array.isArray(node.groupIds)) {
+                        node.groupIds = node.groupIds.filter((id: number) => id !== groupId);
+                        if (node.groupIds.length === 0) {
+                            delete node.groupIds;
+                        }
+                    }
+                    if (node.groupId === groupId) {
+                        node.groupId = (node.groupIds && node.groupIds.length > 0) ? node.groupIds[node.groupIds.length - 1] : undefined;
+                        if (node.groupId === undefined) {
+                            delete node.groupId;
+                        }
+                    }
+                });
+                
+                return { ...prev, groups };
+            });
+
+            setTimeout(() => {
+                if (fgRef.current) fgRef.current.refresh();
+            }, 50);
         },
         // 複数選択をクリアする関数を追加
         clearSelectedNodeList: () => {
@@ -1188,6 +1258,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
         // シングルクリックの場合は、ダブルクリックでないことが確定してからカメラの視点（ターゲット）のみを対象ノードに向ける
         clickTimeout.current = setTimeout(() => {
+            /* コメントアウト：ノードの左クリック時の視点移動
             if (fgRef.current && node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
                 // controls.target.set() を直接呼ぶと一瞬で視点が切り替わってしまいアニメーションが効かなくなるため削除します。
                 // 代わりに cameraPosition() に現在のカメラ位置と新しい lookAt を渡すことでスムーズに視点を移動させます。
@@ -1202,6 +1273,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 // カメラの向きを設定
                 setCameraOrientation();
             }
+            */
             clickTimeout.current = null;
         }, timeSinceLastClickInterval); // ダブルクリック判定時間と同じms待つ
     }, [fgRef,selectedNodeList, selectedNode, graphData,funcMode]);
@@ -1238,12 +1310,24 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 }
                 setSelectedNode(node); // ダブルクリック時にも選択状態に設定する！
                 
-                const distance = 1000;
+                const defaultDistance = 1000;
+                let targetZ = node.z + defaultDistance;
+
+                if (fgRef.current) {
+                    const currentCamPos = fgRef.current.cameraPosition();
+                    // Z軸方向の距離を計算
+                    const currentDistZ = Math.abs(currentCamPos.z - node.z);
+                    // 現在の距離がデフォルト値より近い場合、現在のZ座標を維持する
+                    if (currentDistZ < defaultDistance) {
+                        targetZ = currentCamPos.z;
+                    }
+                }
+
                 setLookAtTarget(new THREE.Vector3(node.x, node.y, node.z));
 
                 if (fgRef.current) {
                     fgRef.current.cameraPosition(
-                        { x: node.x, y: node.y, z: node.z + distance },
+                        { x: node.x, y: node.y, z: targetZ },
                         { x: node.x, y: node.y, z: node.z },
                         1000
                     );
@@ -1264,8 +1348,15 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const handleRightClick = (node: NodeData | null, event: MouseEvent) => {
         if (!node || !event) return;
         
-        setSelectedNodeList([]);
-        setSelectedNode(node);
+        // 右クリックされたノードが現在複数選択リストに入っていない場合のみ、選択リストをクリアしてアクティブノードとする
+        const isAlreadySelected = selectedNodeList.some(n => String(n.id) === String(node.id));
+        if (!isAlreadySelected) {
+            setSelectedNodeList([]);
+            setSelectedNode(node);
+        } else {
+            // すでに選択されているノード郡の中のノードを右クリックした場合は、リストを維持しつつそれをアクティブノードとする
+            setSelectedNode(node);
+        }
 
         console.log(event.clientX, event.clientY);
         
@@ -1425,10 +1516,50 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     };
 
     const handleBackgroundClick = (event:any) => {
-        let camera = fgRef.current.camera();
+        // --- 1. グループ名ラベルへの右クリック判定 (Raycasting) ---
+        const scene = fgRef.current?.scene();
+        const camera = fgRef.current?.camera();
+        const renderer = fgRef.current?.renderer();
+        
+        if (scene && camera && renderer) {
+            // マウス位置をWebGL座標系（-1 から 1）に正規化
+            const rect = renderer.domElement.getBoundingClientRect();
+            const mouse = new THREE.Vector2(
+                ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                -((event.clientY - rect.top) / rect.height) * 2 + 1
+            );
+            
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            
+            // 全てのグループ名ラベル（SpriteText）を収集してレイキャスト
+            const labelSprites: THREE.Sprite[] = [];
+            const spriteToGroupMap = new Map<THREE.Sprite, number>(); // sprite -> groupId
+            
+            groupVisualsRef.current.forEach((visualObj, groupId) => {
+                if (visualObj.sprite) {
+                    labelSprites.push(visualObj.sprite);
+                    spriteToGroupMap.set(visualObj.sprite, groupId);
+                }
+            });
+            
+            const intersects = raycaster.intersectObjects(labelSprites);
+            if (intersects.length > 0) {
+                // 最も手前にあるラベルを取得
+                const clickedSprite = intersects[0].object as THREE.Sprite;
+                const clickedGroupId = spriteToGroupMap.get(clickedSprite);
+                if (clickedGroupId !== undefined) {
+                    // 親コンポーネントのグループ編集ポップアップを呼び出す
+                    props.onGroupRightClick && props.onGroupRightClick(clickedGroupId, event.clientX, event.clientY);
+                    return; // 新規ノード作成処理を実行せずに終了！
+                }
+            }
+        }
+
+        let cameraObj = fgRef.current.camera();
         let distance = 800;
         if (selectedNode) {
-            distance = Math.abs((selectedNode.fz ?? 0) - camera.position.z);
+            distance = Math.abs((selectedNode.fz ?? 0) - cameraObj.position.z);
             console.log('distance', distance);
         }
         let coords = fgRef.current.screen2GraphCoords(event.layerX, event.layerY, distance );
@@ -1631,14 +1762,18 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 const drawSizeX = node.size_x || defaultWidth;
                 const drawSizeY = node.size_y || defaultHeight;
 
-                // クリックやドラッグの判定を受けつつ、奥の3Dオブジェクトを隠すための深度マスク
+                // ノードのクリック・ドラッグ判定用ヒットボックス。
+                // CSS3Dレイヤーはz-index:1でWebGLキャンバスの上に配置されるため、
+                // ノードHTMLは常に雲・オーラの手前に表示される。
+                // このhitBoxはカラーを描画せず（colorWrite:false）深度のみ書き込むことで、
+                // 角丸外側の黒/白アーティファクトを防ぎつつ、WebGL内のリンク等のオクルージョンを維持する。
                 const spriteMaterial = new THREE.SpriteMaterial({ 
-                    colorWrite: false, // WebGLキャンバス上には何も色を描画しない（HTMLがそのまま見えるようにする）
-                    depthWrite: true,  // ただし深度（Zバッファ）には書き込むことで、奥にある3Dオブジェクトの描画をブロックする
+                    colorWrite: false, // カラーバッファへの書き込みを無効化（角丸外側を完全透明にする）
+                    depthWrite: true,  // 深度バッファに書き込んでリンク線等のWebGLオクルージョンを正常に機能させる
                     depthTest: true,
                 });
                 const hitBox = new THREE.Sprite(spriteMaterial);
-                hitBox.renderOrder = -1; // 最優先で深度を書き込む
+                hitBox.renderOrder = 1; // 雲やリンク（renderOrder: 0）の描画後に深度を書き込み、正しいオクルージョンを確保
                 hitBox.scale.set(drawSizeX, drawSizeY, 1);
 
                 const div = document.createElement('div');
@@ -1974,132 +2109,37 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
     // 削除：副作用でのターゲット直接変更を廃止
 
-    useEffect(() => {
-        if (fgRef.current) {
-            fgRef.current.d3Force('link').distance(2).strength(1);
-            fgRef.current.d3Force('collision', d3force.forceCollide(150));
-            fgRef.current.d3Force('charge', d3force.forceManyBody().strength(-10));
-            
-            const camera = fgRef.current.camera();
-            camera.fov = 100;
-            camera.updateProjectionMatrix();
-
-            // --- マウス速度に応じた可変パン/回転速度制御 ---
-            const state = {
-                isLeftDown: false,
-                isRightDown: false,
-                lastX: 0,
-                lastY: 0,
-                lastTime: 0,
-                speed: 0,
-            };
-
-            const onMouseDown = (e: MouseEvent) => {
-                if (e.button === 0) {
-                    state.isLeftDown = true;
-                    state.lastX = e.clientX;
-                    state.lastY = e.clientY;
-                    state.lastTime = performance.now();
-                    state.speed = 0;
-                } else if (e.button === 2) {
-                    state.isRightDown = true;
-                    state.lastX = e.clientX;
-                    state.lastY = e.clientY;
-                    state.lastTime = performance.now();
-                    state.speed = 0;
-                }
-            };
-            const onMouseUp = (e: MouseEvent) => {
-                if (e.button === 0) {
-                    state.isLeftDown = false;
-                    state.speed = 0;
-                    // ドラッグ終了後は元の回転速度に戻す
-                    const controls = fgRef.current?.controls();
-                    if (controls) controls.rotateSpeed = 1.0;
-                } else if (e.button === 2) {
-                    state.isRightDown = false;
-                    state.speed = 0;
-                    // ドラッグ終了後は元のパン速度に戻す
-                    const controls = fgRef.current?.controls();
-                    if (controls) controls.panSpeed = 0.3;
-                }
-            };
-            const onMouseMove = (e: MouseEvent) => {
-                if (!state.isLeftDown && !state.isRightDown) return;
-                const now = performance.now();
-                const dt = now - state.lastTime;
-                if (dt > 0) {
-                    const dist = Math.hypot(e.clientX - state.lastX, e.clientY - state.lastY);
-                    const instant = dist / dt; // px per ms
-                    // 指数移動平均でスムージング
-                    state.speed = state.speed * 0.5 + instant * 0.5;
-                }
-                state.lastX = e.clientX;
-                state.lastY = e.clientY;
-                state.lastTime = now;
-            };
-
-            let rafId: number;
-            const updateSpeeds = () => {
-                const controls = fgRef.current?.controls();
-                if (controls) {
-                    if (state.isLeftDown) {
-                        // 速度に応じて rotateSpeed を可変に
-                        // 低速時 0.3、高速時最大 1.5 程度
-                        const speedFactor = Math.min(state.speed * 5, 3.0);
-                        controls.rotateSpeed = 0.03 + speedFactor * 0.05;
-                    } else if (state.isRightDown) {
-                        // 速度に応じて panSpeed を可変に
-                        // 低速時 0.1、高速時最大 1.3 程度
-                        const speedFactor = Math.min(state.speed * 5, 3.0);
-                        controls.panSpeed = 0.01 + speedFactor * 0.05;
-                    }
-                }
-                // 速度を減衰
-                state.speed *= 0.9;
-                rafId = requestAnimationFrame(updateSpeeds);
-            };
-
-            window.addEventListener('mousedown', onMouseDown);
-            window.addEventListener('mouseup', onMouseUp);
-            window.addEventListener('mousemove', onMouseMove);
-            rafId = requestAnimationFrame(updateSpeeds);
-
-            return () => {
-                window.removeEventListener('mousedown', onMouseDown);
-                window.removeEventListener('mouseup', onMouseUp);
-                window.removeEventListener('mousemove', onMouseMove);
-                cancelAnimationFrame(rafId);
-                const controls = fgRef.current?.controls();
-                if (controls) {
-                    controls.rotateSpeed = 1.0;
-                    controls.panSpeed = 0.3;
-                }
-            };
-        }
-    }, [fgRef]);
+    useForceGraphSettings(fgRef);
 
     // 選択状態が変わった際にHTMLノード（CSS3D）の発光エフェクトを動的に更新する
     useEffect(() => {
-        htmlNodeCache.current.forEach((cache, nodeId) => {
-            if (cache && cache.div) {
-                if (selectedNode && String(nodeId) === String(selectedNode.id)) {
-                    // 単一選択: 白色の強い光彩
-                    cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
-                } else if (selectedNodeList.some(n => String(n.id) === String(nodeId))) {
-                    // 複数選択: 白色の強い光彩 (単一と同じく白にする)
-                    cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
-                } else {
-                    // 非選択: 発光なし
-                    cache.div.style.filter = 'none';
+        const updateFilters = () => {
+            htmlNodeCache.current.forEach((cache, nodeId) => {
+                if (cache && cache.div) {
+                    if (selectedNode && String(nodeId) === String(selectedNode.id)) {
+                        // 単一選択: 白色の強い光彩
+                        cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
+                    } else if (selectedNodeList.some(n => String(n.id) === String(nodeId))) {
+                        // 複数選択: 白色の強い光彩 (単一と同じく白にする)
+                        cache.div.style.filter = 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))';
+                    } else {
+                        // 非選択: 発光なし
+                        cache.div.style.filter = 'none';
+                    }
                 }
+            });
+            
+            // 3Dオブジェクト（WebGL）の見た目も更新させるため、ForceGraphの再描画を促す
+            if (fgRef.current) {
+                fgRef.current.refresh();
             }
-        });
-        
-        // 3Dオブジェクト（WebGL）の見た目も更新させるため、ForceGraphの再描画を促す
-        if (fgRef.current) {
-            fgRef.current.refresh();
-        }
+        };
+
+        updateFilters();
+
+        // グラフ初期化時や新規ノード生成時、CSS3DRendererがDOMへノードを挿入するまでのわずかな遅延をカバーするため、遅れて再実行
+        const timer = setTimeout(updateFilters, 150);
+        return () => clearTimeout(timer);
     }, [selectedNode, selectedNodeList]);
 
     const handleNodeThreeObject = useCallback((node: any) => {
@@ -2279,6 +2319,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 //nodeThreeObjectExtend={true}
                 onBackgroundRightClick={handleBackgroundClick}
                 onBackgroundClick={(event) => {
+                    // 起動直後やデータロード直後の誤作動（初期化イベント等による背景クリック）による選択解除を防ぐため、500ms以内のイベントは無視する
+                    if (Date.now() - mountTime.current < 500) {
+                        return;
+                    }
                     // 背景左クリック時にすべての選択を解除（Escキーと同じ挙動）
                     setSelectedNode(null);
                     setSelectedNodeList([]);

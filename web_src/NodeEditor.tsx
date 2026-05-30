@@ -14,6 +14,7 @@ interface NodeEditorProps {
     onClose: () => void;
     open: boolean;
     getNodeScreenCoords?: (node: any) => { x: number, y: number } | null | undefined;
+    groups?: any[];
 }
 
 const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
@@ -32,6 +33,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [nodePatternColor, setNodePatternColor] = useState<number>(0); // 模様色インデックス（デフォルト: 青系）
     const [nodeCustomBgColor, setNodeCustomBgColor] = useState<string>('#ddeeff'); // カスタム背景色
     const [isNewNode, setIsNewNode] = useState<boolean>(false); // 新規ノード作成フラグの保持
+    const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]); // 所属グループ一覧
 
     // ノーマルノード用カラーパレット（虹色パステル）
     // 背景色: 薄いパステル、模様色: 濃い色（強調は逆）
@@ -161,6 +163,15 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setNodeBgColor(node.node_bg_color !== undefined ? node.node_bg_color : 0); // 背景色
             setNodePatternColor(node.node_pattern_color !== undefined ? node.node_pattern_color : 0); // 模様色
             setNodeCustomBgColor(node.node_custom_bg_color || '#ddeeff'); // カスタム背景色
+            
+            let nodeGroupIds: number[] = [];
+            if (node.groupIds && Array.isArray(node.groupIds)) {
+                nodeGroupIds = [...node.groupIds];
+            } else if (node.groupId !== undefined) {
+                nodeGroupIds = [node.groupId];
+            }
+            setSelectedGroupIds(nodeGroupIds);
+
             setEditNode(node);
             setPopupCoords(coords || null);
         }
@@ -208,6 +219,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         nodeBgColor?: number;
         nodePatternColor?: number;
         nodeCustomBgColor?: string;
+        groupIds?: number[];
     }) => {
         const nodeToUpdate: any = _.cloneDeep(targetNode);
         
@@ -220,6 +232,16 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         nodeToUpdate.icon_img = currentStates.iconImg;
         nodeToUpdate.icon_size = currentStates.imageSize; // 画像サイズの保存
         nodeToUpdate.type = currentStates.nodeType; // ノードタイプの保存
+        
+        // グループ所属情報を設定
+        nodeToUpdate.groupIds = currentStates.groupIds || [];
+        nodeToUpdate.groupId = (currentStates.groupIds && currentStates.groupIds.length > 0) ? currentStates.groupIds[0] : undefined;
+        if (nodeToUpdate.groupId === undefined) {
+            delete nodeToUpdate.groupId;
+        }
+        if (nodeToUpdate.groupIds.length === 0) {
+            delete nodeToUpdate.groupIds;
+        }
         
         // タイプ固有の属性を保存
         switch (currentStates.nodeType) {
@@ -335,6 +357,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             nodeBgColor: updatedFields.nodeBgColor !== undefined ? updatedFields.nodeBgColor : nodeBgColor,
             nodePatternColor: updatedFields.nodePatternColor !== undefined ? updatedFields.nodePatternColor : nodePatternColor,
             nodeCustomBgColor: updatedFields.nodeCustomBgColor !== undefined ? updatedFields.nodeCustomBgColor : nodeCustomBgColor,
+            groupIds: updatedFields.groupIds !== undefined ? updatedFields.groupIds : selectedGroupIds,
         };
 
         const previewNode = getUpdatedNode(editNode, currentStates);
@@ -359,6 +382,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 nodeBgColor,
                 nodePatternColor,
                 nodeCustomBgColor,
+                groupIds: selectedGroupIds,
             });
 
             // URLが有効で、かつ変更されている場合にOGP画像を取得
@@ -716,6 +740,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                           ]}
                         />
                       </Flex>
+
                       <Input.TextArea 
                         placeholder="Contents" 
                         value={contents} 
