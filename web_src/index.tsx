@@ -166,7 +166,8 @@ const App = () => {
                     ],
                 },
                 { label: 'Circle Layout', key: 'circle_layout' },
-                { label: 'Free Layout', key: 'free_layout' }
+                { label: 'Free Layout', key: 'free_layout' },
+                { label: 'Force Layout', key: 'force_layout' }
             ],
         },
         {
@@ -1006,6 +1007,10 @@ const App = () => {
                         } else if (key === 'free_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('free');
+                            }
+                        } else if (key === 'force_layout') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.arrangeNodes('force');
                             }
                         } else if (key === 'bg_space') {
                             if (mindMapGraphRef.current) {

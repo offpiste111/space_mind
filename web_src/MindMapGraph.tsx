@@ -91,6 +91,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const [selectedNodeList, setSelectedNodeList] = useState<NodeData[]>([]);
     // 機能モードを管理するstate
     const [funcMode, setFuncMode] = useState<boolean>(false);
+    // レイアウトモードを管理するstate ('static' | 'force')
+    const [layoutMode, setLayoutMode] = useState<string>('static');
     // 矩形選択用のRef (パフォーマンス最適化のためReactステートではなく生DOMとRefで処理)
     const selectionBoxRef = useRef<{ startX: number, startY: number, endX: number, endY: number } | null>(null);
     const copiedNodeRef = useRef<any>(null);
@@ -401,8 +403,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             return null;
         },
         getGraphData: () => {
-            //const jsonData = JSON.stringify(graphData, null, 2);
-            return graphData;
+            return {
+                ...graphData,
+                layoutMode: layoutMode
+            };
         },
         setGlobalBackground: (bg: string) => {
             setGraphData(prev => ({ ...prev, globalBackground: bg }));
@@ -414,6 +418,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         setGraphData: (graphData:any) => {
             // 背景の誤クリックによる選択解除を防ぐため、 mountTime をリセットする
             mountTime.current = Date.now();
+
+            // layoutModeをロード
+            const loadedLayoutMode = graphData.layoutMode === 'force' ? 'force' : 'static';
+            setLayoutMode(loadedLayoutMode);
+
             // nodesとlinksが空の場合、を作成
             if (graphData.nodes.length === 0 && graphData.links.length === 0) {
                 let camera = fgRef.current.camera();
@@ -450,8 +459,27 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 //props.onNodeEdit(new_node);
             } else {
                 // cameraプロパティがあれば分離（stateには含めない）
-                const { camera: cameraData, ...restGraphData } = graphData;
+                const { camera: cameraData, layoutMode: loadedLayout, ...restGraphData } = graphData;
+                
+                if (loadedLayoutMode === 'force') {
+                    if (restGraphData.nodes) {
+                        restGraphData.nodes.forEach((node: any) => {
+                            delete node.fx;
+                            delete node.fy;
+                            delete node.fz;
+                        });
+                    }
+                }
                 setGraphData(restGraphData);
+                
+                if (loadedLayoutMode === 'force') {
+                    setTimeout(() => {
+                        if (fgRef.current) {
+                            fgRef.current.d3ReheatSimulation();
+                            fgRef.current.refresh();
+                        }
+                    }, 200);
+                }
                 
                 if (restGraphData.nodes && restGraphData.nodes.length > 0) {
                     // idが1のルートノードがあればそれを優先し、なければ配列の先頭ノードを初期選択とする
@@ -804,13 +832,33 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 const rx = (Math.random() - 0.5) * randomOffsetRange;
                 const ry = (Math.random() - 0.5) * randomOffsetRange;
 
-                newNode.fx = px + ux * distanceToCamera + rx;
-                newNode.fy = py + uy * distanceToCamera + ry;
-                newNode.fz = pz + uz * distanceToCamera;
+                const targetX = px + ux * distanceToCamera + rx;
+                const targetY = py + uy * distanceToCamera + ry;
+                const targetZ = pz + uz * distanceToCamera;
+
+                if (layoutMode === 'force') {
+                    newNode.x = targetX;
+                    newNode.y = targetY;
+                    newNode.z = targetZ;
+                } else {
+                    newNode.fx = targetX;
+                    newNode.fy = targetY;
+                    newNode.fz = targetZ;
+                }
             } else {
-                newNode.fx = (newNode.fx || 0) + (10 + Math.floor(Math.random() * 21));
-                newNode.fy = (newNode.fy || 0) + (10 + Math.floor(Math.random() * 21));
-                newNode.fz = (newNode.fz || 0) + (10 + Math.floor(Math.random() * 21));
+                const targetX = (newNode.x || 0) + (10 + Math.floor(Math.random() * 21));
+                const targetY = (newNode.y || 0) + (10 + Math.floor(Math.random() * 21));
+                const targetZ = (newNode.z || 0) + (10 + Math.floor(Math.random() * 21));
+
+                if (layoutMode === 'force') {
+                    newNode.x = targetX;
+                    newNode.y = targetY;
+                    newNode.z = targetZ;
+                } else {
+                    newNode.fx = targetX;
+                    newNode.fy = targetY;
+                    newNode.fz = targetZ;
+                }
             }
             
             const nodeId = Math.max(...graphData.nodes.map((item:any) => item.id)) + 1;
@@ -968,6 +1016,22 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             return result;
         },
         arrangeNodes: (layout: string) => {
+            if (layout === 'force') {
+                setLayoutMode('force');
+                graphData.nodes.forEach(node => {
+                    delete node.fx;
+                    delete node.fy;
+                    delete node.fz;
+                });
+                if (fgRef.current) {
+                    fgRef.current.d3ReheatSimulation();
+                    fgRef.current.refresh();
+                }
+                return;
+            }
+
+            setLayoutMode('static');
+
             // 連結成分を特定する関数
             const findConnectedComponents = () => {
                 const visited = new Set<number>();
@@ -1466,9 +1530,14 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         node.x = node.x + dragNode.dx;
                         node.y = node.y + dragNode.dy;
                         node.z = node.z + dragNode.dz;
-                        node.fx = node.fx + dragNode.dx;
-                        node.fy = node.fy + dragNode.dy;
-                        node.fz = node.fz + dragNode.dz;
+                        
+                        const baseFx = node.fx !== undefined ? node.fx : node.x;
+                        const baseFy = node.fy !== undefined ? node.fy : node.y;
+                        const baseFz = node.fz !== undefined ? node.fz : node.z;
+
+                        node.fx = baseFx + dragNode.dx;
+                        node.fy = baseFy + dragNode.dy;
+                        node.fz = baseFz + dragNode.dz;
                     }
                 });
             }
@@ -1477,8 +1546,6 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             dragNode.pz = dragNode.z;
 
             console.log('dragNode:', dragNode.dx, dragNode.dy, dragNode.dz);
-
-
         }
 
 
@@ -2328,16 +2395,26 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     setSelectedNodeList([]);
                 }}
                 onNodeDragEnd={(node:any) => {
-
-                    // // ノードにfx,fy,fzのキーがあれば、そのキーを消す
-                    // if (node.fx || node.fy || node.fz) {
-                    //     delete node.fx;
-                    //     delete node.fy;
-                    //     delete node.fz;
-                    // ドラッグ中のノードの位置を更新
-                    node.fx = node.x;
-                    node.fy = node.y;
-                    node.fz = node.z;
+                    if (layoutMode === 'force') {
+                        delete node.fx;
+                        delete node.fy;
+                        delete node.fz;
+                        selectedNodeList.forEach(n => {
+                            delete n.fx;
+                            delete n.fy;
+                            delete n.fz;
+                        });
+                    } else {
+                        // ドラッグ中のノードの位置を更新
+                        node.fx = node.x;
+                        node.fy = node.y;
+                        node.fz = node.z;
+                        selectedNodeList.forEach(n => {
+                            n.fx = n.x;
+                            n.fy = n.y;
+                            n.fz = n.z;
+                        });
+                    }
 
                     // px, py, pzを削除 
                     delete node.px;
@@ -2359,6 +2436,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
                     lastDragEndTime.current = Date.now();
                     isDraggingNode.current = false;
+                    
+                    if (fgRef.current) {
+                        fgRef.current.refresh();
+                    }
                 }}
                 />
             </div>
