@@ -789,7 +789,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                 title={COLOR_LABELS[idx]}
                                 onClick={() => {
                                   setNodeBgColor(idx);
-                                  triggerPreview({ nodeBgColor: idx });
+                                  setNodePatternColor(idx);
+                                  triggerPreview({ nodeBgColor: idx, nodePatternColor: idx });
                                 }}
                                 style={{
                                   width: 26,
@@ -810,7 +811,8 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                 const hex = color.toHexString();
                                 setNodeCustomBgColor(hex);
                                 setNodeBgColor(7);
-                                triggerPreview({ nodeBgColor: 7, nodeCustomBgColor: hex });
+                                setNodePatternColor(7);
+                                triggerPreview({ nodeBgColor: 7, nodePatternColor: 7, nodeCustomBgColor: hex });
                               }}
                               trigger="click"
                               size="small"

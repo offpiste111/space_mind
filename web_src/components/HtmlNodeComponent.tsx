@@ -163,7 +163,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
       : (sId === 4 ? EMPHASIS_PATTERN_COLORS[ptIdx] : PATTERN_COLORS[ptIdx]);
 
     specificStyle = {
-      background: bgColor,
+      backgroundColor: bgColor,
       border: `${2 * SCALE}px solid ${ptColor}`,
       borderRadius: `${10 * SCALE}px`,
       minWidth: `${200 * SCALE}px`,
@@ -174,13 +174,13 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
 
     if (sId === 1) {
       // シンプル: 薄い背景色 + 模様色の枠線
-      specificStyle.background = bgColor;
+      specificStyle.backgroundColor = bgColor;
       specificStyle.border = `${2 * SCALE}px solid ${ptColor}`;
       specificStyle.borderRadius = `${10 * SCALE}px`;
     } else if (sId === 3) {
       // メモ: 折れ曲がり角＋枠線
       const cutSize = 20 * SCALE;
-      specificStyle.background = bgColor;
+      specificStyle.backgroundColor = bgColor;
       specificStyle.border = `${2 * SCALE}px solid ${ptColor}`;
       specificStyle.borderRadius = '0';
       specificStyle.clipPath = `polygon(0 0, calc(100% - ${cutSize}px) 0, 100% ${cutSize}px, 100% 100%, 0 100%)`;
@@ -199,7 +199,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
       );
     } else if (sId === 4) {
       // 強調: 濃い背景色 + 薄い模様色の枠線・テキスト
-      specificStyle.background = bgColor;
+      specificStyle.backgroundColor = bgColor;
       specificStyle.border = `${3 * SCALE}px solid ${ptColor}`;
       specificStyle.color = ptColor;
       specificStyle.fontWeight = 'bold';
@@ -207,7 +207,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
     } else if (sId === 5) {
       // ドット: 薄い背景 + ドット模様（ptIdx=7のとき模様なし）
       const dotColor = ptIdx === 7 ? bgColor : DOT_PATTERN_COLORS[ptIdx];
-      specificStyle.background = bgColor;
+      specificStyle.backgroundColor = bgColor;
       specificStyle.backgroundImage = `radial-gradient(${dotColor} 10%, transparent 25%), radial-gradient(${dotColor} 10%, transparent 25%)`;
       specificStyle.backgroundPosition = `0 0, ${10 * SCALE}px ${10 * SCALE}px`;
       specificStyle.backgroundSize = `${20 * SCALE}px ${20 * SCALE}px`;
@@ -215,7 +215,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
       specificStyle.borderRadius = `${10 * SCALE}px`;
     } else if (sId === 6) {
       // 破線: 薄い背景 + 破線枠
-      specificStyle.background = bgColor;
+      specificStyle.backgroundColor = bgColor;
       specificStyle.border = `${3 * SCALE}px dashed ${ptColor}`;
       specificStyle.borderRadius = `${4 * SCALE}px`;
     }
