@@ -1,20 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 
+block_cipher = None
+
+
 a = Analysis(
     ['main.py'],
-    pathex=['env/Lib/site-packages'],
+    pathex=['env/lib/site-packages'],
     binaries=[],
-    datas=[('C:\\Users\\mitikami_eec\\work\\space_mind\\env\\Lib\\site-packages\\eel\\eel.js', 'eel'), ('dist_vite', 'dist_vite')],
-    hiddenimports=['bottle_websocket', 'requests', 'bs4', 'beautifulsoup4', 'soupsieve'],
+    datas=[('C:\\Users\\jisha\\src\\space_mind\\env\\lib\\site-packages\\eel\\eel.js', 'eel'), ('dist_vite', 'dist_vite')],
+    hiddenimports=['bottle_websocket'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
     noarchive=False,
-    optimize=0,
 )
-pyz = PYZ(a.pure)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 splash = Splash(
     'splashfile.png',
     binaries=a.binaries,
@@ -29,6 +34,7 @@ exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
+    a.zipfiles,
     a.datas,
     splash,
     splash.binaries,
@@ -40,7 +46,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

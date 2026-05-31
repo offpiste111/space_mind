@@ -9,6 +9,7 @@
     "build": "tsc && vite build",
     "build:web": "tsc && vite build --mode web --outDir ../dist_web",
     "build:eel": "tsc && vite build --mode eel --outDir ../dist_vite",
+    "build:release": "powershell -ExecutionPolicy Bypass -File build_release.ps1",
     "preview": "vite preview"
   },
   "dependencies": {

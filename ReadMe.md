@@ -54,29 +54,43 @@ Critical files for this demo
   <script type="text/javascript" src="http://localhost:5169/eel.js"></script>
   ```
 
-## Releasing for Windows and Linux
+## Releasing (Windows, Linux, and Web)
 
-To build a standalone executable from this project, first ensure the frontend is built:
+To package and release the application for different environments, follow the instructions below.
 
-```bash
-npm run build
-```
+### Windows (Desktop Application)
 
-### Windows
+An automated build script has been integrated to simplify packaging, automatically handle correct spec file detection, embed the custom icon, disable console windows, and bypass browser cache issues.
 
-1. **Activate the virtual environment and run PyInstaller:**
-   ```powershell
-   .\env\Scripts\activate
-   python -m eel main.py dist_vite --onefile --splash splashfile.png --path env/lib/site-packages --noconsole --name space-mind-windows-v0.1.0
+1. **Run the release build command:**
+   Run the following command in the project root directory (this automatically builds the frontend and packages the Python app using PyInstaller):
+   ```bash
+   npm run build:release
    ```
+   *(Behind the scenes, this executes the `build_release.ps1` script using the custom configuration from `space-mind-windows-v0.1.0.spec`.)*
 
 2. **Locate the executable:**
-   The final executable will be generated in the `dist\` directory:
+   The standalone, console-less executable with the custom icon (`assets/app_icon.ico`) embedded will be generated at:
    ```
    dist\space-mind-windows-v0.1.0.exe
    ```
 
-### Linux
+### Web Version (Static Web App)
+
+To compile the application as a standalone static website that can be hosted on any standard web server (e.g., GitHub Pages, Vercel, AWS S3, etc.):
+
+1. **Run the web build command:**
+   ```bash
+   npm run build:web
+   ```
+
+2. **Locate the web assets:**
+   The fully bundled, static HTML, CSS, and JS assets will be compiled into the following directory:
+   ```
+   dist_web/
+   ```
+
+### Linux (Desktop Application)
 
 1. **Activate the virtual environment and run PyInstaller:**
    ```bash
@@ -99,5 +113,6 @@ npm run build
 - `--splash` (Windows only): Displays a splash screen (`splashfile.png`) while the app is loading.
 - `--noconsole`: Suppresses the console window in the final GUI application.
 - `--name`/`-n`: Specifies the output filename.
-- If you encounter issues related to the `bottle` library when running `noconsole`, ensure the development version of `bottle` (`0.13-dev`) is installed in your virtual environment, as noted in the Quick Start section above.
+- **Cache Prevention**: The Windows release is configured to run Chrome/Edge with the `--disable-http-cache` parameter, ensuring that any updated web assets (like `logo.png`) are immediately reloaded by the browser upon app launch.
+- If you encounter issues related to the `bottle` library when running `noconsole`, ensure the development version of `bottle` (`0.13-dev`) is installed in your virtual environment.
 

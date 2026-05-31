@@ -2,7 +2,7 @@
 
 To build for production:
 npm run build
-python -m eel main.py dist_vite --onefile --splash splashfile.png --path env/lib/site-packages --noconsole
+python -m eel main.py dist_vite --onefile --splash splashfile.png --path env/lib/site-packages --noconsole --name space-mind-windows-v0.1.0 --icon assets/app_icon.ico
 """
 
 import json
@@ -16,6 +16,16 @@ from py_src.contrib.replace_in_file import replaceInfile, findFileRe
 from py_src.contrib.port_check import find_unused_port
 import eel
 import subprocess
+
+# Windows用のタスクバー・タイトルバーアイコン適用対策 (AppUserModelIDの設定)
+if sys.platform.startswith('win'):
+    import ctypes
+    try:
+        # 独自のユニークなIDを設定してWindowsに別アプリとして認識させる
+        myappid = 'jp.co.spacemind.app.0.1.0'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception as e:
+        pass
 
 
 
@@ -492,6 +502,7 @@ def start_eel(develop):
         host='localhost',
         port=eel_port,
         size=(1280, 800),
+        cmdline_args=['--disable-http-cache']
     )
     try:
         eel.start(page, mode=app, **eel_kwargs)
