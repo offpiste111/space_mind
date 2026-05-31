@@ -1,4 +1,4 @@
-// TreeLayout.ts - 様々な方向のツリーレイアウト（right, left, upper, lower）を実装
+// TreeLayout.ts - グループ対応・ノードサイズ適応型ツリーレイアウト（right, left, upper, lower）
 
 import * as THREE from 'three';
 
@@ -40,21 +40,26 @@ interface NodeInfo {
     level: number;
     width: number;
     height: number;
-    subtreeHeight: number;
+    subtreeThickness: number; // サブツリー全体の厚み（配置方向に応じた）
+    leafCount: number;        // サブツリー内のリーフノード数（角度配分の基準）
     minY: number;
     maxY: number;
     minX?: number;
     maxX?: number;
     x?: number;
     y?: number;
+    groupId: number;          // ノードのグループID
 }
 
 // ツリーレイアウトの方向を表す型
 type LayoutDirection = 'right' | 'left' | 'upper' | 'lower';
 
 /**
- * ツリーレイアウトクラス
- * 様々な方向（right, left, upper, lower）のツリーレイアウトを処理
+ * 改良版ツリーレイアウトクラス
+ * - グループ別にルートノードをクラスタリングして隣接配置
+ * - ノードの実サイズに基づくレベル間隔の適応的計算
+ * - リーフノード数に基づくサブツリーの空間配分でバランス改善
+ * - 不均衡なツリーでも美しく配置
  */
 export class TreeLayout {
     private graphData: GraphData;
@@ -62,9 +67,9 @@ export class TreeLayout {
     private rootNodes: NodeInfo[] = [];
     private direction: LayoutDirection;
     private z_layer: number;
-    private levelSpacing: number = 150;
-    private paddingY: number = 80; // Increased padding for Y spacing
-    private paddingX: number = 100; // Increased padding for X spacing
+    // パディング値（ノードサイズに応じて動的に調整される基準値）
+    private basePaddingThickness: number = 12;  // ノードの厚み方向（配置直交方向）の最小余白
+    private basePaddingLength: number = 30;     // ノードの長さ方向（配置進行方向）の最小余白
 
     constructor(graphData: GraphData, direction: LayoutDirection = 'right', z_layer: number = -300) {
         this.graphData = graphData;
@@ -81,13 +86,18 @@ export class TreeLayout {
             return this.graphData;
         }
         
+        // ルートノードをグループでクラスタリングして並べる
+        const groupedRoots = this.clusterRootsByGroup();
+        
         let startY = 0;
         
-        for (const root of this.rootNodes) {
+        for (const root of groupedRoots) {
             this.assignLevelsIterative(root, 0);
-            this.calculateSubtreeHeightIterative(root);
+            this.calculateLeafCountIterative(root);
+            this.calculateSubtreeThicknessIterative(root);
             startY = this.calculateNodePositionsIterative(root, startY);
-            startY += this.paddingY * 2; // 独立したツリー間に余白をさらに追加
+            // 独立したツリー間に十分な余白を追加
+            startY += this.basePaddingThickness * 2;
         }
         
         this.assignHorizontalPositions();
@@ -96,14 +106,17 @@ export class TreeLayout {
         return this.graphData;
     }
 
+    /** ノードの「厚み」（配置方向に直交する寸法） */
     private getNodeThickness(nodeInfo: NodeInfo): number {
         return (this.direction === 'upper' || this.direction === 'lower') ? nodeInfo.width : nodeInfo.height;
     }
 
+    /** ノードの「長さ」（配置方向に沿った寸法） */
     private getNodeLength(nodeInfo: NodeInfo): number {
         return (this.direction === 'upper' || this.direction === 'lower') ? nodeInfo.height : nodeInfo.width;
     }
 
+    /** ノードマップを初期化 */
     private initializeNodeMap(): void {
         this.nodeMap.clear();
         this.graphData.nodes.forEach(node => {
@@ -113,19 +126,26 @@ export class TreeLayout {
                 level: 0,
                 width: node.size_x || 200,
                 height: node.size_y || 80,
-                subtreeHeight: 0,
+                subtreeThickness: 0,
+                leafCount: 0,
                 minY: Infinity,
                 maxY: -Infinity,
                 minX: Infinity,
-                maxX: -Infinity
+                maxX: -Infinity,
+                groupId: node.group || 0
             });
         });
     }
 
+    /** 親子関係を構築（友達リンクは除外） */
     private createParentChildRelationships(): void {
         const nodesWithParents = new Set<number>();
         
         this.graphData.links.forEach(link => {
+            // 友達リンクは階層関係（ツリーレイアウト）の計算対象から除外する
+            if (link.type === 'friend') {
+                return;
+            }
             const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
             const targetId = typeof link.target === 'object' ? link.target.id : link.target;
             const sourceInfo = this.nodeMap.get(sourceId);
@@ -140,9 +160,11 @@ export class TreeLayout {
         });
     }
 
+    /** ルートノードを検出 */
     private findRootNodes(): void {
         let roots: NodeInfo[] = [];
         
+        // 親を持たないノードをルートとする
         const hasParentSet = new Set<number>();
         this.nodeMap.forEach(info => {
             info.children.forEach(child => hasParentSet.add(child.node.id));
@@ -158,10 +180,57 @@ export class TreeLayout {
             roots = [this.nodeMap.get(this.graphData.nodes[0].id)!];
         }
         
-        roots.sort((a, b) => b.children.length - a.children.length);
+        // サブツリーサイズの大きいものを優先（安定したソート）
+        roots.sort((a, b) => {
+            const sizeA = this.countDescendants(a);
+            const sizeB = this.countDescendants(b);
+            return sizeB - sizeA;
+        });
         this.rootNodes = roots;
     }
 
+    /** ノードの子孫数を再帰的にカウント */
+    private countDescendants(nodeInfo: NodeInfo): number {
+        let count = 1;
+        for (const child of nodeInfo.children) {
+            count += this.countDescendants(child);
+        }
+        return count;
+    }
+
+    /** 
+     * ルートノードをグループでクラスタリング
+     * 同じグループのルートを隣接させ、グループ内ではサブツリーサイズで降順ソート
+     */
+    private clusterRootsByGroup(): NodeInfo[] {
+        // グループごとにルートノードを分類
+        const groupMap = new Map<number, NodeInfo[]>();
+        for (const root of this.rootNodes) {
+            const gid = root.groupId;
+            if (!groupMap.has(gid)) {
+                groupMap.set(gid, []);
+            }
+            groupMap.get(gid)!.push(root);
+        }
+
+        // グループを総サブツリーサイズの降順でソート（最大のグループを先頭に）
+        const sortedGroups = Array.from(groupMap.entries()).sort((a, b) => {
+            const totalA = a[1].reduce((sum, r) => sum + this.countDescendants(r), 0);
+            const totalB = b[1].reduce((sum, r) => sum + this.countDescendants(r), 0);
+            return totalB - totalA;
+        });
+
+        // グループ順にルートノードを連結
+        const result: NodeInfo[] = [];
+        for (const [, roots] of sortedGroups) {
+            // グループ内はサブツリーサイズ降順
+            roots.sort((a, b) => this.countDescendants(b) - this.countDescendants(a));
+            result.push(...roots);
+        }
+        return result;
+    }
+
+    /** レベル（深さ）を反復的に割り当て */
     private assignLevelsIterative(rootInfo: NodeInfo, startLevel: number): void {
         const queue: { node: NodeInfo, level: number }[] = [{ node: rootInfo, level: startLevel }];
         while (queue.length > 0) {
@@ -173,23 +242,59 @@ export class TreeLayout {
         }
     }
 
-    private calculateSubtreeHeightIterative(rootInfo: NodeInfo): number {
+    /** リーフノード数を後順走査で計算（空間配分の基準） */
+    private calculateLeafCountIterative(rootInfo: NodeInfo): void {
         const postOrderList: NodeInfo[] = [];
         const stack: NodeInfo[] = [rootInfo];
         const visited = new Set<number>();
         
         while (stack.length > 0) {
             const current = stack[stack.length - 1];
-            
             let allChildrenVisited = true;
             for (const child of current.children) {
                 if (!visited.has(child.node.id)) {
                     allChildrenVisited = false;
                     stack.push(child);
-                    break; 
+                    break;
                 }
             }
-            
+            if (allChildrenVisited) {
+                stack.pop();
+                postOrderList.push(current);
+                visited.add(current.node.id);
+            }
+        }
+        
+        for (const node of postOrderList) {
+            if (node.children.length === 0) {
+                // リーフノード：自分自身を1とカウント
+                node.leafCount = 1;
+            } else {
+                // 内部ノード：子のリーフ数を合算
+                node.leafCount = node.children.reduce((sum, child) => sum + child.leafCount, 0);
+            }
+        }
+    }
+
+    /** 
+     * サブツリーの厚み（配置方向に直交する方向のサイズ）を後順走査で計算
+     * リーフノードの実サイズに基づく適応的計算
+     */
+    private calculateSubtreeThicknessIterative(rootInfo: NodeInfo): number {
+        const postOrderList: NodeInfo[] = [];
+        const stack: NodeInfo[] = [rootInfo];
+        const visited = new Set<number>();
+        
+        while (stack.length > 0) {
+            const current = stack[stack.length - 1];
+            let allChildrenVisited = true;
+            for (const child of current.children) {
+                if (!visited.has(child.node.id)) {
+                    allChildrenVisited = false;
+                    stack.push(child);
+                    break;
+                }
+            }
             if (allChildrenVisited) {
                 stack.pop();
                 postOrderList.push(current);
@@ -200,19 +305,25 @@ export class TreeLayout {
         for (const node of postOrderList) {
             const thickness = this.getNodeThickness(node);
             if (node.children.length === 0) {
-                node.subtreeHeight = thickness + this.paddingY;
+                // リーフノード：自身の厚み＋パディング
+                node.subtreeThickness = thickness + this.basePaddingThickness;
             } else {
-                let totalChildrenHeight = 0;
+                // 内部ノード：子サブツリーの厚みの合計と自身の厚みの大きい方
+                let totalChildrenThickness = 0;
                 for (const child of node.children) {
-                    totalChildrenHeight += child.subtreeHeight;
+                    totalChildrenThickness += child.subtreeThickness;
                 }
-                node.subtreeHeight = Math.max(thickness + this.paddingY, totalChildrenHeight);
+                node.subtreeThickness = Math.max(thickness + this.basePaddingThickness, totalChildrenThickness);
             }
         }
         
-        return rootInfo.subtreeHeight;
+        return rootInfo.subtreeThickness;
     }
 
+    /** 
+     * ノード位置を反復的に計算
+     * サブツリーの厚みに基づく空間配分で、不均衡なツリーでもバランスよく配置
+     */
     private calculateNodePositionsIterative(rootInfo: NodeInfo, initialStartY: number): number {
         const stack: {
             node: NodeInfo;
@@ -238,11 +349,12 @@ export class TreeLayout {
             const thickness = this.getNodeThickness(nodeInfo);
 
             if (nodeInfo.children.length === 0) {
-                nodeInfo.y = frame.startY;
+                // リーフノード：割り当てられた開始位置に配置
+                nodeInfo.y = frame.startY + thickness / 2;
                 nodeInfo.minY = nodeInfo.y - thickness / 2;
                 nodeInfo.maxY = nodeInfo.y + thickness / 2;
                 
-                const nextY = frame.startY + thickness + this.paddingY;
+                const nextY = frame.startY + thickness + this.basePaddingThickness;
                 
                 stack.pop();
                 
@@ -256,6 +368,7 @@ export class TreeLayout {
                 }
             } else {
                 if (frame.childIndex < nodeInfo.children.length) {
+                    // 次の子ノードを処理
                     const child = nodeInfo.children[frame.childIndex];
                     frame.childIndex++;
                     
@@ -268,13 +381,17 @@ export class TreeLayout {
                         maxChildY: -Infinity
                     });
                 } else {
+                    // 全ての子ノードの処理が完了 → 親ノードの位置を子の中心に配置
                     if (nodeInfo.children.length === 1) {
                         const childInfo = nodeInfo.children[0];
                         nodeInfo.y = childInfo.y;
                         nodeInfo.minY = childInfo.minY;
                         nodeInfo.maxY = childInfo.maxY;
                     } else {
-                        nodeInfo.y = (frame.minChildY + frame.maxChildY) / 2;
+                        // 子ノードの最初と最後の中心に親を配置（重心方式）
+                        const firstChild = nodeInfo.children[0];
+                        const lastChild = nodeInfo.children[nodeInfo.children.length - 1];
+                        nodeInfo.y = ((firstChild.y || 0) + (lastChild.y || 0)) / 2;
                         nodeInfo.minY = frame.minChildY;
                         nodeInfo.maxY = frame.maxChildY;
                     }
@@ -297,56 +414,62 @@ export class TreeLayout {
         return finalNextY;
     }
 
+    /** 
+     * 水平位置（レベル方向）を割り当て
+     * 各レベルのノード最大長さに基づいて適応的にレベル間隔を計算
+     */
+    /** 
+     * 水平位置（レベル方向）を割り当て
+     * 各系列ごとに親子パスに沿ってオフセットを累積計算し、他系列のサイズ影響を排除
+     */
     private assignHorizontalPositions(): void {
-        const nodesByLevel = new Map<number, NodeInfo[]>();
-        let maxLevel = 0;
-        this.nodeMap.forEach(nodeInfo => {
-            if (!nodesByLevel.has(nodeInfo.level)) {
-                nodesByLevel.set(nodeInfo.level, []);
-            }
-            nodesByLevel.get(nodeInfo.level)!.push(nodeInfo);
-            maxLevel = Math.max(maxLevel, nodeInfo.level);
-        });
-
-        const levelOffsets = new Map<number, number>();
-        let currentOffset = 0;
-        
-        for (let level = 0; level <= maxLevel; level++) {
-            levelOffsets.set(level, currentOffset);
-            
-            let maxLength = 0;
-            const nodes = nodesByLevel.get(level) || [];
-            nodes.forEach(nodeInfo => {
-                maxLength = Math.max(maxLength, this.getNodeLength(nodeInfo));
-            });
-            
-            // 各レベル間の間隔は、そのレベルでのノードの最大長さ + paddingX
-            currentOffset += maxLength + this.paddingX;
+        // 各ルートノードから独立してオフセットを計算
+        for (const root of this.rootNodes) {
+            this.assignOffsetRecursive(root, 0);
         }
 
-        nodesByLevel.forEach((nodesInLevel, level) => {
-            nodesInLevel.forEach(nodeInfo => {
-                const offset = levelOffsets.get(level) || 0;
-                switch (this.direction) {
-                    case 'right':
-                        nodeInfo.x = offset;
-                        break;
-                    case 'left':
-                        nodeInfo.x = -offset;
-                        break;
-                    case 'upper':
-                        nodeInfo.x = nodeInfo.y;
-                        nodeInfo.y = -offset;
-                        break;
-                    case 'lower':
-                        nodeInfo.x = nodeInfo.y;
-                        nodeInfo.y = offset;
-                        break;
-                }
-            });
+        // 各ノードに水平位置を割り当て（方向に応じて座標変換）
+        this.nodeMap.forEach(nodeInfo => {
+            const offset = (nodeInfo as any).calculatedOffset || 0;
+            switch (this.direction) {
+                case 'right':
+                    nodeInfo.x = offset;
+                    break;
+                case 'left':
+                    nodeInfo.x = -offset;
+                    break;
+                case 'upper':
+                    // 上方向：yを水平位置として使っていたものをx座標にスワップ
+                    nodeInfo.x = nodeInfo.y;
+                    nodeInfo.y = -offset;
+                    break;
+                case 'lower':
+                    nodeInfo.x = nodeInfo.y;
+                    nodeInfo.y = offset;
+                    break;
+            }
         });
     }
 
+    /**
+     * 親子パスに沿ってオフセットを再帰的に計算
+     */
+    private assignOffsetRecursive(nodeInfo: NodeInfo, currentOffset: number): void {
+        (nodeInfo as any).calculatedOffset = currentOffset;
+
+        const parentLength = this.getNodeLength(nodeInfo);
+
+        for (const child of nodeInfo.children) {
+            const childLength = this.getNodeLength(child);
+            // 適応パディング：親子それぞれの長さのうち大きい方をベースに計算
+            const adaptivePadding = Math.max(this.basePaddingLength, Math.max(parentLength, childLength) * 0.12);
+            const childOffset = currentOffset + parentLength / 2 + adaptivePadding + childLength / 2;
+            
+            this.assignOffsetRecursive(child, childOffset);
+        }
+    }
+
+    /** ノードの最終位置をGraphDataに反映 */
     private updateNodePositions(): void {
         this.nodeMap.forEach(nodeInfo => {
             nodeInfo.node.fx = nodeInfo.x;
@@ -355,6 +478,7 @@ export class TreeLayout {
         });
     }
 
+    /** グラフの境界を取得 */
     public getGraphBounds(): {minX: number, maxX: number, minY: number, maxY: number} {
         let minX = Infinity, maxX = -Infinity;
         let minY = Infinity, maxY = -Infinity;

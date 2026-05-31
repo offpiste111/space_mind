@@ -64,6 +64,9 @@ import { SnowScene } from './components/SnowScene';
 import { SunsetScene } from './components/SunsetScene';
 import HtmlNodeComponent from './components/HtmlNodeComponent';
 
+const scratchColor1 = new THREE.Color();
+const scratchColor2 = new THREE.Color();
+
 const MindMapGraph = forwardRef((props: any, ref:any) => {
     const fgRef = useRef<any>();
     
@@ -87,6 +90,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
     // 選択されたノードを追跡するstate
     const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+    // 選択されたリンクを追跡するstate
+    const [selectedLink, setSelectedLink] = useState<any>(null);
     // 複数選択されたノードを追跡するstate
     const [selectedNodeList, setSelectedNodeList] = useState<NodeData[]>([]);
     // 機能モードを管理するstate
@@ -107,6 +112,24 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
 
     const isShiftDown = useRef<boolean>(false);
+
+    const enableParticlesRef = useRef<boolean>(true);
+    const selectedNodeRef = useRef<NodeData | null>(null);
+
+    useEffect(() => {
+        enableParticlesRef.current = !!props.enableParticles;
+    }, [props.enableParticles]);
+
+    useEffect(() => {
+        selectedNodeRef.current = selectedNode;
+    }, [selectedNode]);
+
+    // パーティクルのON/OFF設定変更時にForceGraphの再描画を促す
+    useEffect(() => {
+        if (fgRef.current) {
+            fgRef.current.refresh();
+        }
+    }, [props.enableParticles]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -408,6 +431,31 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 layoutMode: layoutMode
             };
         },
+        setForceMode: (enabled: boolean) => {
+            if (enabled) {
+                setLayoutMode('force');
+                // Force ONにする時は全ノードの固定を解除（アンピン）して、物理演算に従って滑らかに漂うようにする
+                graphData.nodes.forEach(node => {
+                    delete node.fx;
+                    delete node.fy;
+                    delete node.fz;
+                });
+                if (fgRef.current) {
+                    fgRef.current.d3ReheatSimulation();
+                    fgRef.current.refresh();
+                }
+            } else {
+                setLayoutMode('static');
+                graphData.nodes.forEach(node => {
+                    node.fx = node.x !== undefined ? node.x : 0;
+                    node.fy = node.y !== undefined ? node.y : 0;
+                    node.fz = node.z !== undefined ? node.z : z_layer;
+                });
+                if (fgRef.current) {
+                    fgRef.current.refresh();
+                }
+            }
+        },
         setGlobalBackground: (bg: string) => {
             setGraphData(prev => ({ ...prev, globalBackground: bg }));
         },
@@ -461,18 +509,27 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 // cameraプロパティがあれば分離（stateには含めない）
                 const { camera: cameraData, layoutMode: loadedLayout, ...restGraphData } = graphData;
                 
-                if (loadedLayoutMode === 'force') {
+                if (loadedLayoutMode === 'static') {
                     if (restGraphData.nodes) {
                         restGraphData.nodes.forEach((node: any) => {
-                            delete node.fx;
-                            delete node.fy;
-                            delete node.fz;
+                            // Staticモードなら全ノードを確実に固定する
+                            node.fx = node.fx !== undefined ? node.fx : (node.x !== undefined ? node.x : 0);
+                            node.fy = node.fy !== undefined ? node.fy : (node.y !== undefined ? node.y : 0);
+                            node.fz = node.fz !== undefined ? node.fz : (node.z !== undefined ? node.z : z_layer);
                         });
                     }
                 }
                 setGraphData(restGraphData);
                 
                 if (loadedLayoutMode === 'force') {
+                    if (restGraphData.nodes) {
+                        restGraphData.nodes.forEach((node: any) => {
+                            // Forceモードなら全ノードの固定を解除（アンピン）して物理シミュレーションを有効にする
+                            delete node.fx;
+                            delete node.fy;
+                            delete node.fz;
+                        });
+                    }
                     setTimeout(() => {
                         if (fgRef.current) {
                             fgRef.current.d3ReheatSimulation();
@@ -792,7 +849,23 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             const existingLink = graphData.links.find((link: any) => link.source.id === source.id && link.target.id === target.id);
             if (!existingLink) {
                 const newIndex = graphData.links.length > 0 ? Math.max(...graphData.links.map((l: any) => l.index)) + 1 : 1;
-                const newLink = { index: newIndex, source: source, target: target, isNew: true };
+                // 循環親子関係のチェック：targetからsourceへの親子パスがあれば、循環を避けるために友達リンクにする
+                const isCyclic = hasParentChildPath(target.id, source.id, graphData.links);
+                // 親ノードは1つのみのルール：target(子)が既に別の親ノードを持つかチェック
+                const alreadyHasParent = graphData.links.some(link => {
+                    if (link.type === 'friend') return false;
+                    const tId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+                    return String(tId) === String(target.id);
+                });
+                const linkType = (isCyclic || alreadyHasParent) ? 'friend' : 'parent-child';
+
+                const newLink = { 
+                    index: newIndex, 
+                    source: source, 
+                    target: target, 
+                    isNew: true,
+                    type: linkType 
+                };
                 graphData.links.push(newLink);
                 refreshLink(newLink)
                 fgRef.current.refresh();
@@ -1016,22 +1089,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             return result;
         },
         arrangeNodes: (layout: string) => {
-            if (layout === 'force') {
-                setLayoutMode('force');
-                graphData.nodes.forEach(node => {
-                    delete node.fx;
-                    delete node.fy;
-                    delete node.fz;
-                });
-                if (fgRef.current) {
-                    fgRef.current.d3ReheatSimulation();
-                    fgRef.current.refresh();
-                }
-                return;
-            }
-
-            setLayoutMode('static');
-
             // 連結成分を特定する関数
             const findConnectedComponents = () => {
                 const visited = new Set<number>();
@@ -1106,13 +1163,15 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 // グラフを更新
                 fgRef.current.refresh();
                 
-                // 1秒後に固定位置を復元
+                // 1秒後に固定位置を復元 (ForceONのときはアンピン状態を維持するため固定しない)
                 setTimeout(() => {
                     graphData.nodes.forEach(node => {
-                        // 現在の位置をfx, fy, fzに設定
-                        node.fx = node.x;
-                        node.fy = node.y;
-                        node.fz = node.z;
+                        if (layoutMode !== 'force') {
+                            // 現在の位置をfx, fy, fzに設定
+                            node.fx = node.x;
+                            node.fy = node.y;
+                            node.fz = node.z;
+                        }
                         
                         // 一時変数を削除
                         delete node._tempX;
@@ -1247,6 +1306,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         }
     };
     const handleClick = useCallback((node: NodeData | null, event: MouseEvent) => {
+        setSelectedLink(null);
         
         if (!node) {
             setSelectedNode(null);
@@ -1257,6 +1317,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         // ドラッグ直後のクリックイベントを無視する
         if (Date.now() - lastDragEndTime.current < 100) {
             return;
+        }
+
+        // シングルクリック時にそのノードの位置をピン留め（固定）する (ForceONのときはアンピン状態を維持するためスキップ)
+        if (layoutMode === 'force') {
+            // クリック時の固定は行いません
+            console.log('Force mode active: skipped pinning node on click:', node.id);
         }
 
         // Ctrlキーが押されている場合は複数選択モード
@@ -1340,7 +1406,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             */
             clickTimeout.current = null;
         }, timeSinceLastClickInterval); // ダブルクリック判定時間と同じms待つ
-    }, [fgRef,selectedNodeList, selectedNode, graphData,funcMode]);
+    }, [fgRef,selectedNodeList, selectedNode, graphData,funcMode,layoutMode]);
     
     // ノードのダブルクリックを処理する関数
     const handleDoubleClick = (node: any) => {
@@ -1369,6 +1435,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         else {
             // 通常の選択モード（カメラ移動）
             if (node && typeof node.x === 'number' && typeof node.y === 'number' && typeof node.z === 'number') {
+                // ダブルクリック時にそのノードの位置をピン留め（固定）する (ForceONのときはアンピン状態を維持するためスキップ)
+                if (layoutMode === 'force') {
+                    // ダブルクリック時の固定は行いません
+                    console.log('Force mode active: skipped pinning node on double click:', node.id);
+                }
+
                 if (selectedNodeList.length > 0) {
                     setSelectedNodeList([]);
                 }
@@ -1433,6 +1505,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     };
     const handleLinkClick = (link: any) => {
         console.log('handleLinkClick', link);
+        setSelectedLink(link);
+        setSelectedNode(null);
+        setSelectedNodeList([]);
     };
 const [kebabMenuPosition, setKebabMenuPosition] = useState<{ x: number, y: number } | null>(null);
 
@@ -1468,8 +1543,53 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
         if (!isDraggingNode.current) {
             addToHistory('move_node', dragNode);
+            
+            // ドラッグ開始時に、自身に繋がっている子孫ノードのピン留めを解除（アンピン）して追従させる
+            if (layoutMode === 'force') {
+                const descendantIds = new Set<string>();
+                const getDescendants = (parentNodeId: any) => {
+                    graphData.links.forEach((link: any) => {
+                        if (link.type === 'friend') {
+                            return; // 友達リンクは下流ノード（子孫）の探索から省く！
+                        }
+                        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+                        
+                        if (String(sourceId) === String(parentNodeId)) {
+                            const childNode = graphData.nodes.find((n: any) => String(n.id) === String(targetId)) as any;
+                            if (childNode && !descendantIds.has(String(childNode.id))) {
+                                descendantIds.add(String(childNode.id));
+                                getDescendants(childNode.id);
+                            }
+                        }
+                    });
+                };
+                getDescendants(dragNode.id);
+
+                // 全ノードに対して一時固定・固定解除の処理を行う (ForceONのときはすべてアンピン状態にする)
+                graphData.nodes.forEach((node: any) => {
+                    // ドラッグ前の元の固定状態を保存する
+                    node._originalFx = node.fx;
+                    node._originalFy = node.fy;
+                    node._originalFz = node.fz;
+                    node._wasPinnedBeforeDrag = (node.fx !== undefined || node.fy !== undefined);
+
+                    node._isActiveDrag = (String(node.id) === String(dragNode.id) || descendantIds.has(String(node.id)));
+                    // すべてのノードの固定を解除（アンピン）して自由に浮遊させる
+                    delete node.fx;
+                    delete node.fy;
+                    delete node.fz;
+                });
+                
+                // シミュレーションを再活性化して追従を滑らかにする
+                if (fgRef.current) {
+                    fgRef.current.d3ReheatSimulation();
+                }
+            }
         }
         isDraggingNode.current = true;
+
+
     
         // Shiftキーが押されている場合は、3Dオブジェクトの回転モード
         if (isShiftDown.current && dragNode.type === "3dobject") {
@@ -1531,13 +1651,19 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         node.y = node.y + dragNode.dy;
                         node.z = node.z + dragNode.dz;
                         
-                        const baseFx = node.fx !== undefined ? node.fx : node.x;
-                        const baseFy = node.fy !== undefined ? node.fy : node.y;
-                        const baseFz = node.fz !== undefined ? node.fz : node.z;
+                        if (layoutMode !== 'force') {
+                            const baseFx = node.fx !== undefined ? node.fx : node.x;
+                            const baseFy = node.fy !== undefined ? node.fy : node.y;
+                            const baseFz = node.fz !== undefined ? node.fz : node.z;
 
-                        node.fx = baseFx + dragNode.dx;
-                        node.fy = baseFy + dragNode.dy;
-                        node.fz = baseFz + dragNode.dz;
+                            node.fx = baseFx + dragNode.dx;
+                            node.fy = baseFy + dragNode.dy;
+                            node.fz = baseFz + dragNode.dz;
+                        } else {
+                            delete node.fx;
+                            delete node.fy;
+                            delete node.fz;
+                        }
                     }
                 });
             }
@@ -1563,13 +1689,13 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
           console.log("onNodeDrag",distance(dragNode, node))
           // 十分に近い：推奨リンクのターゲットとしてノードにスナップする
           if (!interimLink && distance(dragNode, node) < snapInDistance) {
-            setInterimLink(-1, dragNode, node);
+            setInterimLink(-1, node, dragNode);
             break;
           }
           // 十分に他のノードに近い場合: 推奨リンクのターゲットとして他のノードにスナップ
           if (interimLink && node.id !== interimLink.target.id && distance(dragNode, node) < snapInDistance) {
             let removed_index = removeLink(interimLink);
-            setInterimLink(removed_index, dragNode, node);
+            setInterimLink(removed_index, node, dragNode);
             break;
           }
         }
@@ -1580,6 +1706,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             setInterimLinkState(null);
         }
 
+        // 次のドラッグフレーム用に前回の座標を保持する
+        dragNode.px = dragNode.x;
+        dragNode.py = dragNode.y;
+        dragNode.pz = dragNode.z;
     };
 
     const handleBackgroundClick = (event:any) => {
@@ -2127,6 +2257,37 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     const snapInDistance = 120; // Define snapInDistance with an appropriate value
     const snapOutDistance = 250; // Define snapOutDistance with an appropriate value
 
+    const hasParentChildPath = (startNodeId: any, targetNodeId: any, links: any[]): boolean => {
+        const visited = new Set<string>();
+        const queue = [String(startNodeId)];
+        visited.add(String(startNodeId));
+
+        while (queue.length > 0) {
+            const curr = queue.shift()!;
+            if (curr === String(targetNodeId)) {
+                return true;
+            }
+
+            for (const link of links) {
+                if (link.type === 'friend') {
+                    continue;
+                }
+
+                const sId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+                const tId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+
+                if (String(sId) === curr) {
+                    const nextId = String(tId);
+                    if (!visited.has(nextId)) {
+                        visited.add(nextId);
+                        queue.push(nextId);
+                    }
+                }
+            }
+        }
+        return false;
+    };
+
     const setInterimLink = (linkId: number, source: any, target: any) => {
         // 既存のリンクと同じsourceとtargetの組み合わせがあるかチェック
         const existingLink = graphData.links.find(link => 
@@ -2142,7 +2303,24 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         if (linkId < 0){
             linkId = graphData.links.length > 0 ? Math.max(...graphData.links.map((link: any) => link.index)) + 1 : 1;
         }
-        const newLink = { index: linkId, source: source, target: target, isNew: true };
+
+        // 循環親子関係のチェック：targetからsourceへの親子パスがあれば、循環を避けるために友達リンクにする
+        const isCyclic = hasParentChildPath(target.id, source.id, graphData.links);
+        // 親ノードは1つのみのルール：target(子)が既に別の親ノードを持つかチェック
+        const alreadyHasParent = graphData.links.some(link => {
+            if (link.type === 'friend') return false;
+            const tId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+            return String(tId) === String(target.id);
+        });
+        const linkType = (isCyclic || alreadyHasParent) ? 'friend' : 'parent-child';
+
+        const newLink = { 
+            index: linkId, 
+            source: source, 
+            target: target, 
+            isNew: true,
+            type: linkType 
+        };
         graphData.links.push(newLink);
         refreshLink(newLink)
         setInterimLinkState(newLink);
@@ -2209,6 +2387,65 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         return () => clearTimeout(timer);
     }, [selectedNode, selectedNodeList]);
 
+    const getNodeColor = useCallback((nodeOrId: any): string => {
+        let node = nodeOrId;
+        if (typeof nodeOrId === 'string' || typeof nodeOrId === 'number') {
+            node = graphData.nodes.find((n: any) => String(n.id) === String(nodeOrId));
+        } else if (nodeOrId && nodeOrId.id !== undefined) {
+            node = graphData.nodes.find((n: any) => String(n.id) === String(nodeOrId.id)) || nodeOrId;
+        }
+        if (!node) return '#ffffff';
+
+        if (node.id < 0) return '#ffffff';
+
+        const type = node.type || 'normal';
+        if (type === 'file') return '#52c41a';
+        if (type === 'folder') return '#faad14';
+        if (type === 'issue') return '#4c9ac0';
+        if (type === 'task') return '#4c9ac0';
+        if (type === 'link') return '#4c9ac0';
+
+        const style_id = node.style_id || 1;
+        const bgIdx = typeof node.node_bg_color === 'number' ? Math.max(0, Math.min(7, node.node_bg_color)) : 0;
+        
+        if (bgIdx === 7) {
+            return node.node_custom_bg_color || '#ddeeff';
+        }
+
+        const BG_COLORS = [
+          '#ddeeff', // 青系（デフォルト）
+          '#ddffee', // 緑系
+          '#fffadd', // 黄系
+          '#ffeedd', // 橙系
+          '#ffddee', // ピンク系
+          '#eeddff', // 紫系
+          '#f0f0f0', // グレー系
+        ];
+        const EMPHASIS_BG_COLORS = [
+          '#2255aa', // 青系（デフォルト）
+          '#226644', // 緑系
+          '#886600', // 黄系
+          '#aa4400', // 橙系
+          '#993366', // ピンク系
+          '#553399', // 紫系
+          '#444444', // グレー系
+        ];
+
+        if (style_id === 4) {
+            return EMPHASIS_BG_COLORS[bgIdx] || EMPHASIS_BG_COLORS[0];
+        } else {
+            return BG_COLORS[bgIdx] || BG_COLORS[0];
+        }
+    }, [graphData.nodes]);
+
+    const nodeColorMap = useMemo(() => {
+        const map = new Map<string, string>();
+        graphData.nodes.forEach((node: any) => {
+            map.set(String(node.id), getNodeColor(node));
+        });
+        return map;
+    }, [graphData.nodes, getNodeColor]);
+
     const handleNodeThreeObject = useCallback((node: any) => {
         const groupOrSprite = nodeThreeObjectImageTexture(node);
         
@@ -2266,7 +2503,16 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     }, [nodeThreeObjectImageTexture, selectedNode, selectedNodeList]);
 
     return (
-        <div style={{position: "relative", width: "100%", height: "100%" }}>
+        <div style={{
+            position: "relative", 
+            width: "100%", 
+            height: "100%",
+            backgroundColor: 
+                graphData.globalBackground === 'sky' ? '#87CEEB' : 
+                graphData.globalBackground === 'snow' ? '#e0f7fa' : 
+                graphData.globalBackground === 'sunset' ? '#ff9e5e' : 
+                'black'
+        }}>
             {/* ケバブメニュー */}
             {kebabMenuPosition && isHovering && (
                 <div
@@ -2306,74 +2552,201 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 enableNavigationControls={true}
                 showNavInfo={false}
                 backgroundColor={backgroundColor}
-                linkColor={(link) => {
-                    // 背景の種類ごとのリンクスタイル（RGBとベース透明度）の定義一覧
-                    const linkStyleMap: { [key: string]: { rgb: string, opacity: number } } = {
-                        'sky': { rgb: '33, 33, 33', opacity: 0.3 },       // skyのときは黒色で透明度を高くする
-                        'snow': { rgb: '255, 255, 255', opacity: 1.0 },
-                        'sunset': { rgb: '255, 255, 255', opacity: 1.0 },
-                        'space': { rgb: '255, 255, 255', opacity: 1.0 },
-                        'default': { rgb: '255, 255, 255', opacity: 1.0 }
-                    };
-                    
-                    const bgType = graphData.globalBackground || 'default';
-                    const style = linkStyleMap[bgType] || linkStyleMap['default'];
-                    
-                    // 無効化されている場合はベースの透明度からさらに下げる
-                    let finalOpacity = (link.source.disabled || link.target.disabled) ? style.opacity * 0.1 : style.opacity;
-                    
-                    let color = `rgba(${style.rgb}, ${finalOpacity})`;
-                    
-                    if (link === interimLink) {
-                        color = `rgba(246, 147, 177, ${finalOpacity})`;
-                    }
-                    return color;
-                }}
-                linkWidth={(link) => link === interimLink ? 4 : 2}
                 nodeId="id"
                 //linkDirectionalArrowLength={6}
                 //linkDirectionalArrowRelPos={1}
                 nodeLabel={label_key}
                 //nodeAutoColorBy="group"
                 
-                linkThreeObjectExtend={true}
+                linkThreeObjectExtend={false}
                 linkThreeObject={link => {
-                    // extend link with text sprite
                     let link_name = link.name;
                     if (link_name === "") {
                         link_name = ``;
                     }
                     const sprite = new SpriteText(`${link_name}`);
-                    
-                    const linkTextColorMap: { [key: string]: string } = {
-                        'sky': '#333333',       // skyのときは黒系の色
-                        'snow': 'lightgrey',
-                        'sunset': 'lightgrey',
-                        'space': 'lightgrey',
-                        'default': 'lightgrey'
-                    };
-                    const bgType = graphData.globalBackground || 'default';
-                    sprite.color = linkTextColorMap[bgType] || linkTextColorMap['default'];
-                    
                     sprite.textHeight = 10.5;
 
-                    if (link.source.disabled || link.target.disabled) {
-                        sprite.material.opacity = 0.1;
-                        sprite.material.transparent = true;
-                    } 
-                    return sprite;
-                }}
-                linkPositionUpdate={(sprite, { start, end }) => {
-                    const middlePos = { x: 0, y: 0, z: 0 };
-                    (['x', 'y', 'z'] as Array<'x' | 'y' | 'z'>).forEach((c: 'x' | 'y' | 'z') => {
-                      middlePos[c] = start[c] + (end[c] - start[c]) / 2; // calc middle point
+                    const group = new THREE.Group();
+
+                    const isFriend = link.type === 'friend';
+                    const material = isFriend
+                        ? new THREE.LineDashedMaterial({
+                            vertexColors: true,
+                            transparent: true,
+                            opacity: 0.8,
+                            dashSize: 3,
+                            gapSize: 3
+                        })
+                        : new THREE.LineBasicMaterial({
+                            vertexColors: true,
+                            transparent: true,
+                            opacity: 0.8
                     });
-                    // Position sprite
-                    Object.assign(sprite.position, middlePos);
+
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(2 * 3), 3));
+                    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(2 * 3), 3));
+
+                    const line = new THREE.Line(geometry, material);
+                    
+                    group.add(line);
+                    group.add(sprite);
+
+                    return group;
                 }}
-                linkDirectionalParticleWidth={1}
+                linkPositionUpdate={(group: any, { start, end }: any, link: any) => {
+                    const line = group.children[0] as THREE.Line;
+                    const sprite = group.children[1] as SpriteText;
+
+                    const isSourceDisabled = (link.source && typeof link.source === 'object') ? !!link.source.disabled : false;
+                    const isTargetDisabled = (link.target && typeof link.target === 'object') ? !!link.target.disabled : false;
+                    const isAnyDisabled = isSourceDisabled || isTargetDisabled;
+
+                    const isSelected = selectedLink && (
+                        link === selectedLink || 
+                        (selectedLink.index !== undefined && link.index !== undefined && selectedLink.index === link.index)
+                    );
+
+                    const bgType = graphData.globalBackground || 'default';
+
+                    // 1. Resolve dynamic colors (Zero allocation & O(1) Lookup)
+                    const c1 = scratchColor1;
+                    const c2 = scratchColor2;
+                    c1.set('#ffffff');
+                    c2.set('#ffffff');
+                    
+                    if (isSelected) {
+                        const highlightColor = bgType === 'sky' ? '#d50000' : '#ffd600';
+                        c1.set(highlightColor);
+                        c2.set(highlightColor);
+                    } else if (link === interimLink) {
+                        c1.set('#f693b1');
+                        c2.set('#f693b1');
+                    } else if (link.type === 'friend') {
+                        c1.set('#808080');
+                        c2.set('#808080');
+                    } else {
+                        const sourceId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+                        const targetId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+                        c1.set(nodeColorMap.get(String(sourceId)) || '#ffffff');
+                        c2.set(nodeColorMap.get(String(targetId)) || '#ffffff');
+                    }
+
+                    // 2. Update geometry attributes and material dynamically
+                    if (line && line.geometry) {
+                        const pos = line.geometry.attributes.position;
+                        if (pos) {
+                            pos.array[0] = start.x; pos.array[1] = start.y; pos.array[2] = start.z;
+                            pos.array[3] = end.x;   pos.array[4] = end.y;   pos.array[5] = end.z;
+                            pos.needsUpdate = true;
+                        }
+
+                        // Swap material dynamically if type changes
+                        const isFriend = link.type === 'friend';
+                        if (isFriend && !(line.material instanceof THREE.LineDashedMaterial)) {
+                            line.material = new THREE.LineDashedMaterial({
+                                vertexColors: true,
+                                transparent: true,
+                                opacity: 0.8,
+                                dashSize: 3,
+                                gapSize: 3
+                            });
+                        } else if (!isFriend && (line.material instanceof THREE.LineDashedMaterial)) {
+                            line.material = new THREE.LineBasicMaterial({
+                                vertexColors: true,
+                                transparent: true,
+                                opacity: 0.8
+                            });
+                        }
+
+                        if (isFriend) {
+                            line.computeLineDistances();
+                        }
+
+                        const colorAttr = line.geometry.attributes.color;
+                        if (colorAttr) {
+                            const r1 = c1.r, g1 = c1.g, b1 = c1.b;
+                            const r2 = c2.r, g2 = c2.g, b2 = c2.b;
+                            // Only upload to GPU if colors have actually changed
+                            if (
+                                colorAttr.array[0] !== r1 || colorAttr.array[1] !== g1 || colorAttr.array[2] !== b1 ||
+                                colorAttr.array[3] !== r2 || colorAttr.array[4] !== g2 || colorAttr.array[5] !== b2
+                            ) {
+                                colorAttr.array[0] = r1; colorAttr.array[1] = g1; colorAttr.array[2] = b1;
+                                colorAttr.array[3] = r2; colorAttr.array[4] = g2; colorAttr.array[5] = b2;
+                                colorAttr.needsUpdate = true;
+                            }
+                        }
+                        line.geometry.computeBoundingSphere();
+
+                        // 3. Update material opacity dynamically
+                        const material = line.material as THREE.LineBasicMaterial;
+                        if (material) {
+                            let finalOpacity = isAnyDisabled ? 0.1 : 0.5;
+                            if (material.opacity !== (isSelected ? 1.0 : finalOpacity)) {
+                                material.opacity = isSelected ? 1.0 : finalOpacity;
+                            }
+                        }
+                    }
+
+                    // 4. Update sprite label styling and position dynamically (Only rebuild texture on change)
+                    if (sprite) {
+                        const targetColor = isSelected ? (bgType === 'sky' ? '#d50000' : '#ffd600') : (bgType === 'sky' ? '#333333' : 'lightgrey');
+                        const targetHeight = isSelected ? 13.5 : 10.5;
+
+                        if (sprite.color !== targetColor) {
+                            sprite.color = targetColor;
+                        }
+                        if (sprite.textHeight !== targetHeight) {
+                            sprite.textHeight = targetHeight;
+                        }
+
+                        const targetOpacity = isAnyDisabled ? 0.1 : 1.0;
+                        const targetTransparent = isAnyDisabled;
+                        if (sprite.material.opacity !== targetOpacity) {
+                            sprite.material.opacity = targetOpacity;
+                        }
+                        if (sprite.material.transparent !== targetTransparent) {
+                            sprite.material.transparent = targetTransparent;
+                        }
+
+                        const middlePos = {
+                            x: start.x + (end.x - start.x) / 2,
+                            y: start.y + (end.y - start.y) / 2,
+                            z: start.z + (end.z - start.z) / 2
+                        };
+                        // Only assign position if it has changed to avoid unnecessary triggering
+                        if (
+                            sprite.position.x !== middlePos.x ||
+                            sprite.position.y !== middlePos.y ||
+                            sprite.position.z !== middlePos.z
+                        ) {
+                            Object.assign(sprite.position, middlePos);
+                        }
+                    }
+
+                    return true;
+                }}
+                linkDirectionalParticles={link => {
+                    if (!enableParticlesRef.current) return 0;
+                    if (link.type === 'friend') return 0;
+                    const selNode = selectedNodeRef.current;
+                    if (!selNode) return 0;
+                    const sourceId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+                    const targetId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+                    
+                    const isConnected = String(sourceId) === String(selNode.id) || String(targetId) === String(selNode.id);
+                    return isConnected ? 2 : 0;
+                }}
+                linkDirectionalParticleWidth={6}
+                linkDirectionalParticleSpeed={0.01}
+                linkDirectionalParticleColor={() => {
+                    const bgType = graphData.globalBackground || 'default';
+                    return bgType === 'sky' ? '#333333' : '#ffffff';
+                }}
                 //linkLineDash={(link:any) => link === interimLink ? [2, 2] : []}
-                d3VelocityDecay={0.4}
+                d3VelocityDecay={0.35}
                 onNodeClick={handleClick}
 
                 onNodeRightClick={handleRightClick}
@@ -2381,7 +2754,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 onLinkClick={handleLinkClick}
                 onNodeDrag={handleNodeDrag}
                 onNodeHover={handleHover}
-                d3AlphaDecay={0.2}
+                d3AlphaDecay={0.02}
                 //dagMode={"radialin"}
                 //nodeThreeObjectExtend={true}
                 onBackgroundRightClick={handleBackgroundClick}
@@ -2393,19 +2766,45 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     // 背景左クリック時にすべての選択を解除（Escキーと同じ挙動）
                     setSelectedNode(null);
                     setSelectedNodeList([]);
+                    setSelectedLink(null);
                 }}
                 onNodeDragEnd={(node:any) => {
                     if (layoutMode === 'force') {
-                        delete node.fx;
-                        delete node.fy;
-                        delete node.fz;
+                        // ForceON時のドラッグ終了処理：ドラッグ対象と子孫ノードの固定フラグを解除（アンピン）し、シミュレーションに戻す
+                        graphData.nodes.forEach((n: any) => {
+                            if (n._isActiveDrag) {
+                                // ドラッグ対象とその子孫：固定を完全に解除（自由移動・浮遊化）
+                                delete n.fx;
+                                delete n.fy;
+                                delete n.fz;
+                            } else {
+                                // 無関係なノード：一時的な固定から復元
+                                if (n._wasPinnedBeforeDrag) {
+                                    n.fx = n._originalFx;
+                                    n.fy = n._originalFy;
+                                    n.fz = n._originalFz;
+                                } else {
+                                    delete n.fx;
+                                    delete n.fy;
+                                    delete n.fz;
+                                }
+                            }
+                            // 一時フラグのクリーンアップ
+                            delete n._isActiveDrag;
+                            delete n._originalFx;
+                            delete n._originalFy;
+                            delete n._originalFz;
+                            delete n._wasPinnedBeforeDrag;
+                        });
+                        
+                        // 複数選択されたノードがあればそれらも固定解除（アンピン・自由浮遊）
                         selectedNodeList.forEach(n => {
                             delete n.fx;
                             delete n.fy;
                             delete n.fz;
                         });
                     } else {
-                        // ドラッグ中のノードの位置を更新
+                        // ForceOFF時は単純にドラッグされたノードを固定
                         node.fx = node.x;
                         node.fy = node.y;
                         node.fz = node.z;
@@ -2445,35 +2844,37 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             </div>
             
             {/* R3Fのレイヤー */}
-            <div style={{ 
-                position: "absolute", 
-                top: 0, 
-                left: 0, 
-                width: "100%", 
-                height: "100%", 
-                zIndex: 0,
-                pointerEvents: "none" 
-            }}>
-                <Canvas
-                    style={{ 
-                        background: 
-                            graphData.globalBackground === 'sky' ? '#87CEEB' : 
-                            graphData.globalBackground === 'snow' ? '#e0f7fa' :
-                            graphData.globalBackground === 'sunset' ? '#ff9e5e' :
-                            'black' 
-                    }}
-                    camera={{ position: [0, 0, 40], near: 0.1, far: 1000, fov: 100 }}
-                >
-                    {graphData.globalBackground === 'sky' ? <SkyScene /> : 
-                     graphData.globalBackground === 'snow' ? <SnowScene /> :
-                     graphData.globalBackground === 'sunset' ? <SunsetScene /> :
-                     <SpaceScene />}
-                    {/* <OrbitControls enableZoom={true} enablePan={false} enableDamping dampingFactor={0.2} autoRotate={true} rotateSpeed={-0.001} />
-                    <Portals />
-                    <ambientLight intensity={0.5} />
-                    <pointLight position={[10, 10, 10]} /> */}
-                </Canvas>
-            </div>
+            {graphData.globalBackground !== 'none' && (
+                <div style={{ 
+                    position: "absolute", 
+                    top: 0, 
+                    left: 0, 
+                    width: "100%", 
+                    height: "100%", 
+                    zIndex: 0,
+                    pointerEvents: "none" 
+                }}>
+                    <Canvas
+                        style={{ 
+                            background: 
+                                graphData.globalBackground === 'sky' ? '#87CEEB' : 
+                                graphData.globalBackground === 'snow' ? '#e0f7fa' :
+                                graphData.globalBackground === 'sunset' ? '#ff9e5e' :
+                                'black' 
+                        }}
+                        camera={{ position: [0, 0, 40], near: 0.1, far: 1000, fov: 100 }}
+                    >
+                        {graphData.globalBackground === 'sky' ? <SkyScene /> : 
+                         graphData.globalBackground === 'snow' ? <SnowScene /> :
+                         graphData.globalBackground === 'sunset' ? <SunsetScene /> :
+                         <SpaceScene />}
+                        {/* <OrbitControls enableZoom={true} enablePan={false} enableDamping dampingFactor={0.2} autoRotate={true} rotateSpeed={-0.001} />
+                        <Portals />
+                        <ambientLight intensity={0.5} />
+                        <pointLight position={[10, 10, 10]} /> */}
+                    </Canvas>
+                </div>
+            )}
         </div>
     );
 });

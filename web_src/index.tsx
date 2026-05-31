@@ -65,6 +65,7 @@ interface MindMapGraphRef {
     canRedo: () => boolean;
     redo: () => boolean;
     arrangeNodes: (layout: string) => void;
+    setForceMode: (enabled: boolean) => void;
     getCameraState: () => any;
     setGlobalBackground: (bg: string) => void;
     getNodeScreenCoords: (node: any) => { x: number, y: number } | null;
@@ -95,12 +96,23 @@ const App = () => {
     const [searchText, setSearchText] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [recentFiles, setRecentFiles] = useState<string[]>([]);
+    const [isForceMode, setIsForceMode] = useState<boolean>(false);
+    const [isParticlesEnabled, setIsParticlesEnabled] = useState<boolean>(() => {
+        const saved = localStorage.getItem('space_mind_particles_enabled');
+        return saved !== 'false';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('space_mind_particles_enabled', String(isParticlesEnabled));
+    }, [isParticlesEnabled]);
 
     const handleOpenRecent = async (path: string) => {
         setLoading(true);
         try {
             const node_data = await storageService.loadJsonByPath(path);
             if (node_data) {
+                const loadedForce = node_data.layoutMode === 'force';
+                setIsForceMode(loadedForce);
                 if (mindMapGraphRef.current) {
                     mindMapGraphRef.current.setGraphData(node_data);
                 }
@@ -166,8 +178,7 @@ const App = () => {
                     ],
                 },
                 { label: 'Circle Layout', key: 'circle_layout' },
-                { label: 'Free Layout', key: 'free_layout' },
-                { label: 'Force Layout', key: 'force_layout' }
+                { label: 'Free Layout', key: 'free_layout' }
             ],
         },
         {
@@ -178,7 +189,17 @@ const App = () => {
                 { label: 'Space', key: 'bg_space' },
                 { label: 'Sky', key: 'bg_sky' },
                 { label: 'Snowy Morning', key: 'bg_snow' },
-                { label: 'Sunset', key: 'bg_sunset' }
+                { label: 'Sunset', key: 'bg_sunset' },
+                { label: 'None', key: 'bg_none' }
+            ],
+        },
+        {
+            label: 'Setting',
+            key: 'setting',
+            icon: <SettingFilled rev={undefined} />,
+            children: [
+                { label: isForceMode ? 'Force layout: OFFにする' : 'Force layout: ONにする', key: 'setting_force_toggle' },
+                { label: isParticlesEnabled ? 'Particles: OFFにする' : 'Particles: ONにする', key: 'setting_particles_toggle' }
             ],
         }
     ];
@@ -188,6 +209,8 @@ const App = () => {
         try {
             const node_data = await storageService.selectFileDialog();
             if (node_data) {
+                const loadedForce = node_data.layoutMode === 'force';
+                setIsForceMode(loadedForce);
                 node_data.nodes = node_data.nodes.map((node: any) => {
                     return node;
                 });
@@ -260,6 +283,7 @@ const App = () => {
     }, [mindMapGraphRef.current]);
 
     const resetGraph = useCallback(() => {
+        setIsForceMode(false);
         if (mindMapGraphRef.current) {
             const now = new Date().toISOString();
             mindMapGraphRef.current.setGraphData({
@@ -434,6 +458,43 @@ const App = () => {
                         disabled: !activeNode
                     }
                 ];
+
+                // 「既存グループへの追加」メニューを追加
+                if (groups.length > 0) {
+                    submenuItems.push({
+                        key: 'group_add_existing_submenu',
+                        label: '既存グループへの追加',
+                        disabled: !activeNode,
+                        children: groups.map((g: any) => ({
+                            key: `group_add_existing_${g.id}`,
+                            label: g.name || `グループ ${g.id}`,
+                            onClick: () => {
+                                const nodesToAdd = selectedNodes.length > 0 ? selectedNodes : (activeNode ? [activeNode] : []);
+                                if (nodesToAdd.length === 0) return;
+                                
+                                // 既存メンバーを特定
+                                const currentGroupMembers = allNodes.filter((n: any) => {
+                                    if (n.groupIds && Array.isArray(n.groupIds)) {
+                                        return n.groupIds.includes(g.id);
+                                    }
+                                    return n.groupId === g.id;
+                                });
+                                const currentMemberIds = currentGroupMembers.map((n: any) => n.id);
+                                const idsToAdd = nodesToAdd.map((n: any) => n.id);
+                                const updatedMemberIds = Array.from(new Set([...currentMemberIds, ...idsToAdd]));
+                                
+                                mindMapGraphRef.current?.updateGroup(g, updatedMemberIds);
+                                message.success(`既存グループ「${g.name || `グループ ${g.id}`}」に選択したノードを追加しました。`);
+                            }
+                        }))
+                    });
+                } else {
+                    submenuItems.push({
+                        key: 'group_add_existing_disabled',
+                        label: '既存グループへの追加 (既存グループなし)',
+                        disabled: true
+                    });
+                }
 
                 if (nodeGroups.length > 0) {
                     submenuItems.push({
@@ -621,7 +682,31 @@ const App = () => {
         data = JSON.parse(JSON.stringify(data));
         data.nodes = data.nodes.map((node: any) => {
             delete node.__threeObj;
+            // 固定位置（fx, fy, fz）がないノードについては、座標情報を保存しない
+            if (node.fx === undefined && node.fy === undefined) {
+                delete node.x;
+                delete node.y;
+                delete node.z;
+                delete node.vx;
+                delete node.vy;
+                delete node.vz;
+                delete node.fx;
+                delete node.fy;
+                delete node.fz;
+            }
             return node;
+        });
+
+        data.links = data.links.map((link: any) => {
+            const cleanLink = { ...link };
+            if (link.source !== undefined) {
+                cleanLink.source = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+            }
+            if (link.target !== undefined) {
+                cleanLink.target = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+            }
+            delete cleanLink.__threeObj;
+            return cleanLink;
         });
 
         // カメラ位置と視点方向を取得して保存
@@ -1008,10 +1093,17 @@ const App = () => {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('free');
                             }
-                        } else if (key === 'force_layout') {
+                        } else if (key === 'setting_force_toggle') {
                             if (mindMapGraphRef.current) {
-                                mindMapGraphRef.current.arrangeNodes('force');
+                                const nextForce = !isForceMode;
+                                mindMapGraphRef.current.setForceMode(nextForce);
+                                setIsForceMode(nextForce);
+                                message.success(`Forceレイアウトを${nextForce ? 'ON' : 'OFF'}にしました`);
                             }
+                        } else if (key === 'setting_particles_toggle') {
+                            const nextParticles = !isParticlesEnabled;
+                            setIsParticlesEnabled(nextParticles);
+                            message.success(`パーティクル表示を${nextParticles ? 'ON' : 'OFF'}にしました`);
                         } else if (key === 'bg_space') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.setGlobalBackground('space');
@@ -1028,6 +1120,10 @@ const App = () => {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.setGlobalBackground('sunset');
                             }
+                        } else if (key === 'bg_none') {
+                            if (mindMapGraphRef.current) {
+                                mindMapGraphRef.current.setGlobalBackground('none');
+                            }
                         }
                     }}
                     />
@@ -1036,6 +1132,7 @@ const App = () => {
 
         <MindMapGraph 
             ref={mindMapGraphRef}
+            enableParticles={isParticlesEnabled}
             onHover={handleHover}
             onNodeEdit={handleNodeEdit}
             onRefreshNode={handleRefreshNode}
@@ -1090,7 +1187,8 @@ const App = () => {
             onDeleteLink={handleDeleteLink}
             onSelectNode={handleNodeSelect}
             onClose={() => setIsLinkEditorOpen(false)}
-            open={isLinkEditorOpen} />
+            open={isLinkEditorOpen}
+            links={mindMapGraphRef.current?.getGraphData().links || []} />
 
         <GroupEditor
             ref={groupEditorRef}
