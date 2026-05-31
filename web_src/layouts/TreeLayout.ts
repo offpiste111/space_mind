@@ -68,8 +68,8 @@ export class TreeLayout {
     private direction: LayoutDirection;
     private z_layer: number;
     // パディング値（ノードサイズに応じて動的に調整される基準値）
-    private basePaddingThickness: number = 12;  // ノードの厚み方向（配置直交方向）の最小余白
-    private basePaddingLength: number = 30;     // ノードの長さ方向（配置進行方向）の最小余白
+    private basePaddingThickness: number = 40;  // ノードの厚み方向（配置直交方向）の最小余白
+    private basePaddingLength: number = 80;     // ノードの長さ方向（配置進行方向）の最小余白
 
     constructor(graphData: GraphData, direction: LayoutDirection = 'right', z_layer: number = -300) {
         this.graphData = graphData;
@@ -80,6 +80,17 @@ export class TreeLayout {
     public executeLayout(): GraphData {
         this.initializeNodeMap();
         this.createParentChildRelationships();
+        
+        // Sort children of each node in descending order of node ID.
+        // Since positions are calculated sequentially in the +y direction:
+        // - In left/right layouts, higher index (later element in children list) gets larger y (placed at the top).
+        //   Sorting by ID descending places smaller ID (earlier in timeline) at the end, so smaller ID gets larger y (placed at the top).
+        // - In upper/lower layouts, x coordinate maps directly to y.
+        //   Sorting by ID descending places smaller ID (earlier in timeline) at the end, so smaller ID gets larger x (placed at the right).
+        this.nodeMap.forEach(info => {
+            info.children.sort((a, b) => b.node.id - a.node.id);
+        });
+
         this.findRootNodes();
         
         if (this.rootNodes.length === 0) {
@@ -120,12 +131,32 @@ export class TreeLayout {
     private initializeNodeMap(): void {
         this.nodeMap.clear();
         this.graphData.nodes.forEach(node => {
+            let defaultWidth = 200;
+            let defaultHeight = 120;
+            
+            if (node.type === "issue") {
+                defaultWidth = 300;
+                defaultHeight = 200;
+            } else if (node.type === "task") {
+                defaultWidth = 250;
+                defaultHeight = 150;
+            } else if (node.type && node.type !== "normal" && node.type !== "3dobject") {
+                defaultWidth = 250;
+                defaultHeight = 100;
+            } else if (node.type === "3dobject") {
+                defaultWidth = 120;
+                defaultHeight = 120;
+            }
+
+            const width = node.size_x || defaultWidth;
+            const height = node.size_y || defaultHeight;
+
             this.nodeMap.set(node.id, {
                 node,
                 children: [],
                 level: 0,
-                width: node.size_x || 200,
-                height: node.size_y || 80,
+                width: width,
+                height: height,
                 subtreeThickness: 0,
                 leafCount: 0,
                 minY: Infinity,

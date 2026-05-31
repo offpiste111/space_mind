@@ -167,7 +167,12 @@ def select_file_dialog():
     # Show file dialog and get selected file path
     file_path = filedialog.askopenfilename(
         parent=root,
-        filetypes=[('JSON files', '*.json'), ('All files', '*.*')]
+        filetypes=[
+            ('SpaceMind Files', '*.json;*.md'),
+            ('JSON files', '*.json'),
+            ('Markdown files', '*.md'),
+            ('All files', '*.*')
+        ]
     )
     
     if file_path:
@@ -233,7 +238,225 @@ def open_folder(folder_path):
         print(f"Error opening folder: {e}")
         return False
 
+def parse_markdown_to_mindmap(filepath):
+    import re
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except Exception as e:
+        print(f"Error reading markdown file: {e}")
+        return None
+        
+    nodes = []
+    links = []
+    groups = []
+    
+    # 階層スタック。各要素は (level, node_id, group_id)
+    stack = []
+    
+    node_id_counter = 1
+    link_id_counter = 0
+    group_id_counter = 1
+    
+    # フロントエンドの EMPHASIS_BG_COLORS と完全に同じカラーパレット
+    group_colors = [
+        '#2255aa', # 青系
+        '#226644', # 緑系
+        '#886600', # 黄系
+        '#aa4400', # 橙系
+        '#993366', # ピンク系
+        '#553399', # 紫系
+        '#444444'  # グレー系
+    ]
+    
+    current_h_level = 1
+    
+    for line_raw in lines:
+        line_clean = line_raw.strip()
+        if not line_clean:
+            continue
+            
+        if line_clean == "---" or line_clean == "***":
+            continue
+            
+        # 見出し判定
+        if line_clean.startswith("#"):
+            parts = line_clean.split(" ", 1)
+            hashes = parts[0]
+            if not all(c == "#" for c in hashes):
+                continue
+            h_len = len(hashes)
+            title = parts[1].strip() if len(parts) > 1 else ""
+            if not title:
+                continue
+                
+            current_h_level = h_len
+            level = h_len * 4
+            
+            node_id = node_id_counter
+            node_id_counter += 1
+            
+            node = {
+                "id": node_id,
+                "name": title,
+                "group": 1,
+                "style_id": 1,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "fx": 0.0,
+                "fy": 0.0,
+                "fz": -300.0,
+                "type": "normal"
+            }
+            
+            if node_id == 1:
+                # 最初の見出し（ルート）は課題ノード
+                node["type"] = "issue"
+                node["size_x"] = 350
+                node["size_y"] = 100
+                nodes.append(node)
+                stack.append((level, node_id, None))
+                continue
+                
+            # 親を見つける
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+                
+            parent_id = stack[-1][1] if stack else 1
+            parent_group_id = stack[-1][2] if stack else None
+            
+            current_group_id = parent_group_id
+            if h_len == 2:
+                # 新グループ
+                current_group_id = group_id_counter
+                group_id_counter += 1
+                color = group_colors[(current_group_id - 1) % len(group_colors)]
+                groups.append({
+                    "id": current_group_id,
+                    "name": title,
+                    "color": color
+                })
+                
+            if current_group_id is not None:
+                color_idx = (current_group_id - 1) % len(group_colors)
+                node["groupId"] = current_group_id
+                node["groupIds"] = [current_group_id]
+                node["color"] = group_colors[color_idx]
+                node["node_bg_color"] = color_idx
+                node["node_pattern_color"] = color_idx
+                node["style_id"] = 4 if h_len == 2 else 1 # H2(グループのトップレベル)のみ強調スタイル、それ以外はノーマルスタイル
+                node["size_x"] = 240
+                node["size_y"] = 80
+            else:
+                node["size_x"] = 240
+                node["size_y"] = 80
+                
+            nodes.append(node)
+            
+            links.append({
+                "index": link_id_counter,
+                "source": parent_id,
+                "target": node_id,
+                "name": ""
+            })
+            link_id_counter += 1
+            
+            stack.append((level, node_id, current_group_id))
+            
+        # 箇条書きリスト判定
+        elif line_clean.startswith(("- ", "* ", "+ ")):
+            lspace = len(line_raw) - len(line_raw.lstrip())
+            text = line_clean[2:].strip()
+            
+            # 太字装飾 (**項目名**)
+            match_bold = re.match(r"\*\*(.*?)\*\*", text)
+            if match_bold:
+                text_clean = match_bold.group(1)
+                rest = text[match_bold.end():].strip()
+                if rest:
+                    if rest.startswith(":") or rest.startswith("："):
+                        rest = rest[1:].strip()
+                    text_clean = f"【{text_clean}】\n{rest}"
+            else:
+                text_clean = text
+                
+            if not text_clean:
+                continue
+                
+            level = (current_h_level * 4) + 4 + lspace
+            
+            while stack and stack[-1][0] >= level:
+                stack.pop()
+                
+            parent_id = stack[-1][1] if stack else 1
+            parent_group_id = stack[-1][2] if stack else None
+            
+            node_id = node_id_counter
+            node_id_counter += 1
+            
+            node = {
+                "id": node_id,
+                "name": text_clean,
+                "group": 1,
+                "style_id": 1,
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "fx": 0.0,
+                "fy": 0.0,
+                "fz": -300.0,
+                "type": "normal"
+            }
+            
+            if parent_group_id is not None:
+                color_idx = (parent_group_id - 1) % len(group_colors)
+                node["groupId"] = parent_group_id
+                node["groupIds"] = [parent_group_id]
+                node["color"] = group_colors[color_idx]
+                node["node_bg_color"] = color_idx
+                node["node_pattern_color"] = color_idx
+                node["style_id"] = 1 # 配下はノーマルスタイル(style_id=1)にする
+                node["size_x"] = 240
+                node["size_y"] = 80
+            else:
+                node["size_x"] = 240
+                node["size_y"] = 80
+                
+            nodes.append(node)
+            
+            links.append({
+                "index": link_id_counter,
+                "source": parent_id,
+                "target": node_id,
+                "name": ""
+            })
+            link_id_counter += 1
+            
+            stack.append((level, node_id, parent_group_id))
+            
+    if not nodes:
+        nodes = [{
+            "id": 1,
+            "name": "新規マインドマップ",
+            "group": 1,
+            "style_id": 1,
+            "x": 0.0, "y": 0.0, "z": 0.0,
+            "fx": 0.0, "fy": 0.0, "fz": -300.0,
+            "type": "issue"
+        }]
+        
+    return {
+        "nodes": nodes,
+        "links": links,
+        "groups": groups,
+        "globalBackground": "sky",
+        "layoutMode": "force"
+    }
+
 def read_json(json_path):
+    if json_path.lower().endswith('.md'):
+        return parse_markdown_to_mindmap(json_path)
     with open(json_path, "r", encoding="utf-8") as f:
         node_data = json.load(f)
     return node_data
@@ -246,7 +469,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","background", "size_x", "size_y", "rot_x", "rot_y"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","background", "size_x", "size_y", "rot_x", "rot_y", "groupId", "groupIds", "node_bg_color", "node_pattern_color"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
@@ -334,6 +557,10 @@ def save_data(data):
     global g_current_file_path
 
     if g_current_file_path:
+        # Markdownファイル（.md）としてロードされた状態で保存された場合は、マニュアルファイルを上書きしないよう拡張子を.jsonに変更する
+        if g_current_file_path.lower().endswith('.md'):
+            g_current_file_path = os.path.splitext(g_current_file_path)[0] + '.json'
+            
         print(f"--- g_current_file_path in save_data: {g_current_file_path}")
         if save_json(data, g_current_file_path):
             return [True, g_current_file_path]

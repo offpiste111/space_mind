@@ -1,0 +1,2045 @@
+{
+  "nodes": [
+    {
+      "id": 1,
+      "name": "SpaceMind 操作マニュアル",
+      "group": 1,
+      "style_id": 1,
+      "type": "issue",
+      "size_x": 350,
+      "size_y": 100,
+      "index": 0
+    },
+    {
+      "id": 2,
+      "name": "1. 画面操作（基本ビューポート操作）",
+      "group": 1,
+      "style_id": 4,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 344.421875,
+      "size_y": 65.46484375,
+      "index": 1
+    },
+    {
+      "id": 3,
+      "name": "カメラの回転 (Rotate)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 216.890625,
+      "size_y": 63.33203125,
+      "index": 2
+    },
+    {
+      "id": 4,
+      "name": "【操作】\nマウスの**左ドラッグ**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 232.234375,
+      "size_y": 84.9296875,
+      "index": 3
+    },
+    {
+      "id": 5,
+      "name": "【効果】\n3D空間の中心（注視点）を中心に、カメラを軌道回転させます。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 558.86328125,
+      "size_y": 84.9296875,
+      "index": 4
+    },
+    {
+      "id": 6,
+      "name": "カメラの平行移動 (Pan)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 228.7734375,
+      "size_y": 63.33203125,
+      "index": 5
+    },
+    {
+      "id": 7,
+      "name": "【操作】\nマウスの**右ドラッグ** または **`Shift` + 左ドラッグ**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 504.73828125,
+      "size_y": 84.9296875,
+      "index": 6
+    },
+    {
+      "id": 8,
+      "name": "【効果】\nカメラの注視点自体を上下左右に移動します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 409.9296875,
+      "size_y": 84.9296875,
+      "index": 7
+    },
+    {
+      "id": 9,
+      "name": "ズーム (Zoom)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 8
+    },
+    {
+      "id": 10,
+      "name": "【操作】\nマウスの**ホイール回転**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 250.234375,
+      "size_y": 84.9296875,
+      "index": 9
+    },
+    {
+      "id": 11,
+      "name": "【効果】\nカメラと注視点の距離を縮小・拡大します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 391.9296875,
+      "size_y": 84.9296875,
+      "index": 10
+    },
+    {
+      "id": 12,
+      "name": "ノードへのフォーカス (Focus & Zoom)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 354.6328125,
+      "size_y": 63.33203125,
+      "index": 11
+    },
+    {
+      "id": 13,
+      "name": "【操作】\n任意のノードを**左ダブルクリック** または **クリック**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 510.9140625,
+      "size_y": 84.9296875,
+      "index": 12
+    },
+    {
+      "id": 14,
+      "name": "【効果】\nカメラがそのノードを注視し、スムーズにズームインして画面の中央に配置します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 1,
+      "groupIds": [
+        1
+      ],
+      "color": "#2255aa",
+      "node_bg_color": 0,
+      "node_pattern_color": 0,
+      "size_x": 713.953125,
+      "size_y": 84.9296875,
+      "index": 13
+    },
+    {
+      "id": 15,
+      "name": "2. ノードの基本操作とショートカット",
+      "group": 1,
+      "style_id": 4,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 344.421875,
+      "size_y": 65.46484375,
+      "index": 14
+    },
+    {
+      "id": 16,
+      "name": "新規ノードの追加",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 15
+    },
+    {
+      "id": 17,
+      "name": "【キー】\n**`Enter`** または **`Tab`**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 294.08203125,
+      "size_y": 84.9296875,
+      "index": 16
+    },
+    {
+      "id": 18,
+      "name": "【効果】\n現在選択されているノードから子ノードを新しく作成し、リンク（接続線）を自動的に接続します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 841.39453125,
+      "size_y": 84.9296875,
+      "index": 17
+    },
+    {
+      "id": 19,
+      "name": "ノードの削除",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 18
+    },
+    {
+      "id": 20,
+      "name": "【キー】\n**`Delete`** または **`Backspace`**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 364.03515625,
+      "size_y": 84.9296875,
+      "index": 19
+    },
+    {
+      "id": 21,
+      "name": "【効果】\n選択されているノード（複数選択時はすべて）と、それに接続されたリンクを削除します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 766.6953125,
+      "size_y": 84.9296875,
+      "index": 20
+    },
+    {
+      "id": 22,
+      "name": "選択の全解除",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 21
+    },
+    {
+      "id": 23,
+      "name": "【キー】\n**`Escape`**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 200,
+      "size_y": 84.9296875,
+      "index": 22
+    },
+    {
+      "id": 24,
+      "name": "【効果】\nすべて of のノードの選択状態をクリアします。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 415.90625,
+      "size_y": 84.9296875,
+      "index": 23
+    },
+    {
+      "id": 25,
+      "name": "一括リンク作成",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 24
+    },
+    {
+      "id": 26,
+      "name": "【キー】\n**`L`** または **`l`**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 230.0625,
+      "size_y": 84.9296875,
+      "index": 25
+    },
+    {
+      "id": 27,
+      "name": "【効果】\n複数選択時に、**最初に選択したノード**から、**他のすべての選択ノード**へ一括でリンクを接続します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 912.421875,
+      "size_y": 84.9296875,
+      "index": 26
+    },
+    {
+      "id": 28,
+      "name": "全ノード選択",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 27
+    },
+    {
+      "id": 29,
+      "name": "【キー】\n**`Ctrl + A`**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 200,
+      "size_y": 84.9296875,
+      "index": 28
+    },
+    {
+      "id": 30,
+      "name": "【効果】\n画面上のすべてのノードを同時に選択します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 2,
+      "groupIds": [
+        2
+      ],
+      "color": "#226644",
+      "node_bg_color": 1,
+      "node_pattern_color": 1,
+      "size_x": 407.953125,
+      "size_y": 84.9296875,
+      "index": 29
+    },
+    {
+      "id": 31,
+      "name": "3. 複数ノードの選択と同時移動（ドラッグ）",
+      "group": 1,
+      "style_id": 4,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 398.421875,
+      "size_y": 65.46484375,
+      "index": 30
+    },
+    {
+      "id": 32,
+      "name": "複数選択の操作",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 31
+    },
+    {
+      "id": 33,
+      "name": "【操作】\n**`Ctrl`キーを押しながらノードをクリック**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 412.90625,
+      "size_y": 84.9296875,
+      "index": 32
+    },
+    {
+      "id": 34,
+      "name": "【効果】\n複数のノードを選択状態にします。すでに選択されているノードを `Ctrl` + クリックすると、そのノードだけ選択が解除されます。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 1096.6015625,
+      "size_y": 84.9296875,
+      "index": 33
+    },
+    {
+      "id": 35,
+      "name": "視覚的ハイライトの識別",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 231.375,
+      "size_y": 63.33203125,
+      "index": 34
+    },
+    {
+      "id": 36,
+      "name": "【単一選択】\nノードの枠が**白色**でハイライトされます。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 410.078125,
+      "size_y": 84.9296875,
+      "index": 35
+    },
+    {
+      "id": 37,
+      "name": "【複数選択】\n選択されたすべてのノードの枠が**青色（ロイヤルブルー）**でハイライトされます。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 731.5546875,
+      "size_y": 84.9296875,
+      "index": 36
+    },
+    {
+      "id": 38,
+      "name": "同時ドラッグ移動",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 37
+    },
+    {
+      "id": 39,
+      "name": "【操作】\n複数選択されたノードのいずれか1つを**左ドラッグで移動**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 530.85546875,
+      "size_y": 84.9296875,
+      "index": 38
+    },
+    {
+      "id": 40,
+      "name": "【効果】\n選択されたすべてのノードが、それぞれの相対的な位置関係を維持したまま、同じ移動量で一括移動します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 3,
+      "groupIds": [
+        3
+      ],
+      "color": "#886600",
+      "node_bg_color": 2,
+      "node_pattern_color": 2,
+      "size_x": 910.33203125,
+      "size_y": 84.9296875,
+      "index": 39
+    },
+    {
+      "id": 41,
+      "name": "4. コピー・切り取り・貼り付け (Clipboard)",
+      "group": 1,
+      "style_id": 4,
+      "type": "normal",
+      "groupId": 4,
+      "groupIds": [
+        4
+      ],
+      "color": "#aa4400",
+      "node_bg_color": 3,
+      "node_pattern_color": 3,
+      "size_x": 394.94140625,
+      "size_y": 65.46484375,
+      "index": 40
+    },
+    {
+      "id": 42,
+      "name": "【コピー】\n**`Ctrl + C`**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 4,
+      "groupIds": [
+        4
+      ],
+      "color": "#aa4400",
+      "node_bg_color": 3,
+      "node_pattern_color": 3,
+      "size_x": 200,
+      "size_y": 84.9296875,
+      "index": 41
+    },
+    {
+      "id": 43,
+      "name": "選択中のノード（または複数ノード）のデータを一時バッファに保存します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 4,
+      "groupIds": [
+        4
+      ],
+      "color": "#aa4400",
+      "node_bg_color": 3,
+      "node_pattern_color": 3,
+      "size_x": 661.9296875,
+      "size_y": 63.33203125,
+      "index": 42
+    },
+    {
+      "id": 44,
+      "name": "【切り取り】\n**`Ctrl + X`**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 4,
+      "groupIds": [
+        4
+      ],
+      "color": "#aa4400",
+      "node_bg_color": 3,
+      "node_pattern_color": 3,
+      "size_x": 200,
+      "size_y": 84.9296875,
+      "index": 43
+    },
+    {
+      "id": 45,
+      "name": "選択中のノードをコピーした上で、現在のマインドマップから削除します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 4,
+      "groupIds": [
+        4
+      ],
+      "color": "#aa4400",
+      "node_bg_color": 3,
+      "node_pattern_color": 3,
+      "size_x": 643.21484375,
+      "size_y": 63.33203125,
+      "index": 44
+    },
+    {
+      "id": 46,
+      "name": "【貼り付け】\n**`Ctrl + V`**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 4,
+      "groupIds": [
+        4
+      ],
+      "color": "#aa4400",
+      "node_bg_color": 3,
+      "node_pattern_color": 3,
+      "size_x": 200,
+      "size_y": 84.9296875,
+      "index": 45
+    },
+    {
+      "id": 47,
+      "name": "コピーしたノードを複製して配置します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 4,
+      "groupIds": [
+        4
+      ],
+      "color": "#aa4400",
+      "node_bg_color": 3,
+      "node_pattern_color": 3,
+      "size_x": 373.39453125,
+      "size_y": 63.33203125,
+      "index": 46
+    },
+    {
+      "id": 48,
+      "name": "【特殊動作】\n貼り付け時に**特定のノードを選択していた場合**、その選択ノードから貼り付けられたノードへ**自動的にリンクが生成**されます。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 4,
+      "groupIds": [
+        4
+      ],
+      "color": "#aa4400",
+      "node_bg_color": 3,
+      "node_pattern_color": 3,
+      "size_x": 1130.40234375,
+      "size_y": 84.9296875,
+      "index": 47
+    },
+    {
+      "id": 49,
+      "name": "5. 多彩なノードタイプと属性設定",
+      "group": 1,
+      "style_id": 4,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 308.421875,
+      "size_y": 65.46484375,
+      "index": 48
+    },
+    {
+      "id": 50,
+      "name": "【通常 (Normal)】\n標準的なテキストノード。6種類のデザイン（枠線、透過背景など）が割り当て可能。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 727.453125,
+      "size_y": 84.9296875,
+      "index": 49
+    },
+    {
+      "id": 51,
+      "name": "【編集可能な個別属性】\nスタイルID (1〜6)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 231.73046875,
+      "size_y": 84.9296875,
+      "index": 50
+    },
+    {
+      "id": 52,
+      "name": "【課題 (Issue)】\nプロジェクトの課題、疑問点、リスクの整理に。目立つ厚みのある枠が特徴。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 663.73046875,
+      "size_y": 84.9296875,
+      "index": 51
+    },
+    {
+      "id": 53,
+      "name": "【編集可能な個別属性】\nスタイルID (1〜6)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 231.73046875,
+      "size_y": 84.9296875,
+      "index": 52
+    },
+    {
+      "id": 54,
+      "name": "【タスク (Task)】\nToDo管理、プロジェクトのタスク管理に。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 384.76953125,
+      "size_y": 84.9296875,
+      "index": 53
+    },
+    {
+      "id": 55,
+      "name": "【編集可能な個別属性】\n期限 (Deadline)、重要度 (Priority: 1〜5★)、緊急度 (Urgency: 1〜5★)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 620.4140625,
+      "size_y": 84.9296875,
+      "index": 54
+    },
+    {
+      "id": 56,
+      "name": "【リンク (Link)】\nWebサイトへのアクセス、参考資料のURL紐付けに。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 467.5,
+      "size_y": 84.9296875,
+      "index": 55
+    },
+    {
+      "id": 57,
+      "name": "【編集可能な個別属性】\nURL (※入力するとOGP画像やファビコンを自動取得)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 468.34375,
+      "size_y": 84.9296875,
+      "index": 56
+    },
+    {
+      "id": 58,
+      "name": "【ファイル (File)】\nローカルの文書、画像、実行ファイルなどの紐付けに。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 483.73046875,
+      "size_y": 84.9296875,
+      "index": 57
+    },
+    {
+      "id": 59,
+      "name": "【編集可能な個別属性】\nファイルパス (※システムダイアログから選択可能、ダブルクリックで起動)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 644.88671875,
+      "size_y": 84.9296875,
+      "index": 58
+    },
+    {
+      "id": 60,
+      "name": "【フォルダ (Folder)】\nプロジェクトフォルダ、作業用ディレクトリの紐付けに。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 499.57421875,
+      "size_y": 84.9296875,
+      "index": 59
+    },
+    {
+      "id": 61,
+      "name": "【編集可能な個別属性】\nフォルダパス (※システムダイアログから選択可能、ダブルクリックで開く)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 644.88671875,
+      "size_y": 84.9296875,
+      "index": 60
+    },
+    {
+      "id": 62,
+      "name": "【3Dオブジェクト】\nマップ上のシンボルや装飾、目立たせたいランドマークに。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 519.73046875,
+      "size_y": 84.9296875,
+      "index": 61
+    },
+    {
+      "id": 63,
+      "name": "【編集可能な個別属性】\n3Dモデル選択 (Horse, Watch, Cat, Bird, Airplaneなど)、スケール、回転",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 5,
+      "groupIds": [
+        5
+      ],
+      "color": "#993366",
+      "node_bg_color": 4,
+      "node_pattern_color": 4,
+      "size_x": 631.9296875,
+      "size_y": 84.9296875,
+      "index": 62
+    },
+    {
+      "id": 64,
+      "name": "6. メニュー機能（ファイルの管理と環境設定）",
+      "group": 1,
+      "style_id": 4,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 416.421875,
+      "size_y": 65.46484375,
+      "index": 63
+    },
+    {
+      "id": 65,
+      "name": "6.1 ファイル操作 (File)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 222.73046875,
+      "size_y": 63.33203125,
+      "index": 64
+    },
+    {
+      "id": 66,
+      "name": "【Open】\nローカルからJSONファイルを選択してロードします。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 476.19140625,
+      "size_y": 84.9296875,
+      "index": 65
+    },
+    {
+      "id": 67,
+      "name": "【Recent Files】\n最近開いたファイル（最大10件）のリストから素早くロードします。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 593.171875,
+      "size_y": 84.9296875,
+      "index": 66
+    },
+    {
+      "id": 68,
+      "name": "【Save (`Ctrl + S`)】\n現在のファイルに上書き保存します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 337.9296875,
+      "size_y": 84.9296875,
+      "index": 67
+    },
+    {
+      "id": 69,
+      "name": "【Save As】\n名前を付けて新しいJSONファイルとして保存します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 476.19140625,
+      "size_y": 84.9296875,
+      "index": 68
+    },
+    {
+      "id": 70,
+      "name": "【New Window】\n新しいウィンドウを開きます。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 283.9296875,
+      "size_y": 84.9296875,
+      "index": 69
+    },
+    {
+      "id": 71,
+      "name": "6.2 編集 (Edit)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 200,
+      "size_y": 63.33203125,
+      "index": 70
+    },
+    {
+      "id": 72,
+      "name": "【Undo (`Ctrl + Z`)】\n直前の操作（ノード追加、削除、移動、接続など）を取り消し、元に戻します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 679.9296875,
+      "size_y": 84.9296875,
+      "index": 71
+    },
+    {
+      "id": 73,
+      "name": "【Redo (`Ctrl + Y`)】\n取り消した操作をやり直します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 301.9296875,
+      "size_y": 84.9296875,
+      "index": 72
+    },
+    {
+      "id": 74,
+      "name": "【Find (`Ctrl + F`)】\nノードの全文検索モーダルを開きます。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 355.9296875,
+      "size_y": 84.9296875,
+      "index": 73
+    },
+    {
+      "id": 75,
+      "name": "6.3 自動レイアウト (Layout)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 270.03515625,
+      "size_y": 63.33203125,
+      "index": 74
+    },
+    {
+      "id": 76,
+      "name": "【Tree Layout (4方向)】\n親ノードから木構造のように放射状・または上下左右方向に整列します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 625.9296875,
+      "size_y": 84.9296875,
+      "index": 75
+    },
+    {
+      "id": 77,
+      "name": "【Circle Layout】\n選択されたノードを同心円状に配置します。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 391.9296875,
+      "size_y": 84.9296875,
+      "index": 76
+    },
+    {
+      "id": 78,
+      "name": "【Free Layout】\n物理シミュレーション（力学モデル）により、ノード同士が反発しながら自然な距離感で広がります。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 858.1328125,
+      "size_y": 84.9296875,
+      "index": 77
+    },
+    {
+      "id": 79,
+      "name": "6.4 背景シーンの切り替え (Background)",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 368.81640625,
+      "size_y": 63.33203125,
+      "index": 78
+    },
+    {
+      "id": 80,
+      "name": "【Space】\n深宇宙 of 星々と神秘的なネブラ（星雲）に囲まれたサイバーな空間。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 599.328125,
+      "size_y": 84.9296875,
+      "index": 79
+    },
+    {
+      "id": 81,
+      "name": "【Sky】\nさわやかな青空と流れる雲に包まれた、アイデアが広がる明るい空間。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 608.83203125,
+      "size_y": 84.9296875,
+      "index": 80
+    },
+    {
+      "id": 82,
+      "name": "【Snowy Morning】\n静かに雪が舞い散る、落ち着いて思索にふけるのに最適な空間。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 555.1953125,
+      "size_y": 84.9296875,
+      "index": 81
+    },
+    {
+      "id": 83,
+      "name": "【Sunset】\n美しいグラデーションの夕焼けに照らされた、温かみのある空間。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 6,
+      "groupIds": [
+        6
+      ],
+      "color": "#553399",
+      "node_bg_color": 5,
+      "node_pattern_color": 5,
+      "size_x": 573.375,
+      "size_y": 84.9296875,
+      "index": 82
+    },
+    {
+      "id": 84,
+      "name": "7. ノード検索モーダル (Search Modal)",
+      "group": 1,
+      "style_id": 4,
+      "type": "normal",
+      "groupId": 7,
+      "groupIds": [
+        7
+      ],
+      "color": "#444444",
+      "node_bg_color": 6,
+      "node_pattern_color": 6,
+      "size_x": 355.25,
+      "size_y": 65.46484375,
+      "index": 83
+    },
+    {
+      "id": 85,
+      "name": "【起動方法】\nショートカットキー **`Ctrl + F`** または メニューの **Find**",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 7,
+      "groupIds": [
+        7
+      ],
+      "color": "#444444",
+      "node_bg_color": 6,
+      "node_pattern_color": 6,
+      "size_x": 552.20703125,
+      "size_y": 84.9296875,
+      "index": 84
+    },
+    {
+      "id": 86,
+      "name": "【機能】\nノード名の一部を入力すると、リアルタイムに候補がフィルタリングされます。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 7,
+      "groupIds": [
+        7
+      ],
+      "color": "#444444",
+      "node_bg_color": 6,
+      "node_pattern_color": 6,
+      "size_x": 678.31640625,
+      "size_y": 84.9296875,
+      "index": 85
+    },
+    {
+      "id": 87,
+      "name": "【移動】\n検索結果からノードを選択（Enter または クリック）すると、カメラがそのノードに自動追従してスムーズにフォーカスします。",
+      "group": 1,
+      "style_id": 1,
+      "type": "normal",
+      "groupId": 7,
+      "groupIds": [
+        7
+      ],
+      "color": "#444444",
+      "node_bg_color": 6,
+      "node_pattern_color": 6,
+      "size_x": 1076.0078125,
+      "size_y": 84.9296875,
+      "index": 86
+    }
+  ],
+  "links": [
+    {
+      "index": 0,
+      "source": 1,
+      "target": 2,
+      "name": ""
+    },
+    {
+      "index": 1,
+      "source": 2,
+      "target": 3,
+      "name": ""
+    },
+    {
+      "index": 2,
+      "source": 3,
+      "target": 4,
+      "name": ""
+    },
+    {
+      "index": 3,
+      "source": 3,
+      "target": 5,
+      "name": ""
+    },
+    {
+      "index": 4,
+      "source": 2,
+      "target": 6,
+      "name": ""
+    },
+    {
+      "index": 5,
+      "source": 6,
+      "target": 7,
+      "name": ""
+    },
+    {
+      "index": 6,
+      "source": 6,
+      "target": 8,
+      "name": ""
+    },
+    {
+      "index": 7,
+      "source": 2,
+      "target": 9,
+      "name": ""
+    },
+    {
+      "index": 8,
+      "source": 9,
+      "target": 10,
+      "name": ""
+    },
+    {
+      "index": 9,
+      "source": 9,
+      "target": 11,
+      "name": ""
+    },
+    {
+      "index": 10,
+      "source": 2,
+      "target": 12,
+      "name": ""
+    },
+    {
+      "index": 11,
+      "source": 12,
+      "target": 13,
+      "name": ""
+    },
+    {
+      "index": 12,
+      "source": 12,
+      "target": 14,
+      "name": ""
+    },
+    {
+      "index": 13,
+      "source": 1,
+      "target": 15,
+      "name": ""
+    },
+    {
+      "index": 14,
+      "source": 15,
+      "target": 16,
+      "name": ""
+    },
+    {
+      "index": 15,
+      "source": 16,
+      "target": 17,
+      "name": ""
+    },
+    {
+      "index": 16,
+      "source": 16,
+      "target": 18,
+      "name": ""
+    },
+    {
+      "index": 17,
+      "source": 15,
+      "target": 19,
+      "name": ""
+    },
+    {
+      "index": 18,
+      "source": 19,
+      "target": 20,
+      "name": ""
+    },
+    {
+      "index": 19,
+      "source": 19,
+      "target": 21,
+      "name": ""
+    },
+    {
+      "index": 20,
+      "source": 15,
+      "target": 22,
+      "name": ""
+    },
+    {
+      "index": 21,
+      "source": 22,
+      "target": 23,
+      "name": ""
+    },
+    {
+      "index": 22,
+      "source": 22,
+      "target": 24,
+      "name": ""
+    },
+    {
+      "index": 23,
+      "source": 15,
+      "target": 25,
+      "name": ""
+    },
+    {
+      "index": 24,
+      "source": 25,
+      "target": 26,
+      "name": ""
+    },
+    {
+      "index": 25,
+      "source": 25,
+      "target": 27,
+      "name": ""
+    },
+    {
+      "index": 26,
+      "source": 15,
+      "target": 28,
+      "name": ""
+    },
+    {
+      "index": 27,
+      "source": 28,
+      "target": 29,
+      "name": ""
+    },
+    {
+      "index": 28,
+      "source": 28,
+      "target": 30,
+      "name": ""
+    },
+    {
+      "index": 29,
+      "source": 1,
+      "target": 31,
+      "name": ""
+    },
+    {
+      "index": 30,
+      "source": 31,
+      "target": 32,
+      "name": ""
+    },
+    {
+      "index": 31,
+      "source": 32,
+      "target": 33,
+      "name": ""
+    },
+    {
+      "index": 32,
+      "source": 32,
+      "target": 34,
+      "name": ""
+    },
+    {
+      "index": 33,
+      "source": 31,
+      "target": 35,
+      "name": ""
+    },
+    {
+      "index": 34,
+      "source": 35,
+      "target": 36,
+      "name": ""
+    },
+    {
+      "index": 35,
+      "source": 35,
+      "target": 37,
+      "name": ""
+    },
+    {
+      "index": 36,
+      "source": 31,
+      "target": 38,
+      "name": ""
+    },
+    {
+      "index": 37,
+      "source": 38,
+      "target": 39,
+      "name": ""
+    },
+    {
+      "index": 38,
+      "source": 38,
+      "target": 40,
+      "name": ""
+    },
+    {
+      "index": 39,
+      "source": 1,
+      "target": 41,
+      "name": ""
+    },
+    {
+      "index": 40,
+      "source": 41,
+      "target": 42,
+      "name": ""
+    },
+    {
+      "index": 41,
+      "source": 42,
+      "target": 43,
+      "name": ""
+    },
+    {
+      "index": 42,
+      "source": 41,
+      "target": 44,
+      "name": ""
+    },
+    {
+      "index": 43,
+      "source": 44,
+      "target": 45,
+      "name": ""
+    },
+    {
+      "index": 44,
+      "source": 41,
+      "target": 46,
+      "name": ""
+    },
+    {
+      "index": 45,
+      "source": 46,
+      "target": 47,
+      "name": ""
+    },
+    {
+      "index": 46,
+      "source": 46,
+      "target": 48,
+      "name": ""
+    },
+    {
+      "index": 47,
+      "source": 1,
+      "target": 49,
+      "name": ""
+    },
+    {
+      "index": 48,
+      "source": 49,
+      "target": 50,
+      "name": ""
+    },
+    {
+      "index": 49,
+      "source": 50,
+      "target": 51,
+      "name": ""
+    },
+    {
+      "index": 50,
+      "source": 49,
+      "target": 52,
+      "name": ""
+    },
+    {
+      "index": 51,
+      "source": 52,
+      "target": 53,
+      "name": ""
+    },
+    {
+      "index": 52,
+      "source": 49,
+      "target": 54,
+      "name": ""
+    },
+    {
+      "index": 53,
+      "source": 54,
+      "target": 55,
+      "name": ""
+    },
+    {
+      "index": 54,
+      "source": 49,
+      "target": 56,
+      "name": ""
+    },
+    {
+      "index": 55,
+      "source": 56,
+      "target": 57,
+      "name": ""
+    },
+    {
+      "index": 56,
+      "source": 49,
+      "target": 58,
+      "name": ""
+    },
+    {
+      "index": 57,
+      "source": 58,
+      "target": 59,
+      "name": ""
+    },
+    {
+      "index": 58,
+      "source": 49,
+      "target": 60,
+      "name": ""
+    },
+    {
+      "index": 59,
+      "source": 60,
+      "target": 61,
+      "name": ""
+    },
+    {
+      "index": 60,
+      "source": 49,
+      "target": 62,
+      "name": ""
+    },
+    {
+      "index": 61,
+      "source": 62,
+      "target": 63,
+      "name": ""
+    },
+    {
+      "index": 62,
+      "source": 1,
+      "target": 64,
+      "name": ""
+    },
+    {
+      "index": 63,
+      "source": 64,
+      "target": 65,
+      "name": ""
+    },
+    {
+      "index": 64,
+      "source": 65,
+      "target": 66,
+      "name": ""
+    },
+    {
+      "index": 65,
+      "source": 65,
+      "target": 67,
+      "name": ""
+    },
+    {
+      "index": 66,
+      "source": 65,
+      "target": 68,
+      "name": ""
+    },
+    {
+      "index": 67,
+      "source": 65,
+      "target": 69,
+      "name": ""
+    },
+    {
+      "index": 68,
+      "source": 65,
+      "target": 70,
+      "name": ""
+    },
+    {
+      "index": 69,
+      "source": 64,
+      "target": 71,
+      "name": ""
+    },
+    {
+      "index": 70,
+      "source": 71,
+      "target": 72,
+      "name": ""
+    },
+    {
+      "index": 71,
+      "source": 71,
+      "target": 73,
+      "name": ""
+    },
+    {
+      "index": 72,
+      "source": 71,
+      "target": 74,
+      "name": ""
+    },
+    {
+      "index": 73,
+      "source": 64,
+      "target": 75,
+      "name": ""
+    },
+    {
+      "index": 74,
+      "source": 75,
+      "target": 76,
+      "name": ""
+    },
+    {
+      "index": 75,
+      "source": 75,
+      "target": 77,
+      "name": ""
+    },
+    {
+      "index": 76,
+      "source": 75,
+      "target": 78,
+      "name": ""
+    },
+    {
+      "index": 77,
+      "source": 64,
+      "target": 79,
+      "name": ""
+    },
+    {
+      "index": 78,
+      "source": 79,
+      "target": 80,
+      "name": ""
+    },
+    {
+      "index": 79,
+      "source": 79,
+      "target": 81,
+      "name": ""
+    },
+    {
+      "index": 80,
+      "source": 79,
+      "target": 82,
+      "name": ""
+    },
+    {
+      "index": 81,
+      "source": 79,
+      "target": 83,
+      "name": ""
+    },
+    {
+      "index": 82,
+      "source": 1,
+      "target": 84,
+      "name": ""
+    },
+    {
+      "index": 83,
+      "source": 84,
+      "target": 85,
+      "name": ""
+    },
+    {
+      "index": 84,
+      "source": 84,
+      "target": 86,
+      "name": ""
+    },
+    {
+      "index": 85,
+      "source": 84,
+      "target": 87,
+      "name": ""
+    }
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "name": "1. 画面操作（基本ビューポート操作）",
+      "color": "#2255aa"
+    },
+    {
+      "id": 2,
+      "name": "2. ノードの基本操作とショートカット",
+      "color": "#226644"
+    },
+    {
+      "id": 3,
+      "name": "3. 複数ノードの選択と同時移動（ドラッグ）",
+      "color": "#886600"
+    },
+    {
+      "id": 4,
+      "name": "4. コピー・切り取り・貼り付け (Clipboard)",
+      "color": "#aa4400"
+    },
+    {
+      "id": 5,
+      "name": "5. 多彩なノードタイプと属性設定",
+      "color": "#993366"
+    },
+    {
+      "id": 6,
+      "name": "6. メニュー機能（ファイルの管理と環境設定）",
+      "color": "#553399"
+    },
+    {
+      "id": 7,
+      "name": "7. ノード検索モーダル (Search Modal)",
+      "color": "#444444"
+    }
+  ],
+  "globalBackground": "sky",
+  "layoutMode": "force",
+  "camera": {
+    "position": {
+      "x": 42.22532069184971,
+      "y": -993.7668893194484,
+      "z": 3451.1067417056584
+    },
+    "lookAt": {
+      "x": 42.22532069184971,
+      "y": -993.7668893194484,
+      "z": -0.00024867883485057973
+    }
+  }
+}

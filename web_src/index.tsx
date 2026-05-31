@@ -453,7 +453,7 @@ const App = () => {
                 const submenuItems: any[] = [
                     {
                         key: 'group_add',
-                        label: '追加',
+                        label: '新規追加',
                         onClick: handleAddGroup,
                         disabled: !activeNode
                     }
@@ -1098,7 +1098,7 @@ const App = () => {
                                 const nextForce = !isForceMode;
                                 mindMapGraphRef.current.setForceMode(nextForce);
                                 setIsForceMode(nextForce);
-                                message.success(`Forceレイアウトを${nextForce ? 'ON' : 'OFF'}にしました`);
+                                message.success(`Forceモードを${nextForce ? 'ON' : 'OFF'}にしました`);
                             }
                         } else if (key === 'setting_particles_toggle') {
                             const nextParticles = !isParticlesEnabled;

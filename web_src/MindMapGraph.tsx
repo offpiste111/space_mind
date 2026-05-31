@@ -112,6 +112,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
 
     const isShiftDown = useRef<boolean>(false);
+    const isCtrlDown = useRef<boolean>(false);
 
     const enableParticlesRef = useRef<boolean>(true);
     const selectedNodeRef = useRef<NodeData | null>(null);
@@ -134,15 +135,25 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Shift') isShiftDown.current = true;
+            if (e.key === 'Control') isCtrlDown.current = true;
         };
         const handleKeyUp = (e: KeyboardEvent) => {
             if (e.key === 'Shift') isShiftDown.current = false;
+            if (e.key === 'Control') isCtrlDown.current = false;
         };
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
+        
+        const handleBlur = () => {
+            isShiftDown.current = false;
+            isCtrlDown.current = false;
+        };
+        window.addEventListener('blur', handleBlur);
+
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
+            window.removeEventListener('blur', handleBlur);
         };
     }, []);
 
@@ -412,7 +423,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const dragCounter = useRef<number>(0);
     const isHovering = useRef<boolean>(false);
     const label_key = "name";
-    const z_layer = -300
+    const z_layer = -700
     const [rotateVec, setRotateVec] = useState<THREE.Vector3>(setRotateVecFunc);
     const [lookAtTarget, setLookAtTarget] = useState<THREE.Vector3>(new THREE.Vector3(0, 0, z_layer));
     useImperativeHandle(ref, () => ({
@@ -1566,7 +1577,17 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 };
                 getDescendants(dragNode.id);
 
-                // 全ノードに対して一時固定・固定解除の処理を行う (ForceONのときはすべてアンピン状態にする)
+                // ドラッグ対象となる直接のノード（および複数選択されているノード）を特定
+                const activeDragIds = new Set<string>();
+                activeDragIds.add(String(dragNode.id));
+                const isDragNodeInSelection = selectedNodeList.some(sn => String(sn.id) === String(dragNode.id));
+                if (isDragNodeInSelection) {
+                    selectedNodeList.forEach(sn => {
+                        activeDragIds.add(String(sn.id));
+                    });
+                }
+
+                // 全ノードに対して一時固定・固定解除の処理を行う
                 graphData.nodes.forEach((node: any) => {
                     // ドラッグ前の元の固定状態を保存する
                     node._originalFx = node.fx;
@@ -1574,11 +1595,16 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     node._originalFz = node.fz;
                     node._wasPinnedBeforeDrag = (node.fx !== undefined || node.fy !== undefined);
 
-                    node._isActiveDrag = (String(node.id) === String(dragNode.id) || descendantIds.has(String(node.id)));
-                    // すべてのノードの固定を解除（アンピン）して自由に浮遊させる
-                    delete node.fx;
-                    delete node.fy;
-                    delete node.fz;
+                    // nodeがドラッグ対象（直接ドラッグしているノード、または共に動かす選択ノード）かどうかを判定
+                    const isActiveDrag = activeDragIds.has(String(node.id));
+                    node._isActiveDrag = isActiveDrag;
+
+                    if (isActiveDrag) {
+                        // ドラッグ対象のノードのみ、自由に動けるようにピン留めを一時解除する
+                        delete node.fx;
+                        delete node.fy;
+                        delete node.fz;
+                    }
                 });
                 
                 // シミュレーションを再活性化して追従を滑らかにする
@@ -1986,8 +2012,15 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     for (let entry of entries) {
                         const { width, height } = entry.contentRect;
                         if (width > 0 && height > 0) {
+                            const realWidth = width / SCALE;
+                            const realHeight = height / SCALE;
                             // DOMのサイズはSCALE倍で描画されているため、元のサイズに戻してhitBoxに適用
-                            hitBox.scale.set(width / SCALE, height / SCALE, 1);
+                            hitBox.scale.set(realWidth, realHeight, 1);
+                            
+                            // ノードのデータオブジェクトにも実測サイズを動的にフィードバック！
+                            // これにより、次回自動レイアウト実行時に「テキストが入った後の実際のサイズ」が正確に考慮されます
+                            node.size_x = realWidth;
+                            node.size_y = realHeight;
                         }
                     }
                 });
@@ -2254,8 +2287,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         );
     };
 
-    const snapInDistance = 120; // Define snapInDistance with an appropriate value
-    const snapOutDistance = 250; // Define snapOutDistance with an appropriate value
+    const snapInDistance = 45; // Define snapInDistance with an appropriate value
+    const snapOutDistance = 80; // Define snapOutDistance with an appropriate value
 
     const hasParentChildPath = (startNodeId: any, targetNodeId: any, links: any[]): boolean => {
         const visited = new Set<string>();
@@ -2770,13 +2803,22 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 }}
                 onNodeDragEnd={(node:any) => {
                     if (layoutMode === 'force') {
+                        const shouldPin = isCtrlDown.current;
+                        
                         // ForceON時のドラッグ終了処理：ドラッグ対象と子孫ノードの固定フラグを解除（アンピン）し、シミュレーションに戻す
                         graphData.nodes.forEach((n: any) => {
                             if (n._isActiveDrag) {
-                                // ドラッグ対象とその子孫：固定を完全に解除（自由移動・浮遊化）
-                                delete n.fx;
-                                delete n.fy;
-                                delete n.fz;
+                                if (shouldPin) {
+                                    // Ctrlキーが押されている場合：ドラッグドロップしたその位置で固定（ピン留め）！
+                                    n.fx = n.x;
+                                    n.fy = n.y;
+                                    n.fz = n.z;
+                                } else {
+                                    // 通常（Ctrlなし）：固定を完全に解除（自由移動・浮遊化）
+                                    delete n.fx;
+                                    delete n.fy;
+                                    delete n.fz;
+                                }
                             } else {
                                 // 無関係なノード：一時的な固定から復元
                                 if (n._wasPinnedBeforeDrag) {
@@ -2797,12 +2839,21 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                             delete n._wasPinnedBeforeDrag;
                         });
                         
-                        // 複数選択されたノードがあればそれらも固定解除（アンピン・自由浮遊）
+                        // 複数選択されたノードがあればそれらもピン留め、または固定解除
                         selectedNodeList.forEach(n => {
-                            delete n.fx;
-                            delete n.fy;
-                            delete n.fz;
+                            if (shouldPin) {
+                                n.fx = n.x;
+                                n.fy = n.y;
+                                n.fz = n.z;
+                            } else {
+                                delete n.fx;
+                                delete n.fy;
+                                delete n.fz;
+                            }
                         });
+                        
+                        // 物理シミュレーションを再起動して反映
+                        fgRef.current?.d3ReheatSimulation();
                     } else {
                         // ForceOFF時は単純にドラッグされたノードを固定
                         node.fx = node.x;
