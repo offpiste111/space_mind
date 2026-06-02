@@ -66,4 +66,8 @@ export class EelStorageAdapter implements StorageService {
       }
     });
   }
+
+  async importMarkdownDialog(): Promise<any> {
+    return await this.getEel().import_markdown_dialog()();
+  }
 }

@@ -168,9 +168,7 @@ def select_file_dialog():
     file_path = filedialog.askopenfilename(
         parent=root,
         filetypes=[
-            ('SpaceMind Files', '*.json;*.md'),
             ('JSON files', '*.json'),
-            ('Markdown files', '*.md'),
             ('All files', '*.*')
         ]
     )
@@ -180,6 +178,37 @@ def select_file_dialog():
         g_current_file_path = file_path
         update_recent_files(file_path)
         return load_json(file_path)
+    return None
+
+@eel.expose
+def import_markdown_dialog():
+    import tkinter as tk
+    from tkinter import filedialog
+
+    # Create and configure main Tkinter window
+    root = tk.Tk()
+    root.withdraw()
+    
+    # Make it appear on top of other windows
+    root.attributes('-topmost', True)
+    root.lift()
+    
+    # Show file dialog and get selected file path
+    file_path = filedialog.askopenfilename(
+        parent=root,
+        filetypes=[
+            ('Markdown files', '*.md'),
+            ('All files', '*.*')
+        ]
+    )
+    
+    if file_path:
+        # インポートなので、g_current_file_path は None にリセットして
+        # 新規ファイル扱いとする。
+        global g_current_file_path
+        g_current_file_path = None
+        data = load_json(file_path)
+        return [data, file_path]
     return None
 
 @eel.expose

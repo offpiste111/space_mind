@@ -235,4 +235,9 @@ export class WebStorageAdapter implements StorageService {
       return null;
     }
   }
+
+  async importMarkdownDialog(): Promise<any> {
+    alert("Web版ではMarkdownファイルのインポート機能はサポートされていません。デスクトップ版をご利用ください。");
+    return null;
+  }
 }

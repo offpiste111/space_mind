@@ -11,4 +11,5 @@ export interface StorageService {
   selectAnyFile(): Promise<string>;
   selectFolder(): Promise<string>;
   getOgpImage(url: string): Promise<string | null>;
+  importMarkdownDialog(): Promise<any>;
 }

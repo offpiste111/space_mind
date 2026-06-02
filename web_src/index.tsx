@@ -141,6 +141,8 @@ const App = () => {
                     })),
                 },
                 { type: 'divider' },
+                { label: 'Import …', key: 'import_file' },
+                { type: 'divider' },
                 { label: 'Save', key: 'save' },
                 { label: 'Save as …', key: 'save_as' },
                 { type: 'divider' },
@@ -221,6 +223,29 @@ const App = () => {
         } catch (error) {
             console.error('Error loading file:', error);
             message.error('ファイルの読み込みに失敗しました');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleImportFile = async () => {
+        setLoading(true);
+        try {
+            const result = await (storageService as any).importMarkdownDialog();
+            if (result) {
+                const [node_data, file_path] = result;
+                if (node_data) {
+                    const loadedForce = node_data.layoutMode === 'force';
+                    setIsForceMode(loadedForce);
+                    if (mindMapGraphRef.current) {
+                        mindMapGraphRef.current.setGraphData(node_data);
+                    }
+                    message.success(`Markdownファイルをインポートしました: ${file_path}`);
+                }
+            }
+        } catch (error) {
+            console.error('Error importing file:', error);
+            message.error('Markdownファイルのインポートに失敗しました');
         } finally {
             setLoading(false);
         }
@@ -1013,6 +1038,8 @@ const App = () => {
                             setDrawerVisible(false);
                             if (key === 'open_file') {
                                 handleFileSelect();
+                            } else if (key === 'import_file') {
+                                handleImportFile();
                             } else if (key.startsWith('recent_file_')) {
                                 const filePath = key.replace('recent_file_', '');
                                 handleOpenRecent(filePath);
