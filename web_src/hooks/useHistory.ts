@@ -135,6 +135,7 @@ export const useHistory = () => {
                     const linkToRestore = graphData.links.find((l: any) => l.index === item.data.before.index);
                     if (linkToRestore) {
                         linkToRestore.name = item.data.before.name;
+                        linkToRestore.type = item.data.before.type;
                         callbacks.refreshLink(linkToRestore);
                     }
                     break;
@@ -240,6 +241,7 @@ export const useHistory = () => {
                     const linkToEdit = graphData.links.find((l: any) => l.index === item.data.after.index);
                     if (linkToEdit) {
                         linkToEdit.name = item.data.after.name;
+                        linkToEdit.type = item.data.after.type;
                         callbacks.refreshLink(linkToEdit);
                     }
                     break;

@@ -928,6 +928,12 @@ const App = () => {
                         mindMapGraphRef.current!.deleteNode(node);
                     });
                 }
+
+                // 選択されたリンクを削除
+                const selectedLink = (mindMapGraphRef.current as any).getSelectedLink();
+                if (selectedLink) {
+                    mindMapGraphRef.current.deleteLink(selectedLink);
+                }
             }
         }
         else if (event.key === "F2" && !event.repeat) {
@@ -936,6 +942,12 @@ const App = () => {
                 const selectedNode = mindMapGraphRef.current.getSelectedNode();
                 if (selectedNode) {
                     handleNodeEdit(selectedNode);
+                }
+
+                // 選択されたリンクを編集
+                const selectedLink = (mindMapGraphRef.current as any).getSelectedLink();
+                if (selectedLink) {
+                    handleLinkEdit(selectedLink);
                 }
             }
         }

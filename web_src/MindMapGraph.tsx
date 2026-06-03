@@ -663,6 +663,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             console.log('deleteLink', link);
 
             deleteLink(link);
+            setSelectedLink(null);
             
             // 履歴に追加
             addToHistory('delete_link', link);
@@ -721,6 +722,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         // 選択中のノードを取得する関数を追加
         getSelectedNode: () => {
             return selectedNode;
+        },
+        getSelectedLink: () => {
+            return selectedLink;
         },
         copyNode: () => {
             if (!selectedNode) return;
@@ -1537,7 +1541,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     };
 
     const handleLinkRightClick = (link: any) => {
-        props.onLinkEdit(link)
+        setSelectedLink(link);
+        setSelectedNode(null);
+        setSelectedNodeList([]);
+        props.onLinkEdit(link);
     };
     const handleLinkClick = (link: any) => {
         console.log('handleLinkClick', link);
@@ -2498,6 +2505,12 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         return () => clearTimeout(timer);
     }, [selectedNode, selectedNodeList]);
 
+    useEffect(() => {
+        if (fgRef.current) {
+            fgRef.current.refresh();
+        }
+    }, [selectedLink]);
+
     const getNodeColor = useCallback((nodeOrId: any): string => {
         let node = nodeOrId;
         if (typeof nodeOrId === 'string' || typeof nodeOrId === 'number') {
@@ -2677,6 +2690,9 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     }
                     const sprite = new SpriteText(`${link_name}`);
                     sprite.textHeight = 10.5;
+                    sprite.backgroundColor = null as any;
+                    sprite.strokeWidth = 1.5;
+                    sprite.strokeColor = '#000000';
 
                     const group = new THREE.Group();
 
@@ -2704,11 +2720,24 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     group.add(line);
                     group.add(sprite);
 
+                    // 当たり判定を太くするための透明なシリンダー（半径4, 分割数6の六角柱）を追加
+                    const hitGeometry = new THREE.CylinderGeometry(4, 4, 1, 6);
+                    hitGeometry.rotateX(Math.PI / 2); // デフォルトのY軸方向からZ軸方向に倒す
+                    const hitMaterial = new THREE.MeshBasicMaterial({
+                        transparent: true,
+                        opacity: 0.0, // 完全に透明にして描画されないようにする
+                        depthWrite: false
+                    });
+                    const hitMesh = new THREE.Mesh(hitGeometry, hitMaterial);
+                    hitMesh.name = "hitbox";
+                    group.add(hitMesh);
+
                     return group;
                 }}
                 linkPositionUpdate={(group: any, { start, end }: any, link: any) => {
                     const line = group.children[0] as THREE.Line;
                     const sprite = group.children[1] as SpriteText;
+                    const hitMesh = group.children[2] as THREE.Mesh;
 
                     const isSourceDisabled = (link.source && typeof link.source === 'object') ? !!link.source.disabled : false;
                     const isTargetDisabled = (link.target && typeof link.target === 'object') ? !!link.target.disabled : false;
@@ -2728,9 +2757,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     c2.set('#ffffff');
                     
                     if (isSelected) {
-                        const highlightColor = bgType === 'sky' ? '#d50000' : '#ffd600';
-                        c1.set(highlightColor);
-                        c2.set(highlightColor);
+                        c1.set('#ffffff');
+                        c2.set('#ffffff');
                     } else if (link === interimLink) {
                         c1.set('#f693b1');
                         c2.set('#f693b1');
@@ -2803,7 +2831,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
                     // 4. Update sprite label styling and position dynamically (Only rebuild texture on change)
                     if (sprite) {
-                        const targetColor = isSelected ? (bgType === 'sky' ? '#d50000' : '#ffd600') : (bgType === 'sky' ? '#333333' : 'lightgrey');
+                        const targetColor = isSelected ? '#ffd600' : '#ffffff';
                         const targetHeight = isSelected ? 13.5 : 10.5;
 
                         if (sprite.color !== targetColor) {
@@ -2814,7 +2842,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         }
 
                         const targetOpacity = isAnyDisabled ? 0.1 : 1.0;
-                        const targetTransparent = isAnyDisabled;
+                        const targetTransparent = true;
                         if (sprite.material.opacity !== targetOpacity) {
                             sprite.material.opacity = targetOpacity;
                         }
@@ -2835,6 +2863,33 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         ) {
                             Object.assign(sprite.position, middlePos);
                         }
+                    }
+
+                    // 5. Update transparent click hitbox cylinder position and orientation
+                    if (hitMesh) {
+                        const midX = start.x + (end.x - start.x) / 2;
+                        const midY = start.y + (end.y - start.y) / 2;
+                        const midZ = start.z + (end.z - start.z) / 2;
+                        
+                        if (
+                            hitMesh.position.x !== midX ||
+                            hitMesh.position.y !== midY ||
+                            hitMesh.position.z !== midZ
+                        ) {
+                            hitMesh.position.set(midX, midY, midZ);
+                        }
+
+                        const dx = end.x - start.x;
+                        const dy = end.y - start.y;
+                        const dz = end.z - start.z;
+                        const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                        
+                        const dir = new THREE.Vector3(dx, dy, dz).normalize();
+                        const alignVector = new THREE.Vector3(0, 0, 1);
+                        const quaternion = new THREE.Quaternion().setFromUnitVectors(alignVector, dir);
+                        
+                        hitMesh.quaternion.copy(quaternion);
+                        hitMesh.scale.set(1, 1, length);
                     }
 
                     return true;
