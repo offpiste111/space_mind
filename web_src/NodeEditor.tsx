@@ -33,6 +33,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [nodePatternColor, setNodePatternColor] = useState<number>(0); // 模様色インデックス（デフォルト: 青系）
     const [nodeCustomBgColor, setNodeCustomBgColor] = useState<string>('#ddeeff'); // カスタム背景色
     const [isNewNode, setIsNewNode] = useState<boolean>(false); // 新規ノード作成フラグの保持
+    const [isChildNode, setIsChildNode] = useState<boolean>(false); // 子ノードフラグの保持
     const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]); // 所属グループ一覧
 
     // ノーマルノード用カラーパレット（虹色パステル）
@@ -145,6 +146,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         showModal: (node: any, coords?: { x: number, y: number }) => {
             initialNodeRef.current = _.cloneDeep(node);
             setIsNewNode(!!node.isNew);
+            setIsChildNode(!!node.isChild);
             setContents(node.name);
             // style_idはnodeからそのまま取得する
             setStyleId(node.style_id || 1);
@@ -731,7 +733,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                           }}
                           options={[
                             { value: "normal", label: 'ノーマル' },
-                            { value: "issue", label: '課題' },
+                            { value: "issue", label: '課題', disabled: isNewNode || isChildNode },
                             { value: "task", label: 'タスク' },
                             { value: "link", label: 'リンク' },
                             { value: "file", label: 'ファイル' },

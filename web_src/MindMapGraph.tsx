@@ -874,7 +874,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 });
 
                 let linkType: string;
-                if (isCyclic) {
+                if (target.type === 'issue') {
+                    linkType = 'friend';
+                } else if (isCyclic) {
                     linkType = 'friend';
                 } else if (alreadyHasParent) {
                     // すでに親を持つ場合、共通の祖先をチェックする
@@ -2407,7 +2409,9 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         });
 
         let linkType: string;
-        if (isCyclic) {
+        if (target.type === 'issue') {
+            linkType = 'friend';
+        } else if (isCyclic) {
             linkType = 'friend';
         } else if (alreadyHasParent) {
             // すでに親を持つ場合、共通の祖先をチェックする

@@ -345,7 +345,13 @@ const App = () => {
         if(nodeEditorRef.current){
             const coords = mindMapGraphRef.current?.getNodeScreenCoords(node);
             setIsNodeEditorOpen(true);
-            nodeEditorRef.current.showModal(node, coords);
+            const graphData = mindMapGraphRef.current?.getGraphData();
+            const isChild = graphData ? graphData.links.some((l: any) => {
+                if (l.type === 'friend') return false;
+                const targetId = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
+                return String(targetId) === String(node.id);
+            }) : false;
+            nodeEditorRef.current.showModal({ ...node, isChild }, coords);
         }
     }
 

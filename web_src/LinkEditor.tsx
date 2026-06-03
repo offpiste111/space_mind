@@ -119,6 +119,11 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
         if (editLink) {
             // 循環親子関係および単一親制約のチェック：親子リンクに変更する場合のみチェック
             if (type === 'parent-child') {
+                const targetNode = editLink.target;
+                if (targetNode && typeof targetNode === 'object' && targetNode.type === 'issue') {
+                    message.error('課題ノードを子ノードにする親子リンクを設定することはできません。');
+                    return;
+                }
                 const sourceId = (editLink.source && typeof editLink.source === 'object') ? editLink.source.id : editLink.source;
                 const targetId = (editLink.target && typeof editLink.target === 'object') ? editLink.target.id : editLink.target;
                 
@@ -281,7 +286,7 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
                 }}
                 style={{ width: '100%' }}
                 options={[
-                  { value: 'parent-child', label: '親子関係' },
+                  { value: 'parent-child', label: '親子関係', disabled: editLink?.target?.type === 'issue' },
                   { value: 'friend', label: '友達関係' }
                 ]}
               />
