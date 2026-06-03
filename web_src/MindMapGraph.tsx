@@ -450,6 +450,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     delete node.fx;
                     delete node.fy;
                     delete node.fz;
+                    node._isPinned = false;
                 });
                 if (fgRef.current) {
                     fgRef.current.d3ReheatSimulation();
@@ -461,6 +462,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     node.fx = node.x !== undefined ? node.x : 0;
                     node.fy = node.y !== undefined ? node.y : 0;
                     node.fz = node.z !== undefined ? node.z : z_layer;
+                    node._isPinned = true;
                 });
                 if (fgRef.current) {
                     fgRef.current.refresh();
@@ -527,6 +529,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                             node.fx = node.fx !== undefined ? node.fx : (node.x !== undefined ? node.x : 0);
                             node.fy = node.fy !== undefined ? node.fy : (node.y !== undefined ? node.y : 0);
                             node.fz = node.fz !== undefined ? node.fz : (node.z !== undefined ? node.z : z_layer);
+                            node._isPinned = true;
                         });
                     }
                 }
@@ -539,6 +542,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                             delete node.fx;
                             delete node.fy;
                             delete node.fz;
+                            node._isPinned = false;
                         });
                     }
                     setTimeout(() => {
@@ -955,10 +959,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     newNode.x = targetX;
                     newNode.y = targetY;
                     newNode.z = targetZ;
+                    newNode._isPinned = false;
                 } else {
                     newNode.fx = targetX;
                     newNode.fy = targetY;
                     newNode.fz = targetZ;
+                    newNode._isPinned = true;
                 }
             } else {
                 const targetX = (newNode.x || 0) + (10 + Math.floor(Math.random() * 21));
@@ -969,10 +975,12 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     newNode.x = targetX;
                     newNode.y = targetY;
                     newNode.z = targetZ;
+                    newNode._isPinned = false;
                 } else {
                     newNode.fx = targetX;
                     newNode.fy = targetY;
                     newNode.fz = targetZ;
+                    newNode._isPinned = true;
                 }
             }
             
@@ -1213,6 +1221,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                             node.fx = node.x;
                             node.fy = node.y;
                             node.fz = node.z;
+                            node._isPinned = true;
+                        } else {
+                            node._isPinned = false;
                         }
                         
                         // 一時変数を削除
@@ -1627,7 +1638,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     node._originalFx = node.fx;
                     node._originalFy = node.fy;
                     node._originalFz = node.fz;
-                    node._wasPinnedBeforeDrag = (node.fx !== undefined || node.fy !== undefined);
+                    node._wasPinnedBeforeDrag = !!node._isPinned;
 
                     // nodeがドラッグ対象（直接ドラッグしているノード、または共に動かす選択ノード）かどうかを判定
                     const isActiveDrag = activeDragIds.has(String(node.id));
@@ -2952,11 +2963,13 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                                         delete n.fx;
                                         delete n.fy;
                                         delete n.fz;
+                                        n._isPinned = false;
                                     } else {
                                         // 元々固定されていなかった場合は固定（ピン留め）
                                         n.fx = n.x;
                                         n.fy = n.y;
                                         n.fz = n.z;
+                                        n._isPinned = true;
                                     }
                                 } else {
                                     // 通常（Ctrlなし）：固定状態を維持、または固定しない
@@ -2965,11 +2978,13 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                                         n.fx = n.x;
                                         n.fy = n.y;
                                         n.fz = n.z;
+                                        n._isPinned = true;
                                     } else {
                                         // 元々固定されていなかった場合は固定しない（自由移動）
                                         delete n.fx;
                                         delete n.fy;
                                         delete n.fz;
+                                        n._isPinned = false;
                                     }
                                 }
                             } else {
@@ -2999,10 +3014,12 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                         node.fx = node.x;
                         node.fy = node.y;
                         node.fz = node.z;
+                        node._isPinned = true;
                         selectedNodeList.forEach(n => {
                             n.fx = n.x;
                             n.fy = n.y;
                             n.fz = n.z;
+                            n._isPinned = true;
                         });
                     }
 

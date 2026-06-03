@@ -32,6 +32,7 @@ export interface NodeData {
     size_y?: number;    // ノードの高さ
     rot_x?: number;
     rot_y?: number;
+    _isPinned?: boolean;
 }
 
 export interface GroupData {
