@@ -70,6 +70,38 @@ function hasParent(nodeId: any, links: any[], excludeLinkIndex?: number): boolea
     });
 }
 
+// 指定したノードから親子関係リンクを逆方向に辿って到達できるすべての祖先ノードIDのSetを返すヘルパー
+function getAncestors(nodeId: any, links: any[], excludeLinkIndex?: number): Set<string> {
+    const ancestors = new Set<string>();
+    const queue = [String(nodeId)];
+    const visited = new Set<string>();
+    visited.add(String(nodeId));
+
+    while (queue.length > 0) {
+        const curr = queue.shift()!;
+        for (const link of links) {
+            if (link.type === 'friend') {
+                continue;
+            }
+            if (excludeLinkIndex !== undefined && link.index === excludeLinkIndex) {
+                continue;
+            }
+            const sId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+            const tId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+
+            if (String(tId) === curr) {
+                const parentId = String(sId);
+                if (!visited.has(parentId)) {
+                    visited.add(parentId);
+                    ancestors.add(parentId);
+                    queue.push(parentId);
+                }
+            }
+        }
+    }
+    return ancestors;
+}
+
 const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
     const [contents, setContents] = useState("");
     const [type, setType] = useState<string>("parent-child");
@@ -98,9 +130,33 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
                     return;
                 }
                 
-                if (hasParent(targetId, props.links || [], editLink.index)) {
-                    message.error('接続先ノードにはすでに親ノードが存在するため、親子リンクに変更することはできません。');
-                    return;
+                const alreadyHasParent = otherLinks.some(link => {
+                    if (link.type === 'friend') return false;
+                    const linkTId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+                    return String(linkTId) === String(targetId);
+                });
+                
+                if (alreadyHasParent) {
+                    const targetAncestors = getAncestors(targetId, otherLinks);
+                    const sourceAncestors = getAncestors(sourceId, otherLinks);
+                    const sIdStr = String(sourceId);
+                    
+                    let hasCommon = false;
+                    if (targetAncestors.has(sIdStr)) {
+                        hasCommon = true;
+                    } else {
+                        for (const ancestor of sourceAncestors) {
+                            if (targetAncestors.has(ancestor)) {
+                                hasCommon = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (hasCommon) {
+                        message.error('同じ祖先ノードを持つノードには、追加の親として親子リンクを設定することはできません。');
+                        return;
+                    }
                 }
             }
 
@@ -191,9 +247,33 @@ const LinkEditor = forwardRef<ModalRef, LinkEditorProps>((props, ref) => {
                         return;
                       }
                       
-                      if (hasParent(targetId, props.links || [], editLink.index)) {
-                        message.error('接続先ノードにはすでに親ノードが存在するため、親子リンクに変更することはできません。');
-                        return;
+                      const alreadyHasParent = otherLinks.some(link => {
+                          if (link.type === 'friend') return false;
+                          const linkTId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+                          return String(linkTId) === String(targetId);
+                      });
+                      
+                      if (alreadyHasParent) {
+                          const targetAncestors = getAncestors(targetId, otherLinks);
+                          const sourceAncestors = getAncestors(sourceId, otherLinks);
+                          const sIdStr = String(sourceId);
+                          
+                          let hasCommon = false;
+                          if (targetAncestors.has(sIdStr)) {
+                              hasCommon = true;
+                          } else {
+                              for (const ancestor of sourceAncestors) {
+                                  if (targetAncestors.has(ancestor)) {
+                                      hasCommon = true;
+                                      break;
+                                  }
+                              }
+                          }
+                          
+                          if (hasCommon) {
+                              message.error('同じ祖先ノードを持つノードには、追加の親として親子リンクを設定することはできません。');
+                              return;
+                          }
                       }
                     }
                   }

@@ -868,7 +868,32 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     const tId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
                     return String(tId) === String(target.id);
                 });
-                const linkType = (isCyclic || alreadyHasParent) ? 'friend' : 'parent-child';
+
+                let linkType: string;
+                if (isCyclic) {
+                    linkType = 'friend';
+                } else if (alreadyHasParent) {
+                    // すでに親を持つ場合、共通の祖先をチェックする
+                    const targetAncestors = getAncestors(target.id, graphData.links);
+                    const sourceAncestors = getAncestors(source.id, graphData.links);
+                    const sIdStr = String(source.id);
+
+                    let hasCommon = false;
+                    if (targetAncestors.has(sIdStr)) {
+                        hasCommon = true;
+                    } else {
+                        for (const ancestor of sourceAncestors) {
+                            if (targetAncestors.has(ancestor)) {
+                                hasCommon = true;
+                                break;
+                            }
+                        }
+                    }
+                    // 共通の祖先を持つ場合は friend、持たない（異なる木である）場合は parent-child
+                    linkType = hasCommon ? 'friend' : 'parent-child';
+                } else {
+                    linkType = 'parent-child';
+                }
 
                 const newLink = { 
                     index: newIndex, 
@@ -2321,6 +2346,34 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         return false;
     };
 
+    const getAncestors = (nodeId: any, links: any[]): Set<string> => {
+        const ancestors = new Set<string>();
+        const queue = [String(nodeId)];
+        const visited = new Set<string>();
+        visited.add(String(nodeId));
+
+        while (queue.length > 0) {
+            const curr = queue.shift()!;
+            for (const link of links) {
+                if (link.type === 'friend') {
+                    continue;
+                }
+                const sId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+                const tId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+
+                if (String(tId) === curr) {
+                    const parentId = String(sId);
+                    if (!visited.has(parentId)) {
+                        visited.add(parentId);
+                        ancestors.add(parentId);
+                        queue.push(parentId);
+                    }
+                }
+            }
+        }
+        return ancestors;
+    };
+
     const setInterimLink = (linkId: number, source: any, target: any) => {
         // 既存のリンクと同じsourceとtargetの組み合わせがあるかチェック
         const existingLink = graphData.links.find(link => 
@@ -2345,7 +2398,32 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             const tId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
             return String(tId) === String(target.id);
         });
-        const linkType = (isCyclic || alreadyHasParent) ? 'friend' : 'parent-child';
+
+        let linkType: string;
+        if (isCyclic) {
+            linkType = 'friend';
+        } else if (alreadyHasParent) {
+            // すでに親を持つ場合、共通の祖先をチェックする
+            const targetAncestors = getAncestors(target.id, graphData.links);
+            const sourceAncestors = getAncestors(source.id, graphData.links);
+            const sIdStr = String(source.id);
+
+            let hasCommon = false;
+            if (targetAncestors.has(sIdStr)) {
+                hasCommon = true;
+            } else {
+                for (const ancestor of sourceAncestors) {
+                    if (targetAncestors.has(ancestor)) {
+                        hasCommon = true;
+                        break;
+                    }
+                }
+            }
+            // 共通の祖先を持つ場合は friend、持たない（異なる木である）場合は parent-child
+            linkType = hasCommon ? 'friend' : 'parent-child';
+        } else {
+            linkType = 'parent-child';
+        }
 
         const newLink = { 
             index: linkId, 
@@ -2805,19 +2883,35 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     if (layoutMode === 'force') {
                         const shouldPin = isCtrlDown.current;
                         
-                        // ForceON時のドラッグ終了処理：ドラッグ対象と子孫ノードの固定フラグを解除（アンピン）し、シミュレーションに戻す
+                        // ForceON時のドラッグ終了処理
                         graphData.nodes.forEach((n: any) => {
                             if (n._isActiveDrag) {
                                 if (shouldPin) {
-                                    // Ctrlキーが押されている場合：ドラッグドロップしたその位置で固定（ピン留め）！
-                                    n.fx = n.x;
-                                    n.fy = n.y;
-                                    n.fz = n.z;
+                                    // Ctrlキーが押されている場合：位置固定状態をトグル
+                                    if (n._wasPinnedBeforeDrag) {
+                                        // 元々固定されていた場合は固定を解除（アンピン）
+                                        delete n.fx;
+                                        delete n.fy;
+                                        delete n.fz;
+                                    } else {
+                                        // 元々固定されていなかった場合は固定（ピン留め）
+                                        n.fx = n.x;
+                                        n.fy = n.y;
+                                        n.fz = n.z;
+                                    }
                                 } else {
-                                    // 通常（Ctrlなし）：固定を完全に解除（自由移動・浮遊化）
-                                    delete n.fx;
-                                    delete n.fy;
-                                    delete n.fz;
+                                    // 通常（Ctrlなし）：固定状態を維持、または固定しない
+                                    if (n._wasPinnedBeforeDrag) {
+                                        // 元々固定されていた場合は新しい位置で固定を維持
+                                        n.fx = n.x;
+                                        n.fy = n.y;
+                                        n.fz = n.z;
+                                    } else {
+                                        // 元々固定されていなかった場合は固定しない（自由移動）
+                                        delete n.fx;
+                                        delete n.fy;
+                                        delete n.fz;
+                                    }
                                 }
                             } else {
                                 // 無関係なノード：一時的な固定から復元
@@ -2837,19 +2931,6 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                             delete n._originalFy;
                             delete n._originalFz;
                             delete n._wasPinnedBeforeDrag;
-                        });
-                        
-                        // 複数選択されたノードがあればそれらもピン留め、または固定解除
-                        selectedNodeList.forEach(n => {
-                            if (shouldPin) {
-                                n.fx = n.x;
-                                n.fy = n.y;
-                                n.fz = n.z;
-                            } else {
-                                delete n.fx;
-                                delete n.fy;
-                                delete n.fz;
-                            }
                         });
                         
                         // 物理シミュレーションを再起動して反映
