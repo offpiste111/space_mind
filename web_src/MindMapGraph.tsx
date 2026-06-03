@@ -2831,7 +2831,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
                     // 4. Update sprite label styling and position dynamically (Only rebuild texture on change)
                     if (sprite) {
-                        const targetColor = isSelected ? '#ffd600' : '#ffffff';
+                        const targetColor = '#ffffff';
                         const targetHeight = isSelected ? 13.5 : 10.5;
 
                         if (sprite.color !== targetColor) {
