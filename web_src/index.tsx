@@ -355,11 +355,11 @@ const App = () => {
             const coords = mindMapGraphRef.current?.getNodeScreenCoords(node);
             setIsNodeEditorOpen(true);
             const graphData = mindMapGraphRef.current?.getGraphData();
-            const isChild = graphData ? graphData.links.some((l: any) => {
+            const isChild = node.isChild !== undefined ? node.isChild : (graphData ? graphData.links.some((l: any) => {
                 if (l.type === 'friend') return false;
                 const targetId = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
                 return String(targetId) === String(node.id);
-            }) : false;
+            }) : false);
             nodeEditorRef.current.showModal({ ...node, isChild }, coords);
         }
     }

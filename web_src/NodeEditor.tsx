@@ -733,7 +733,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                           }}
                           options={[
                             { value: "normal", label: 'ノーマル' },
-                            { value: "issue", label: '課題', disabled: isNewNode || isChildNode },
+                            { value: "issue", label: '課題', disabled: isChildNode },
                             { value: "task", label: 'タスク' },
                             { value: "link", label: 'リンク' },
                             { value: "file", label: 'ファイル' },

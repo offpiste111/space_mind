@@ -1097,6 +1097,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 size_y: 120,
                 name: "",
                 isNew: true,
+                isChild: true,
                 createdAt: now,
                 updatedAt: now
             };
@@ -1854,6 +1855,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             size_y: 80,
             name: "",
             isNew: true,
+            isChild: false,
             createdAt: now,
             updatedAt: now
         };

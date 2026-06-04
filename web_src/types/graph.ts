@@ -33,6 +33,7 @@ export interface NodeData {
     rot_x?: number;
     rot_y?: number;
     _isPinned?: boolean;
+    isChild?: boolean;
 }
 
 export interface GroupData {
