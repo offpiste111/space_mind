@@ -83,7 +83,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
   const isHtmlLink = type === 'link';
   const isHtmlFile = type === 'file';
   const isHtmlFolder = type === 'folder';
-  const isHtmlNormal = type === 'normal';
+  const isHtmlNormal = type === 'normal' || type === 'group';
 
   let themeColor = '#4c9ac0'; // デフォルトの青色
   if (isHtmlFile) themeColor = '#52c41a'; // 緑色

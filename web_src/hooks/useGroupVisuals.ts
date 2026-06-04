@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import SpriteText from 'three-spritetext';
 import { GraphData, GroupVisual, GroupData } from '../types/graph';
 
 export const useGroupVisuals = (
@@ -30,15 +29,55 @@ export const useGroupVisuals = (
             }
 
             const activeGroupIds = new Set<number>();
-            const groups = graphData.groups || [];
 
-            groups.forEach((group: GroupData) => {
-                const nodesInGroup = graphData.nodes.filter(n => {
-                    if (n.groupIds && Array.isArray(n.groupIds)) {
-                        return n.groupIds.includes(group.id);
-                    }
-                    return n.groupId === group.id;
-                });
+            // 子孫ノードを再帰的に取得（友達リンクは除外）
+            const getDescendantIds = (leaderId: number, nodes: any[], links: any[]): Set<number> => {
+                const descendants = new Set<number>();
+                descendants.add(leaderId);
+                
+                const queue = [leaderId];
+                while (queue.length > 0) {
+                    const currentId = queue.shift()!;
+                    links.forEach((link: any) => {
+                        if (link.type === 'friend') {
+                            return; // 友達リンクは含めない
+                        }
+                        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+                        if (String(sourceId) === String(currentId)) {
+                            const targetNode = nodes.find(n => n.id === targetId);
+                            if (targetNode && !descendants.has(targetNode.id)) {
+                                descendants.add(targetNode.id);
+                                queue.push(targetNode.id);
+                            }
+                        }
+                    });
+                }
+                return descendants;
+            };
+
+            // nodes の中から type === 'group' のノードを探してグループ定義を作成
+            const groups: any[] = [];
+            graphData.nodes.forEach((node: any) => {
+                if (node.type === 'group') {
+                    groups.push({
+                        id: node.id,
+                        name: node.name || `グループ ${node.id}`,
+                        color: node.groupColor || '#4c9ac0',
+                        shape: node.groupShape || 'cloud',
+                    });
+                }
+            });
+
+            groups.forEach((group: any) => {
+                // 形状が 'none'（なし）の場合は描画しないのでスキップ
+                if (group.shape === 'none') {
+                    return;
+                }
+
+                const descendantIds = getDescendantIds(group.id, graphData.nodes, graphData.links);
+                const nodesInGroup = graphData.nodes.filter(n => descendantIds.has(n.id));
                 if (nodesInGroup.length === 0) return; // ノードがないグループは描画しない
 
                 activeGroupIds.add(group.id);
@@ -46,32 +85,12 @@ export const useGroupVisuals = (
                 let visualObj = groupVisualsRef.current.get(group.id);
 
                 if (!visualObj) {
-                    // グループ名ラベルの作成（背景透明・縁取り文字）
-                    const sprite = new SpriteText(group.name || `グループ ${group.id}`);
-                    sprite.color = group.color || '#ffffff';
-                    sprite.textHeight = 11;
-                    sprite.backgroundColor = 'rgba(0, 0, 0, 0)'; // 背景透明
-                    sprite.strokeWidth = 1.5;                     // 文字の縁取り線幅
-                    sprite.strokeColor = '#000000';                  // 黒縁取りで視認性を確保
-                    sprite.padding = 3;
-                    scene.add(sprite);
-
                     visualObj = {
                         nodeBubbles: new Map(),
                         linkTubes: new Map(),
-                        sprite,
                         groupId: group.id
                     };
                     groupVisualsRef.current.set(group.id, visualObj);
-                } else {
-                    // 色やテキストを最新に同期
-                    const hexColor = group.color || '#4c9ac0';
-                    if (visualObj.sprite.text !== group.name) {
-                        visualObj.sprite.text = group.name || `グループ ${group.id}`;
-                    }
-                    if (visualObj.sprite.color !== hexColor) {
-                        visualObj.sprite.color = hexColor;
-                    }
                 }
 
                 const hexColor = group.color || '#4c9ac0';
@@ -308,21 +327,12 @@ export const useGroupVisuals = (
                     });
                 }
 
-                // --- 3. グループラベルの位置調整 ---
-                const firstNode = nodesInGroup[0];
-                if (firstNode) {
-                    visualObj.sprite.position.set(
-                        firstNode.x ?? 0,
-                        (firstNode.y ?? 0) + 120, // 雲の頭上に浮遊させる高度
-                        firstNode.z ?? 0
-                    );
-                }
             });
 
             // 削除されたグループの3Dオブジェクト一式をクリーンアップ
             groupVisualsRef.current.forEach((visualObj, id) => {
                 if (!activeGroupIds.has(id)) {
-                    scene.remove(visualObj.sprite);
+                    if (visualObj.sprite) scene.remove(visualObj.sprite);
                     visualObj.nodeBubbles.forEach(bubbleSprites => {
                         bubbleSprites.forEach(sprite => {
                             scene.remove(sprite);
@@ -342,14 +352,10 @@ export const useGroupVisuals = (
             // --- 4. 発光オーラ (スプライトベースのグロウ) の管理 ---
             const currentAuraNodeKeys = new Set<string>();
 
-            groups.forEach((group: GroupData) => {
+            groups.forEach((group: any) => {
                 if (group.shape === 'aura') {
-                    const nodesInGroup = graphData.nodes.filter(n => {
-                        if (n.groupIds && Array.isArray(n.groupIds)) {
-                            return n.groupIds.includes(group.id);
-                        }
-                        return n.groupId === group.id;
-                    });
+                    const descendantIds = getDescendantIds(group.id, graphData.nodes, graphData.links);
+                    const nodesInGroup = graphData.nodes.filter(n => descendantIds.has(n.id));
 
                     const hexColor = group.color || '#4c9ac0';
 
@@ -459,7 +465,7 @@ export const useGroupVisuals = (
 
             if (scene) {
                 groupVisualsRef.current.forEach(visualObj => {
-                    scene.remove(visualObj.sprite);
+                    if (visualObj.sprite) scene.remove(visualObj.sprite);
                     visualObj.nodeBubbles.forEach(bubbleSprites => {
                         bubbleSprites.forEach(sprite => {
                             scene.remove(sprite);

@@ -25,7 +25,7 @@ import { OrbitControls } from '@react-three/drei'
 import { render, useThree, useGraph } from '@react-three/fiber'
 import ThreeForceGraph from 'three-forcegraph'
 
-import { Popconfirm } from 'antd'
+import { Popconfirm, Slider } from 'antd'
 
 import { executeTreeLayout, calculateCameraPosition } from './layouts/TreeLayout';
 import { executeCircleLayout } from './layouts/CircleLayout';
@@ -90,14 +90,23 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
 
     // 選択されたノードを追跡するstate
     const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+
     // 選択されたリンクを追跡するstate
     const [selectedLink, setSelectedLink] = useState<any>(null);
     // 複数選択されたノードを追跡するstate
     const [selectedNodeList, setSelectedNodeList] = useState<NodeData[]>([]);
+    const selectedNodeListRef = useRef(selectedNodeList);
+    useEffect(() => {
+        selectedNodeListRef.current = selectedNodeList;
+    }, [selectedNodeList]);
+
     // 機能モードを管理するstate
     const [funcMode, setFuncMode] = useState<boolean>(false);
     // レイアウトモードを管理するstate ('static' | 'force')
     const [layoutMode, setLayoutMode] = useState<string>('static');
+    // フォースレイアウトでの反発係数 (Repulsion Strength)
+    const [chargeStrength, setChargeStrength] = useState<number>(-120);
+
     // 矩形選択用のRef (パフォーマンス最適化のためReactステートではなく生DOMとRefで処理)
     const selectionBoxRef = useRef<{ startX: number, startY: number, endX: number, endY: number } | null>(null);
     const copiedNodeRef = useRef<any>(null);
@@ -158,6 +167,16 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     }, []);
 
     const [graphData, setGraphData] = useState<GraphData>({nodes:[], links:[], groups: []});
+
+    useEffect(() => {
+        if (fgRef.current) {
+            const chargeForce = fgRef.current.d3Force('charge');
+            if (chargeForce) {
+                chargeForce.strength(chargeStrength);
+                fgRef.current.d3ReheatSimulation();
+            }
+        }
+    }, [chargeStrength, graphData, layoutMode]);
 
     // 形状計算のパフォーマンス最適化のため、メッシュ用のジオメトリをメモ化して再利用
     const sphereGeom = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
@@ -307,17 +326,91 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             }
         };
 
+        const lastWheelTime = { current: 0 };
+        const handleWheel = (e: WheelEvent) => {
+            // Ctrlキーが押されている場合のみ処理
+            if (!e.ctrlKey && !isCtrlDown.current && !funcMode) return;
+
+            // Ctrlキー押下時のホイール動作は、カメラのズームを防ぐためイベントをキャンセル・停止
+            e.preventDefault();
+            e.stopPropagation();
+
+            // 選択対象ノードの収集（複数選択リストを優先し、空なら単一選択ノード）
+            let targetNodes: any[] = [];
+            if (selectedNodeListRef.current && selectedNodeListRef.current.length > 0) {
+                targetNodes = [...selectedNodeListRef.current];
+            } else if (selectedNodeRef.current) {
+                targetNodes = [selectedNodeRef.current];
+            }
+
+            if (targetNodes.length > 0) {
+                // 前回のスクロールから500ms以上空いた最初のアクション時に元の位置を履歴へ保存
+                const now = Date.now();
+                if (now - lastWheelTime.current > 500) {
+                    targetNodes.forEach((node: any) => {
+                        const beforeNode = {
+                            id: node.id,
+                            fx: node.fx !== undefined ? node.fx : node.x,
+                            fy: node.fy !== undefined ? node.fy : node.y,
+                            fz: node.fz !== undefined ? node.fz : node.z
+                        };
+                        addToHistory('move_node', beforeNode);
+                    });
+                }
+                lastWheelTime.current = now;
+
+                // カメラの視線（奥行き）ベクトルを取得
+                const camera = fgRef.current?.camera();
+                if (!camera) return;
+                const camDir = new THREE.Vector3(0, 0, -1);
+                camera.getWorldDirection(camDir);
+
+                // スクロール方向に応じた移動量の計算
+                // 上スクロール（deltaY < 0）の時は手前に引き寄せる（camDirと逆方向）、下スクロール（deltaY > 0）の時は奥に遠ざける（camDir方向）
+                // したがって、e.deltaY と同符号の移動量を適用する
+                // 移動スピードを3倍に設定 (0.2 * 3 = 0.6)
+                const delta = e.deltaY * 0.6;
+
+                targetNodes.forEach((node: any) => {
+                    // カメラの向きベクトルに沿って X, Y, Z の全座標を更新
+                    const nextX = (node.x ?? 0) + camDir.x * delta;
+                    const nextY = (node.y ?? 0) + camDir.y * delta;
+                    const nextZ = (node.z ?? 0) + camDir.z * delta;
+
+                    node.x = nextX;
+                    node.y = nextY;
+                    node.z = nextZ;
+                    node.fx = nextX;
+                    node.fy = nextY;
+                    node.fz = nextZ;
+                    node._isPinned = true;
+                });
+
+                // state の更新をトリガーして再描画とフックを起動
+                setGraphData((prev: any) => ({
+                    ...prev,
+                    nodes: [...prev.nodes]
+                }));
+
+                if (fgRef.current) {
+                    fgRef.current.refresh();
+                }
+            }
+        };
+
         container.addEventListener('pointerdown', handlePointerDownCapture, true);
+        container.addEventListener('wheel', handleWheel, { passive: false, capture: true });
 
         return () => {
             container.removeEventListener('pointerdown', handlePointerDownCapture, true);
+            container.removeEventListener('wheel', handleWheel, true);
             document.removeEventListener('pointermove', handlePointerMove);
             document.removeEventListener('pointerup', handlePointerUp);
             if (selectionDiv && selectionDiv.parentNode) {
                 selectionDiv.parentNode.removeChild(selectionDiv);
             }
         };
-    }, [funcMode, graphData]);
+    }, [funcMode, graphData, layoutMode]);
 
     const textureCache = useRef(new Map<string, {
         texture: THREE.Texture,
@@ -439,7 +532,8 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         getGraphData: () => {
             return {
                 ...graphData,
-                layoutMode: layoutMode
+                layoutMode: layoutMode,
+                chargeStrength: chargeStrength
             };
         },
         setForceMode: (enabled: boolean) => {
@@ -483,6 +577,13 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             // layoutModeをロード
             const loadedLayoutMode = graphData.layoutMode === 'force' ? 'force' : 'static';
             setLayoutMode(loadedLayoutMode);
+
+            // chargeStrengthをロード
+            if (graphData.chargeStrength !== undefined) {
+                setChargeStrength(graphData.chargeStrength);
+            } else {
+                setChargeStrength(-120); // デフォルト値
+            }
 
             // nodesとlinksが空の場合、を作成
             if (graphData.nodes.length === 0 && graphData.links.length === 0) {
@@ -641,6 +742,13 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     }
                 });
             }
+            
+            // React の state 参照を更新して、依存配列 [graphData] の hooks (useGroupVisuals等) が反応するようにする
+            setGraphData(prev => ({
+                ...prev,
+                nodes: [...prev.nodes]
+            }));
+            
             fgRef.current.refresh();
         },
         deleteNode: (node: any) => {
@@ -1495,10 +1603,40 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                     console.log('Force mode active: skipped pinning node on double click:', node.id);
                 }
 
-                if (selectedNodeList.length > 0) {
-                    setSelectedNodeList([]);
+                // グループノードの場合は子孫ノードをすべて複数選択ノードにする（友達リンクは除外）
+                if (node.type === "group") {
+                    const descendants = new Set<number>();
+                    descendants.add(node.id);
+
+                    const queue = [node.id];
+                    while (queue.length > 0) {
+                        const currentId = queue.shift()!;
+                        graphData.links.forEach((link: any) => {
+                            if (link.type === 'friend') {
+                                return; // 友達リンクは含めない
+                            }
+                            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+                            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+
+                            if (String(sourceId) === String(currentId)) {
+                                const targetNode = graphData.nodes.find(n => n.id === targetId);
+                                if (targetNode && !descendants.has(targetNode.id)) {
+                                    descendants.add(targetNode.id);
+                                    queue.push(targetNode.id);
+                                }
+                            }
+                        });
+                    }
+
+                    const nodesInGroup = graphData.nodes.filter(n => descendants.has(n.id));
+                    setSelectedNodeList(nodesInGroup);
+                    setSelectedNode(node); // ダブルクリック時にも選択状態に設定する！
+                } else {
+                    if (selectedNodeList.length > 0) {
+                        setSelectedNodeList([]);
+                    }
+                    setSelectedNode(node); // ダブルクリック時にも選択状態に設定する！
                 }
-                setSelectedNode(node); // ダブルクリック時にも選択状態に設定する！
                 
                 const defaultDistance = 1000;
                 let targetZ = node.z + defaultDistance;
@@ -2654,6 +2792,41 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 graphData.globalBackground === 'sunset' ? '#ff9e5e' : 
                 'black'
         }}>
+            {/* 反発係数スライダー (Forceモード時のみ右上フローティング表示) */}
+            {layoutMode === 'force' && (
+                <div style={{
+                    position: 'absolute',
+                    top: 20,
+                    right: 20,
+                    zIndex: 10,
+                    background: 'rgba(20, 20, 20, 0.75)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    width: '260px',
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                    color: '#ffffff',
+                    fontFamily: 'system-ui, -apple-system, sans-serif'
+                }}>
+                    <div style={{ marginBottom: '12px', fontWeight: 600, fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>反発係数 (Repulsion)</span>
+                        <span style={{ color: '#1677ff', fontFamily: 'monospace', fontSize: '12px' }}>{chargeStrength}</span>
+                    </div>
+                    <Slider
+                        min={-1000}
+                        max={0}
+                        step={10}
+                        value={chargeStrength}
+                        onChange={(val) => setChargeStrength(val)}
+                        tooltip={{ formatter: (val) => `${val}` }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#8c8c8c', marginTop: '4px' }}>
+                        <span>強反発 (-1000)</span>
+                        <span>弱反発 (0)</span>
+                    </div>
+                </div>
+            )}
             {/* ケバブメニュー */}
             {kebabMenuPosition && isHovering && (
                 <div

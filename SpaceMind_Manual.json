@@ -15,7 +15,12 @@
       "name": "1. 画面操作（基本ビューポート操作）",
       "group": 1,
       "style_id": 4,
-      "type": "normal",
+      "x": -766.4198940483802,
+      "y": 197.38300203112954,
+      "z": 1398.0206206473413,
+      "type": "group",
+      "groupShape": "cloud",
+      "groupColor": "#2255aa",
       "groupId": 1,
       "groupIds": [
         1
@@ -23,9 +28,12 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 344.421875,
-      "size_y": 65.46484375,
-      "index": 1
+      "size_x": 343.69921875,
+      "size_y": 65.21875,
+      "index": 1,
+      "fx": -766.4198940483802,
+      "fy": 197.38300203112954,
+      "fz": 1398.0206206473413
     },
     {
       "id": 3,
@@ -40,8 +48,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 216.890625,
-      "size_y": 63.33203125,
+      "size_x": 218.7734375,
+      "size_y": 63.34375,
       "index": 2
     },
     {
@@ -57,8 +65,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 232.234375,
-      "size_y": 84.9296875,
+      "size_x": 234.96875,
+      "size_y": 84.94140625,
       "index": 3
     },
     {
@@ -74,8 +82,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 558.86328125,
-      "size_y": 84.9296875,
+      "size_x": 558.96875,
+      "size_y": 84.94140625,
       "index": 4
     },
     {
@@ -91,8 +99,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 228.7734375,
-      "size_y": 63.33203125,
+      "size_x": 228.6171875,
+      "size_y": 63.34375,
       "index": 5
     },
     {
@@ -108,8 +116,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 504.73828125,
-      "size_y": 84.9296875,
+      "size_x": 502.23828125,
+      "size_y": 84.94140625,
       "index": 6
     },
     {
@@ -125,8 +133,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 409.9296875,
-      "size_y": 84.9296875,
+      "size_x": 409.91015625,
+      "size_y": 84.94140625,
       "index": 7
     },
     {
@@ -143,7 +151,7 @@
       "node_bg_color": 0,
       "node_pattern_color": 0,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 8
     },
     {
@@ -159,8 +167,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 250.234375,
-      "size_y": 84.9296875,
+      "size_x": 252.96875,
+      "size_y": 84.94140625,
       "index": 9
     },
     {
@@ -176,8 +184,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 391.9296875,
-      "size_y": 84.9296875,
+      "size_x": 391.9140625,
+      "size_y": 84.94140625,
       "index": 10
     },
     {
@@ -193,8 +201,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 354.6328125,
-      "size_y": 63.33203125,
+      "size_x": 354.890625,
+      "size_y": 63.34375,
       "index": 11
     },
     {
@@ -210,8 +218,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 510.9140625,
-      "size_y": 84.9296875,
+      "size_x": 517.5390625,
+      "size_y": 84.94140625,
       "index": 12
     },
     {
@@ -227,8 +235,8 @@
       "color": "#2255aa",
       "node_bg_color": 0,
       "node_pattern_color": 0,
-      "size_x": 713.953125,
-      "size_y": 84.9296875,
+      "size_x": 713.8984375,
+      "size_y": 84.94140625,
       "index": 13
     },
     {
@@ -236,7 +244,12 @@
       "name": "2. ノードの基本操作とショートカット",
       "group": 1,
       "style_id": 4,
-      "type": "normal",
+      "x": 1302.8931652982542,
+      "y": -466.44629675220835,
+      "z": 209.82348413312235,
+      "type": "group",
+      "groupShape": "cloud",
+      "groupColor": "#226644",
       "groupId": 2,
       "groupIds": [
         2
@@ -244,9 +257,12 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 344.421875,
-      "size_y": 65.46484375,
-      "index": 14
+      "size_x": 343.69921875,
+      "size_y": 65.21875,
+      "index": 14,
+      "fx": 1302.8931652982542,
+      "fy": -466.44629675220835,
+      "fz": 209.82348413312235
     },
     {
       "id": 16,
@@ -262,7 +278,7 @@
       "node_bg_color": 1,
       "node_pattern_color": 1,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 15
     },
     {
@@ -278,8 +294,8 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 294.08203125,
-      "size_y": 84.9296875,
+      "size_x": 281.40625,
+      "size_y": 84.94140625,
       "index": 16
     },
     {
@@ -295,8 +311,8 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 841.39453125,
-      "size_y": 84.9296875,
+      "size_x": 841.3203125,
+      "size_y": 84.94140625,
       "index": 17
     },
     {
@@ -313,7 +329,7 @@
       "node_bg_color": 1,
       "node_pattern_color": 1,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 18
     },
     {
@@ -329,8 +345,8 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 364.03515625,
-      "size_y": 84.9296875,
+      "size_x": 354.63671875,
+      "size_y": 84.94140625,
       "index": 19
     },
     {
@@ -346,8 +362,8 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 766.6953125,
-      "size_y": 84.9296875,
+      "size_x": 766.6328125,
+      "size_y": 84.94140625,
       "index": 20
     },
     {
@@ -364,7 +380,7 @@
       "node_bg_color": 1,
       "node_pattern_color": 1,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 21
     },
     {
@@ -381,7 +397,7 @@
       "node_bg_color": 1,
       "node_pattern_color": 1,
       "size_x": 200,
-      "size_y": 84.9296875,
+      "size_y": 84.94140625,
       "index": 22
     },
     {
@@ -397,8 +413,8 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 415.90625,
-      "size_y": 84.9296875,
+      "size_x": 417.39453125,
+      "size_y": 84.94140625,
       "index": 23
     },
     {
@@ -415,7 +431,7 @@
       "node_bg_color": 1,
       "node_pattern_color": 1,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 24
     },
     {
@@ -431,8 +447,8 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 230.0625,
-      "size_y": 84.9296875,
+      "size_x": 217.29296875,
+      "size_y": 84.94140625,
       "index": 25
     },
     {
@@ -448,8 +464,8 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 912.421875,
-      "size_y": 84.9296875,
+      "size_x": 917.81640625,
+      "size_y": 84.94140625,
       "index": 26
     },
     {
@@ -466,7 +482,7 @@
       "node_bg_color": 1,
       "node_pattern_color": 1,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 27
     },
     {
@@ -483,7 +499,7 @@
       "node_bg_color": 1,
       "node_pattern_color": 1,
       "size_x": 200,
-      "size_y": 84.9296875,
+      "size_y": 84.94140625,
       "index": 28
     },
     {
@@ -499,8 +515,8 @@
       "color": "#226644",
       "node_bg_color": 1,
       "node_pattern_color": 1,
-      "size_x": 407.953125,
-      "size_y": 84.9296875,
+      "size_x": 407.9296875,
+      "size_y": 84.94140625,
       "index": 29
     },
     {
@@ -508,7 +524,12 @@
       "name": "3. 複数ノードの選択と同時移動（ドラッグ）",
       "group": 1,
       "style_id": 4,
-      "type": "normal",
+      "x": -1074.1887802944661,
+      "y": -980.8564795766409,
+      "z": 687.079411887088,
+      "type": "group",
+      "groupShape": "cloud",
+      "groupColor": "#886600",
       "groupId": 3,
       "groupIds": [
         3
@@ -516,9 +537,12 @@
       "color": "#886600",
       "node_bg_color": 2,
       "node_pattern_color": 2,
-      "size_x": 398.421875,
-      "size_y": 65.46484375,
-      "index": 30
+      "size_x": 397.6953125,
+      "size_y": 65.21875,
+      "index": 30,
+      "fx": -1074.1887802944661,
+      "fy": -980.8564795766409,
+      "fz": 687.079411887088
     },
     {
       "id": 32,
@@ -534,7 +558,7 @@
       "node_bg_color": 2,
       "node_pattern_color": 2,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 31
     },
     {
@@ -550,8 +574,8 @@
       "color": "#886600",
       "node_bg_color": 2,
       "node_pattern_color": 2,
-      "size_x": 412.90625,
-      "size_y": 84.9296875,
+      "size_x": 406.921875,
+      "size_y": 84.94140625,
       "index": 32
     },
     {
@@ -567,8 +591,8 @@
       "color": "#886600",
       "node_bg_color": 2,
       "node_pattern_color": 2,
-      "size_x": 1096.6015625,
-      "size_y": 84.9296875,
+      "size_x": 1089.265625,
+      "size_y": 84.94140625,
       "index": 33
     },
     {
@@ -584,8 +608,8 @@
       "color": "#886600",
       "node_bg_color": 2,
       "node_pattern_color": 2,
-      "size_x": 231.375,
-      "size_y": 63.33203125,
+      "size_x": 231.37109375,
+      "size_y": 63.34375,
       "index": 34
     },
     {
@@ -601,8 +625,8 @@
       "color": "#886600",
       "node_bg_color": 2,
       "node_pattern_color": 2,
-      "size_x": 410.078125,
-      "size_y": 84.9296875,
+      "size_x": 412.79296875,
+      "size_y": 84.94140625,
       "index": 35
     },
     {
@@ -618,8 +642,8 @@
       "color": "#886600",
       "node_bg_color": 2,
       "node_pattern_color": 2,
-      "size_x": 731.5546875,
-      "size_y": 84.9296875,
+      "size_x": 734.23828125,
+      "size_y": 84.94140625,
       "index": 36
     },
     {
@@ -636,7 +660,7 @@
       "node_bg_color": 2,
       "node_pattern_color": 2,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 37
     },
     {
@@ -652,8 +676,8 @@
       "color": "#886600",
       "node_bg_color": 2,
       "node_pattern_color": 2,
-      "size_x": 530.85546875,
-      "size_y": 84.9296875,
+      "size_x": 533.23046875,
+      "size_y": 84.94140625,
       "index": 38
     },
     {
@@ -669,8 +693,8 @@
       "color": "#886600",
       "node_bg_color": 2,
       "node_pattern_color": 2,
-      "size_x": 910.33203125,
-      "size_y": 84.9296875,
+      "size_x": 910.2578125,
+      "size_y": 84.94140625,
       "index": 39
     },
     {
@@ -678,7 +702,9 @@
       "name": "4. コピー・切り取り・貼り付け (Clipboard)",
       "group": 1,
       "style_id": 4,
-      "type": "normal",
+      "type": "group",
+      "groupShape": "cloud",
+      "groupColor": "#aa4400",
       "groupId": 4,
       "groupIds": [
         4
@@ -686,8 +712,8 @@
       "color": "#aa4400",
       "node_bg_color": 3,
       "node_pattern_color": 3,
-      "size_x": 394.94140625,
-      "size_y": 65.46484375,
+      "size_x": 393.03125,
+      "size_y": 65.21875,
       "index": 40
     },
     {
@@ -704,7 +730,7 @@
       "node_bg_color": 3,
       "node_pattern_color": 3,
       "size_x": 200,
-      "size_y": 84.9296875,
+      "size_y": 84.94140625,
       "index": 41
     },
     {
@@ -720,8 +746,8 @@
       "color": "#aa4400",
       "node_bg_color": 3,
       "node_pattern_color": 3,
-      "size_x": 661.9296875,
-      "size_y": 63.33203125,
+      "size_x": 661.8828125,
+      "size_y": 63.34375,
       "index": 42
     },
     {
@@ -738,7 +764,7 @@
       "node_bg_color": 3,
       "node_pattern_color": 3,
       "size_x": 200,
-      "size_y": 84.9296875,
+      "size_y": 84.94140625,
       "index": 43
     },
     {
@@ -754,8 +780,8 @@
       "color": "#aa4400",
       "node_bg_color": 3,
       "node_pattern_color": 3,
-      "size_x": 643.21484375,
-      "size_y": 63.33203125,
+      "size_x": 643.16796875,
+      "size_y": 63.34375,
       "index": 44
     },
     {
@@ -772,7 +798,7 @@
       "node_bg_color": 3,
       "node_pattern_color": 3,
       "size_x": 200,
-      "size_y": 84.9296875,
+      "size_y": 84.94140625,
       "index": 45
     },
     {
@@ -788,8 +814,8 @@
       "color": "#aa4400",
       "node_bg_color": 3,
       "node_pattern_color": 3,
-      "size_x": 373.39453125,
-      "size_y": 63.33203125,
+      "size_x": 373.37109375,
+      "size_y": 63.34375,
       "index": 46
     },
     {
@@ -805,8 +831,8 @@
       "color": "#aa4400",
       "node_bg_color": 3,
       "node_pattern_color": 3,
-      "size_x": 1130.40234375,
-      "size_y": 84.9296875,
+      "size_x": 1135.7734375,
+      "size_y": 84.94140625,
       "index": 47
     },
     {
@@ -814,7 +840,12 @@
       "name": "5. 多彩なノードタイプと属性設定",
       "group": 1,
       "style_id": 4,
-      "type": "normal",
+      "x": 23.462968976078876,
+      "y": -1156.0777102847594,
+      "z": -1335.8711435739701,
+      "type": "group",
+      "groupShape": "cloud",
+      "groupColor": "#993366",
       "groupId": 5,
       "groupIds": [
         5
@@ -822,9 +853,12 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 308.421875,
-      "size_y": 65.46484375,
-      "index": 48
+      "size_x": 307.703125,
+      "size_y": 65.21875,
+      "index": 48,
+      "fx": 23.462968976078876,
+      "fy": -1156.0777102847594,
+      "fz": -1335.8711435739701
     },
     {
       "id": 50,
@@ -839,8 +873,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 727.453125,
-      "size_y": 84.9296875,
+      "size_x": 727.07421875,
+      "size_y": 84.94140625,
       "index": 49
     },
     {
@@ -857,7 +891,7 @@
       "node_bg_color": 4,
       "node_pattern_color": 4,
       "size_x": 231.73046875,
-      "size_y": 84.9296875,
+      "size_y": 84.94140625,
       "index": 50
     },
     {
@@ -873,8 +907,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 663.73046875,
-      "size_y": 84.9296875,
+      "size_x": 663.68359375,
+      "size_y": 84.94140625,
       "index": 51
     },
     {
@@ -891,7 +925,7 @@
       "node_bg_color": 4,
       "node_pattern_color": 4,
       "size_x": 231.73046875,
-      "size_y": 84.9296875,
+      "size_y": 84.94140625,
       "index": 52
     },
     {
@@ -907,8 +941,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 384.76953125,
-      "size_y": 84.9296875,
+      "size_x": 384.48046875,
+      "size_y": 84.94140625,
       "index": 53
     },
     {
@@ -924,8 +958,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 620.4140625,
-      "size_y": 84.9296875,
+      "size_x": 619.58984375,
+      "size_y": 84.94140625,
       "index": 54
     },
     {
@@ -941,8 +975,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 467.5,
-      "size_y": 84.9296875,
+      "size_x": 467.54296875,
+      "size_y": 84.94140625,
       "index": 55
     },
     {
@@ -958,8 +992,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 468.34375,
-      "size_y": 84.9296875,
+      "size_x": 464.2109375,
+      "size_y": 84.94140625,
       "index": 56
     },
     {
@@ -975,8 +1009,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 483.73046875,
-      "size_y": 84.9296875,
+      "size_x": 483.703125,
+      "size_y": 84.94140625,
       "index": 57
     },
     {
@@ -992,8 +1026,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 644.88671875,
-      "size_y": 84.9296875,
+      "size_x": 641.33203125,
+      "size_y": 84.94140625,
       "index": 58
     },
     {
@@ -1009,8 +1043,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 499.57421875,
-      "size_y": 84.9296875,
+      "size_x": 499.5390625,
+      "size_y": 84.94140625,
       "index": 59
     },
     {
@@ -1026,8 +1060,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 644.88671875,
-      "size_y": 84.9296875,
+      "size_x": 641.33203125,
+      "size_y": 84.94140625,
       "index": 60
     },
     {
@@ -1043,8 +1077,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 519.73046875,
-      "size_y": 84.9296875,
+      "size_x": 519.69921875,
+      "size_y": 84.94140625,
       "index": 61
     },
     {
@@ -1060,8 +1094,8 @@
       "color": "#993366",
       "node_bg_color": 4,
       "node_pattern_color": 4,
-      "size_x": 631.9296875,
-      "size_y": 84.9296875,
+      "size_x": 636.14453125,
+      "size_y": 84.94140625,
       "index": 62
     },
     {
@@ -1069,7 +1103,12 @@
       "name": "6. メニュー機能（ファイルの管理と環境設定）",
       "group": 1,
       "style_id": 4,
-      "type": "normal",
+      "x": 183.60758321839938,
+      "y": 1396.2118247313829,
+      "z": -1024.0746576027484,
+      "type": "group",
+      "groupShape": "cloud",
+      "groupColor": "#553399",
       "groupId": 6,
       "groupIds": [
         6
@@ -1077,9 +1116,12 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 416.421875,
-      "size_y": 65.46484375,
-      "index": 63
+      "size_x": 415.69140625,
+      "size_y": 65.21875,
+      "index": 63,
+      "fx": 183.60758321839938,
+      "fy": 1396.2118247313829,
+      "fz": -1024.0746576027484
     },
     {
       "id": 65,
@@ -1094,8 +1136,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 222.73046875,
-      "size_y": 63.33203125,
+      "size_x": 220.515625,
+      "size_y": 63.34375,
       "index": 64
     },
     {
@@ -1111,8 +1153,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 476.19140625,
-      "size_y": 84.9296875,
+      "size_x": 472.19921875,
+      "size_y": 84.94140625,
       "index": 65
     },
     {
@@ -1128,8 +1170,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 593.171875,
-      "size_y": 84.9296875,
+      "size_x": 592.484375,
+      "size_y": 84.94140625,
       "index": 66
     },
     {
@@ -1145,8 +1187,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 337.9296875,
-      "size_y": 84.9296875,
+      "size_x": 337.91796875,
+      "size_y": 84.94140625,
       "index": 67
     },
     {
@@ -1162,8 +1204,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 476.19140625,
-      "size_y": 84.9296875,
+      "size_x": 472.19921875,
+      "size_y": 84.94140625,
       "index": 68
     },
     {
@@ -1179,8 +1221,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 283.9296875,
-      "size_y": 84.9296875,
+      "size_x": 283.92578125,
+      "size_y": 84.94140625,
       "index": 69
     },
     {
@@ -1197,7 +1239,7 @@
       "node_bg_color": 5,
       "node_pattern_color": 5,
       "size_x": 200,
-      "size_y": 63.33203125,
+      "size_y": 63.34375,
       "index": 70
     },
     {
@@ -1213,8 +1255,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 679.9296875,
-      "size_y": 84.9296875,
+      "size_x": 679.8828125,
+      "size_y": 84.94140625,
       "index": 71
     },
     {
@@ -1230,8 +1272,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 301.9296875,
-      "size_y": 84.9296875,
+      "size_x": 301.921875,
+      "size_y": 84.94140625,
       "index": 72
     },
     {
@@ -1247,8 +1289,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 355.9296875,
-      "size_y": 84.9296875,
+      "size_x": 355.91796875,
+      "size_y": 84.94140625,
       "index": 73
     },
     {
@@ -1264,8 +1306,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 270.03515625,
-      "size_y": 63.33203125,
+      "size_x": 269.07421875,
+      "size_y": 63.34375,
       "index": 74
     },
     {
@@ -1281,8 +1323,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 625.9296875,
-      "size_y": 84.9296875,
+      "size_x": 625.88671875,
+      "size_y": 84.94140625,
       "index": 75
     },
     {
@@ -1298,8 +1340,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 391.9296875,
-      "size_y": 84.9296875,
+      "size_x": 391.9140625,
+      "size_y": 84.94140625,
       "index": 76
     },
     {
@@ -1315,8 +1357,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 858.1328125,
-      "size_y": 84.9296875,
+      "size_x": 858.05859375,
+      "size_y": 84.94140625,
       "index": 77
     },
     {
@@ -1332,8 +1374,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 368.81640625,
-      "size_y": 63.33203125,
+      "size_x": 368.875,
+      "size_y": 63.34375,
       "index": 78
     },
     {
@@ -1349,8 +1391,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 599.328125,
-      "size_y": 84.9296875,
+      "size_x": 600.80078125,
+      "size_y": 84.94140625,
       "index": 79
     },
     {
@@ -1366,8 +1408,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 608.83203125,
-      "size_y": 84.9296875,
+      "size_x": 608.7890625,
+      "size_y": 84.94140625,
       "index": 80
     },
     {
@@ -1383,8 +1425,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 555.1953125,
-      "size_y": 84.9296875,
+      "size_x": 555.15625,
+      "size_y": 84.94140625,
       "index": 81
     },
     {
@@ -1400,8 +1442,8 @@
       "color": "#553399",
       "node_bg_color": 5,
       "node_pattern_color": 5,
-      "size_x": 573.375,
-      "size_y": 84.9296875,
+      "size_x": 573.33203125,
+      "size_y": 84.94140625,
       "index": 82
     },
     {
@@ -1409,7 +1451,12 @@
       "name": "7. ノード検索モーダル (Search Modal)",
       "group": 1,
       "style_id": 4,
-      "type": "normal",
+      "x": -303.8931470465954,
+      "y": -177.74683854656826,
+      "z": -1668.235390245959,
+      "type": "group",
+      "groupShape": "cloud",
+      "groupColor": "#444444",
       "groupId": 7,
       "groupIds": [
         7
@@ -1417,9 +1464,12 @@
       "color": "#444444",
       "node_bg_color": 6,
       "node_pattern_color": 6,
-      "size_x": 355.25,
-      "size_y": 65.46484375,
-      "index": 83
+      "size_x": 355.453125,
+      "size_y": 65.21875,
+      "index": 83,
+      "fx": -303.8931470465954,
+      "fy": -177.74683854656826,
+      "fz": -1668.235390245959
     },
     {
       "id": 85,
@@ -1434,8 +1484,8 @@
       "color": "#444444",
       "node_bg_color": 6,
       "node_pattern_color": 6,
-      "size_x": 552.20703125,
-      "size_y": 84.9296875,
+      "size_x": 551,
+      "size_y": 84.94140625,
       "index": 84
     },
     {
@@ -1451,8 +1501,8 @@
       "color": "#444444",
       "node_bg_color": 6,
       "node_pattern_color": 6,
-      "size_x": 678.31640625,
-      "size_y": 84.9296875,
+      "size_x": 678.26171875,
+      "size_y": 84.94140625,
       "index": 85
     },
     {
@@ -1468,8 +1518,8 @@
       "color": "#444444",
       "node_bg_color": 6,
       "node_pattern_color": 6,
-      "size_x": 1076.0078125,
-      "size_y": 84.9296875,
+      "size_x": 1077.56640625,
+      "size_y": 84.94140625,
       "index": 86
     }
   ],
@@ -2030,16 +2080,17 @@
   ],
   "globalBackground": "sky",
   "layoutMode": "force",
+  "chargeStrength": -630,
   "camera": {
     "position": {
-      "x": 42.22532069184971,
-      "y": -993.7668893194484,
-      "z": 3451.1067417056584
+      "x": -1246.9111954873558,
+      "y": 459.5245772000894,
+      "z": 4149.035858268107
     },
     "lookAt": {
-      "x": 42.22532069184971,
-      "y": -993.7668893194484,
-      "z": -0.00024867883485057973
+      "x": 23.462968976078884,
+      "y": -1156.0777102847592,
+      "z": -1335.8711435739697
     }
   }
 }

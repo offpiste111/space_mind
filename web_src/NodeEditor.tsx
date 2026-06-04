@@ -1,5 +1,5 @@
 import React,{useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react'
-import { Modal, Input, Button, Flex, Select, Upload, Slider, ColorPicker, message } from 'antd';
+import { Modal, Input, Button, Flex, Select, Upload, Slider, ColorPicker, message, Divider } from 'antd';
 import { UploadOutlined, FolderOutlined, UserOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import type { UploadProps } from 'antd';
@@ -35,6 +35,9 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [isNewNode, setIsNewNode] = useState<boolean>(false); // 新規ノード作成フラグの保持
     const [isChildNode, setIsChildNode] = useState<boolean>(false); // 子ノードフラグの保持
     const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]); // 所属グループ一覧
+    const [isGroupLeader, setIsGroupLeader] = useState<boolean>(false);
+    const [groupShape, setGroupShape] = useState<'cloud' | 'aura' | 'none'>('cloud');
+    const [groupColor, setGroupColor] = useState<string>('#4c9ac0');
 
     // ノーマルノード用カラーパレット（虹色パステル）
     // 背景色: 薄いパステル、模様色: 濃い色（強調は逆）
@@ -174,6 +177,10 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             }
             setSelectedGroupIds(nodeGroupIds);
 
+            setIsGroupLeader(node.isGroupLeader || false);
+            setGroupShape(node.groupShape || "cloud");
+            setGroupColor(node.groupColor || "#4c9ac0");
+            
             setEditNode(node);
             setPopupCoords(coords || null);
         }
@@ -222,6 +229,9 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         nodePatternColor?: number;
         nodeCustomBgColor?: string;
         groupIds?: number[];
+        isGroupLeader?: boolean;
+        groupShape?: 'cloud' | 'aura' | 'none';
+        groupColor?: string;
     }) => {
         const nodeToUpdate: any = _.cloneDeep(targetNode);
         
@@ -254,6 +264,24 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 nodeToUpdate.node_custom_bg_color = currentStates.nodeCustomBgColor ?? '#ddeeff';
                 nodeToUpdate.size_x = 200; // デフォルトサイズ
                 nodeToUpdate.size_y = 120;
+                delete nodeToUpdate.deadline;
+                delete nodeToUpdate.priority;
+                delete nodeToUpdate.urgency;
+                delete nodeToUpdate.assignee;
+                delete nodeToUpdate.url;
+                delete nodeToUpdate.file_path;
+                delete nodeToUpdate.folder_path;
+                break;
+            case "group":
+                nodeToUpdate.style_id = currentStates.styleId;
+                nodeToUpdate.node_bg_color = currentStates.nodeBgColor ?? 0;
+                nodeToUpdate.node_pattern_color = currentStates.nodePatternColor ?? 0;
+                nodeToUpdate.node_custom_bg_color = currentStates.nodeCustomBgColor ?? '#ddeeff';
+                nodeToUpdate.size_x = 200; // デフォルトサイズ
+                nodeToUpdate.size_y = 120;
+                nodeToUpdate.isGroupLeader = true;
+                nodeToUpdate.groupShape = currentStates.groupShape ?? 'cloud';
+                nodeToUpdate.groupColor = currentStates.groupColor ?? '#4c9ac0';
                 delete nodeToUpdate.deadline;
                 delete nodeToUpdate.priority;
                 delete nodeToUpdate.urgency;
@@ -336,6 +364,12 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 delete nodeToUpdate.icon_size;
                 break;
         }
+        if (currentStates.nodeType !== "normal" && currentStates.nodeType !== "group") {
+            delete nodeToUpdate.isGroupLeader;
+            delete nodeToUpdate.groupShape;
+            delete nodeToUpdate.groupColor;
+        }
+
         return nodeToUpdate;
     };
 
@@ -360,6 +394,9 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             nodePatternColor: updatedFields.nodePatternColor !== undefined ? updatedFields.nodePatternColor : nodePatternColor,
             nodeCustomBgColor: updatedFields.nodeCustomBgColor !== undefined ? updatedFields.nodeCustomBgColor : nodeCustomBgColor,
             groupIds: updatedFields.groupIds !== undefined ? updatedFields.groupIds : selectedGroupIds,
+            isGroupLeader: updatedFields.isGroupLeader !== undefined ? updatedFields.isGroupLeader : isGroupLeader,
+            groupShape: updatedFields.groupShape !== undefined ? updatedFields.groupShape : groupShape,
+            groupColor: updatedFields.groupColor !== undefined ? updatedFields.groupColor : groupColor,
         };
 
         const previewNode = getUpdatedNode(editNode, currentStates);
@@ -385,6 +422,9 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 nodePatternColor,
                 nodeCustomBgColor,
                 groupIds: selectedGroupIds,
+                isGroupLeader,
+                groupShape,
+                groupColor,
             });
 
             // URLが有効で、かつ変更されている場合にOGP画像を取得
@@ -733,6 +773,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                           }}
                           options={[
                             { value: "normal", label: 'ノーマル' },
+                            { value: "group", label: 'グループ' },
                             { value: "issue", label: '課題', disabled: isChildNode },
                             { value: "task", label: 'タスク' },
                             { value: "link", label: 'リンク' },
@@ -761,7 +802,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                         }}
                       />
                       {/* スタイル選択 */}
-                      {(nodeType === "normal") ? (
+                      {(nodeType === "normal" || nodeType === "group") ? (
                         <>
                         <Flex gap="middle" align="center">
                           <div style={{ width: '80px' }}>{"スタイル"}</div>
@@ -889,6 +930,81 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                             })()}
                           </Flex>
                         </Flex>
+                        
+                        {/* グループ設定（グループタイプのみ表示） */}
+                        {nodeType === "group" && (
+                          <>
+                            <Divider style={{ margin: '12px 0' }} />
+                            <Flex gap="middle" align="center">
+                              <div style={{ width: '80px', fontSize: '13px' }}>形状</div>
+                              <Select
+                                style={{ flex: 1 }}
+                                value={groupShape}
+                                onChange={(value) => {
+                                  setGroupShape(value);
+                                  triggerPreview({ groupShape: value });
+                                }}
+                                options={[
+                                  { value: 'cloud', label: '雲' },
+                                  { value: 'aura', label: 'オーラ' },
+                                  { value: 'none', label: 'なし' },
+                                ]}
+                              />
+                            </Flex>
+                            <Flex gap="middle" align="center" style={{ marginTop: '8px' }}>
+                              <div style={{ width: '80px', fontSize: '13px' }}>グループ色</div>
+                              <Flex gap="6px" wrap="wrap" align="center" style={{ flex: 1, minWidth: 0 }}>
+                                {PATTERN_COLORS.map((color, idx) => (
+                                  <div
+                                    key={idx}
+                                    title={COLOR_LABELS[idx]}
+                                    onClick={() => {
+                                      setGroupColor(color);
+                                      triggerPreview({ groupColor: color });
+                                    }}
+                                    style={{
+                                      width: 26,
+                                      height: 26,
+                                      borderRadius: '50%',
+                                      background: color,
+                                      border: groupColor === color ? '3px solid #333' : '2px solid #ccc',
+                                      cursor: 'pointer',
+                                      boxSizing: 'border-box',
+                                      transition: 'border 0.15s',
+                                    }}
+                                  />
+                                ))}
+                                {/* カスタムカラーピッカー */}
+                                <ColorPicker
+                                  value={groupColor}
+                                  onChange={(color) => {
+                                    const hex = color.toHexString();
+                                    setGroupColor(hex);
+                                    triggerPreview({ groupColor: hex });
+                                  }}
+                                  trigger="click"
+                                  size="small"
+                                >
+                                  <div
+                                    title="カスタムカラー"
+                                    style={{
+                                      width: 26,
+                                      height: 26,
+                                      borderRadius: '50%',
+                                      background: !PATTERN_COLORS.includes(groupColor)
+                                        ? groupColor
+                                        : 'conic-gradient(red 0deg, yellow 60deg, lime 120deg, cyan 180deg, blue 240deg, magenta 300deg, red 360deg)',
+                                      border: !PATTERN_COLORS.includes(groupColor) ? '3px solid #333' : '2px solid #ccc',
+                                      cursor: 'pointer',
+                                      boxSizing: 'border-box',
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                </ColorPicker>
+                              </Flex>
+                            </Flex>
+                          </>
+                        )}
                         </>
                       ) : (nodeType === "issue") ? (
                         <Flex gap="middle" align="center">

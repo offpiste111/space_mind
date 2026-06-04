@@ -34,6 +34,9 @@ export interface NodeData {
     rot_y?: number;
     _isPinned?: boolean;
     isChild?: boolean;
+    isGroupLeader?: boolean;
+    groupShape?: 'cloud' | 'aura' | 'none';
+    groupColor?: string;
 }
 
 export interface GroupData {
@@ -53,6 +56,6 @@ export interface GraphData {
 export interface GroupVisual {
     nodeBubbles: Map<number, THREE.Sprite[]>; // nodeId -> Sprite array
     linkTubes: Map<string, THREE.Sprite[]>;  // linkKey -> Sprite array
-    sprite: any;
+    sprite?: any;
     groupId: number;
 }

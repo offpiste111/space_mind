@@ -367,6 +367,11 @@ def parse_markdown_to_mindmap(filepath):
                     "color": color
                 })
                 
+                # 新しいグループタイプのノード仕様に対応
+                node["type"] = "group"
+                node["groupShape"] = "cloud"
+                node["groupColor"] = color
+                
             if current_group_id is not None:
                 color_idx = (current_group_id - 1) % len(group_colors)
                 node["groupId"] = current_group_id
@@ -498,7 +503,7 @@ def save_json(data, json_path):
     for node in data["nodes"]:
         node_keys = list(node.keys())
         for key in node_keys:
-            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","background", "size_x", "size_y", "rot_x", "rot_y", "groupId", "groupIds", "node_bg_color", "node_pattern_color"]:
+            if key not in ["id","name","group","x","y","z","fx","fy","fz","img","icon_img","style_id","color","index","deadline","priority","urgency","disabled","type","url","file_path","folder_path","scale","background", "size_x", "size_y", "rot_x", "rot_y", "groupId", "groupIds", "node_bg_color", "node_pattern_color", "groupShape", "groupColor"]:
                 del node[key]
 
     # data["links"]の各要素のキーはsource,target,__indexColor,index,__controlPointsのみ、それ以外は削除、ただしsource,targetはidに変換
