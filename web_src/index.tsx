@@ -6,9 +6,12 @@ import { css } from "@emotion/react";
 
 
 import { Input, Button, Popover, message, Spin, Dropdown, Drawer, Modal, List, ConfigProvider } from 'antd';
-import { MenuOutlined, SettingFilled, FileOutlined, EditOutlined, SettingOutlined } from '@ant-design/icons';
+import { MenuOutlined, SettingFilled, FileOutlined, EditOutlined, SettingOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Menu } from 'antd';
+
+declare const __APP_VERSION__: string;
+declare const __GIT_HASH__: string;
 
 import MindMapGraph from './MindMapGraph'
 import NodeEditor from './NodeEditor'
@@ -85,6 +88,7 @@ const App = () => {
     const [x, setX] = useState(0)
     const [y, setY] = useState(0);
     const [drawerVisible, setDrawerVisible] = useState(false);
+    const [aboutVisible, setAboutVisible] = useState(false);
     const [currentFileName, setCurrentFileName] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [isNodeEditorOpen, setIsNodeEditorOpen] = useState(false);
@@ -203,6 +207,11 @@ const App = () => {
                 { label: isForceMode ? 'Force layout: OFFにする' : 'Force layout: ONにする', key: 'setting_force_toggle' },
                 { label: isParticlesEnabled ? 'Particles: OFFにする' : 'Particles: ONにする', key: 'setting_particles_toggle' }
             ],
+        },
+        {
+            label: 'About',
+            key: 'about',
+            icon: <InfoCircleOutlined rev={undefined} />,
         }
     ];
 
@@ -1058,6 +1067,8 @@ const App = () => {
                                 handleFileSelect();
                             } else if (key === 'import_file') {
                                 handleImportFile();
+                            } else if (key === 'about') {
+                                setAboutVisible(true);
                             } else if (key.startsWith('recent_file_')) {
                                 const filePath = key.replace('recent_file_', '');
                                 handleOpenRecent(filePath);
@@ -1305,6 +1316,33 @@ const App = () => {
                     </List.Item>
                 )}
             />
+        </Modal>
+
+        <Modal
+            title="SpaceMind について"
+            open={aboutVisible}
+            onCancel={() => setAboutVisible(false)}
+            footer={[
+                <Button key="ok" type="primary" onClick={() => setAboutVisible(false)}>
+                    OK
+                </Button>
+            ]}
+            centered
+            styles={{
+                body: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px 0',
+                }
+            }}
+        >
+            <img src="./assets/logo.png" alt="SpaceMind Logo" style={{ width: 140, marginBottom: 20 }} />
+            <h2 style={{ fontSize: 24, fontWeight: 'bold', margin: '0 0 10px 0', color: '#1677ff' }}>SpaceMind</h2>
+            <p style={{ margin: '5px 0', fontSize: 16 }}>バージョン: {__APP_VERSION__}</p>
+            <p style={{ margin: '5px 0', color: '#8c8c8c' }}>リビジョン: {__GIT_HASH__}</p>
+            <p style={{ margin: '20px 0 0 0', fontSize: 12, color: '#bfbfbf' }}>© 2026 SpaceMind Project. All rights reserved.</p>
         </Modal>
 
         </Spin>
