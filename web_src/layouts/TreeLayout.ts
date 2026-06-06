@@ -67,28 +67,47 @@ export class TreeLayout {
     private rootNodes: NodeInfo[] = [];
     private direction: LayoutDirection;
     private z_layer: number;
+    private selectedNodeIds: Set<number>;
     // パディング値（ノードサイズに応じて動的に調整される基準値）
     private basePaddingThickness: number = 40;  // ノードの厚み方向（配置直交方向）の最小余白
     private basePaddingLength: number = 80;     // ノードの長さ方向（配置進行方向）の最小余白
 
-    constructor(graphData: GraphData, direction: LayoutDirection = 'right', z_layer: number = -300) {
+    constructor(graphData: GraphData, direction: LayoutDirection = 'right', z_layer: number = -300, selectedNodeIds: number[] = []) {
         this.graphData = graphData;
         this.direction = direction;
         this.z_layer = z_layer;
+        this.selectedNodeIds = new Set(selectedNodeIds);
     }
 
     public executeLayout(): GraphData {
         this.initializeNodeMap();
         this.createParentChildRelationships();
         
-        // Sort children of each node in descending order of node ID.
-        // Since positions are calculated sequentially in the +y direction:
-        // - In left/right layouts, higher index (later element in children list) gets larger y (placed at the top).
-        //   Sorting by ID descending places smaller ID (earlier in timeline) at the end, so smaller ID gets larger y (placed at the top).
-        // - In upper/lower layouts, x coordinate maps directly to y.
-        //   Sorting by ID descending places smaller ID (earlier in timeline) at the end, so smaller ID gets larger x (placed at the right).
-        this.nodeMap.forEach(info => {
-            info.children.sort((a, b) => b.node.id - a.node.id);
+        // 各親子リンク（friend以外）の出現順（links配列におけるインデックス）を記録
+        const linkOrderMap = new Map<string, number>();
+        this.graphData.links.forEach((link, idx) => {
+            if (link.type === 'friend') {
+                return;
+            }
+            const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            const key = `${sourceId}-${targetId}`;
+            if (!linkOrderMap.has(key)) {
+                linkOrderMap.set(key, idx);
+            }
+        });
+
+        // 各ノードの子ノードリスト（children）を、リンクの作成順（linksの定義順）の降順でソートする
+        // 座標計算が+y方向（インデックスが大きいほど上/右）に行われるため、定義順が早いものほど配列の末尾（インデックス大）にする
+        this.nodeMap.forEach((info) => {
+            const parentId = info.node.id;
+            info.children.sort((a, b) => {
+                const keyA = `${parentId}-${a.node.id}`;
+                const keyB = `${parentId}-${b.node.id}`;
+                const idxA = linkOrderMap.has(keyA) ? linkOrderMap.get(keyA)! : 999999;
+                const idxB = linkOrderMap.has(keyB) ? linkOrderMap.get(keyB)! : 999999;
+                return idxB - idxA; // 降順
+            });
         });
 
         this.findRootNodes();
@@ -97,18 +116,40 @@ export class TreeLayout {
             return this.graphData;
         }
         
-        // ルートノードをグループでクラスタリングして並べる
-        const groupedRoots = this.clusterRootsByGroup();
+        // 始祖ノードを並べ替える
+        // 1. 選択されている始祖ノードを優先
+        // 2. その中でIDが古い順（ID昇順）
+        // 3. 選択されていない始祖ノードを後回し
+        // 4. その中でIDが古い順（ID昇順）
+        const sortedRoots = [...this.rootNodes].sort((a, b) => {
+            const aSelected = this.selectedNodeIds.has(a.node.id);
+            const bSelected = this.selectedNodeIds.has(b.node.id);
+            
+            if (aSelected && !bSelected) return -1;
+            if (!aSelected && bSelected) return 1;
+            
+            return a.node.id - b.node.id;
+        });
         
-        let startY = 0;
+        let currentOffset = 0;
+        const rootPadding = 200; // 独立したツリー間の進行方向の最小余白
         
-        for (const root of groupedRoots) {
+        for (const root of sortedRoots) {
             this.assignLevelsIterative(root, 0);
             this.calculateLeafCountIterative(root);
             this.calculateSubtreeThicknessIterative(root);
-            startY = this.calculateNodePositionsIterative(root, startY);
-            // 独立したツリー間に十分な余白を追加
-            startY += this.basePaddingThickness * 2;
+            
+            // 直交方向の位置：常に0を基準にして各ツリーの中心を揃える
+            this.calculateNodePositionsIterative(root, 0);
+            
+            // このツリーの進行方向の位置（オフセット）を累積値 currentOffset から再帰的に割り当て
+            this.assignOffsetRecursive(root, currentOffset);
+            
+            // このツリー全体の最も下流の最大オフセット位置を計算
+            const maxTreeOffset = this.getMaxOffset(root);
+            
+            // 次のツリーの開始位置を更新
+            currentOffset = maxTreeOffset + rootPadding;
         }
         
         this.assignHorizontalPositions();
@@ -168,27 +209,108 @@ export class TreeLayout {
         });
     }
 
-    /** 親子関係を構築（友達リンクは除外） */
+    /** 親子関係を構築（友達リンクは除外、選択された始祖ノードを優先） */
     private createParentChildRelationships(): void {
         const nodesWithParents = new Set<number>();
         
-        this.graphData.links.forEach(link => {
-            // 友達リンクは階層関係（ツリーレイアウト）の計算対象から除外する
+        // リンクマップを構築して、親から子へのリンクを高速にたどれるようにする
+        const adjMap = new Map<number, { targetId: number; linkIdx: number }[]>();
+        
+        this.graphData.links.forEach((link, idx) => {
             if (link.type === 'friend') {
                 return;
             }
             const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
             const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-            const sourceInfo = this.nodeMap.get(sourceId);
-            const targetInfo = this.nodeMap.get(targetId);
             
-            if (sourceInfo && targetInfo) {
-                if (!nodesWithParents.has(targetId)) {
-                    sourceInfo.children.push(targetInfo);
-                    nodesWithParents.add(targetId);
+            if (!adjMap.has(sourceId)) {
+                adjMap.set(sourceId, []);
+            }
+            adjMap.get(sourceId)!.push({ targetId, linkIdx: idx });
+        });
+
+        // 親を持たないノード（始祖ノード）を検出する
+        const targetsOfParentChildLinks = new Set<number>();
+        this.graphData.links.forEach(link => {
+            if (link.type === 'friend') return;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            targetsOfParentChildLinks.add(targetId);
+        });
+
+        const rootIds: number[] = [];
+        this.graphData.nodes.forEach(node => {
+            if (!targetsOfParentChildLinks.has(node.id)) {
+                rootIds.push(node.id);
+            }
+        });
+
+        // 始祖ノードを選択されたものとされていないものに分け、それぞれID昇順（古い順）にソートする
+        const selectedRoots: number[] = [];
+        const unselectedRoots: number[] = [];
+        rootIds.forEach(id => {
+            if (this.selectedNodeIds.has(id)) {
+                selectedRoots.push(id);
+            } else {
+                unselectedRoots.push(id);
+            }
+        });
+        selectedRoots.sort((a, b) => a - b);
+        unselectedRoots.sort((a, b) => a - b);
+
+        // BFSで親子構造を構築する処理
+        const traverse = (startRoots: number[]) => {
+            const queue = [...startRoots];
+            while (queue.length > 0) {
+                const parentId = queue.shift()!;
+                const parentInfo = this.nodeMap.get(parentId);
+                if (!parentInfo) continue;
+
+                // 子ノードへのリンクを取得し、元々のlinksでの定義順を保つためにソート
+                const childrenLinks = adjMap.get(parentId) || [];
+                childrenLinks.sort((a, b) => a.linkIdx - b.linkIdx);
+
+                childrenLinks.forEach(({ targetId }) => {
+                    if (!nodesWithParents.has(targetId)) {
+                        const childInfo = this.nodeMap.get(targetId);
+                        if (childInfo) {
+                            parentInfo.children.push(childInfo);
+                            nodesWithParents.add(targetId);
+                            queue.push(targetId);
+                        }
+                    }
+                });
+            }
+        };
+
+        // 1回目の探索：選択された始祖ノードから1つずつ、IDの古い順に個別にツリーを構築
+        selectedRoots.forEach(rootId => {
+            traverse([rootId]);
+        });
+
+        // 2回目の探索：選択されていない始祖ノードから1つずつ、IDの古い順に個別にツリーを構築
+        unselectedRoots.forEach(rootId => {
+            traverse([rootId]);
+        });
+        
+        // 孤立した循環などの例外ノードも処理
+        const remainingRoots: number[] = [];
+        this.graphData.nodes.forEach(node => {
+            if (!nodesWithParents.has(node.id) && !selectedRoots.includes(node.id) && !unselectedRoots.includes(node.id)) {
+                let hasParentInMap = false;
+                this.nodeMap.forEach(info => {
+                    if (info.children.some(c => c.node.id === node.id)) {
+                        hasParentInMap = true;
+                    }
+                });
+                if (!hasParentInMap) {
+                    remainingRoots.push(node.id);
                 }
             }
         });
+        
+        if (remainingRoots.length > 0) {
+            traverse(remainingRoots);
+        }
     }
 
     /** ルートノードを検出 */
@@ -453,12 +575,22 @@ export class TreeLayout {
      * 水平位置（レベル方向）を割り当て
      * 各系列ごとに親子パスに沿ってオフセットを累積計算し、他系列のサイズ影響を排除
      */
-    private assignHorizontalPositions(): void {
-        // 各ルートノードから独立してオフセットを計算
-        for (const root of this.rootNodes) {
-            this.assignOffsetRecursive(root, 0);
+    /**
+     * 指定されたルートノードのツリー内で最も下流にあるノードの最大オフセット位置を取得する
+     */
+    private getMaxOffset(nodeInfo: NodeInfo): number {
+        let maxVal = (nodeInfo as any).calculatedOffset + this.getNodeLength(nodeInfo) / 2;
+        
+        for (const child of nodeInfo.children) {
+            const childMax = this.getMaxOffset(child);
+            if (childMax > maxVal) {
+                maxVal = childMax;
+            }
         }
+        return maxVal;
+    }
 
+    private assignHorizontalPositions(): void {
         // 各ノードに水平位置を割り当て（方向に応じて座標変換）
         this.nodeMap.forEach(nodeInfo => {
             const offset = (nodeInfo as any).calculatedOffset || 0;
@@ -535,9 +667,10 @@ export class TreeLayout {
 export function executeTreeLayout(
     graphData: GraphData, 
     direction: LayoutDirection = 'right', 
-    z_layer: number = -300
+    z_layer: number = -300,
+    selectedNodeIds: number[] = []
 ): GraphData {
-    const layout = new TreeLayout(graphData, direction, z_layer);
+    const layout = new TreeLayout(graphData, direction, z_layer, selectedNodeIds);
     return layout.executeLayout();
 }
 

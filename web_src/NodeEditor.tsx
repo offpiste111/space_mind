@@ -638,6 +638,11 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                     { value: 4, label: 'Bird' },
                                     { value: 5, label: 'Duck' },
                                     { value: 6, label: 'Airplane' },
+                                    { value: 7, label: 'Great Tree' },
+                                    { value: 8, label: 'Light Bulb' },
+                                    { value: 9, label: 'Earth' },
+                                    { value: 10, label: 'Human' },
+                                    { value: 11, label: 'dog' },
                                 ]}
                             />
                         </Flex>

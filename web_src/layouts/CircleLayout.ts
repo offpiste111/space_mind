@@ -84,12 +84,14 @@ export class CircleLayout {
     private levelMap: Map<number, NodeInfo[]> = new Map();
     private basePadding: number = 15; // 基本ノード間余白
     private groups: Map<number, GroupInfo> = new Map();
+    private selectedNodeIds: Set<number>;
 
-    constructor(graphData: GraphData, baseRadius?: number, radiusIncrement?: number, z_layer: number = -300) {
+    constructor(graphData: GraphData, baseRadius?: number, radiusIncrement?: number, z_layer: number = -300, selectedNodeIds: number[] = []) {
         this.graphData = graphData;
         this.z_layer = z_layer;
         if (baseRadius) this.baseRadius = baseRadius;
         if (radiusIncrement) this.radiusIncrement = radiusIncrement;
+        this.selectedNodeIds = new Set(selectedNodeIds);
     }
 
     public executeLayout(): GraphData {
@@ -106,25 +108,43 @@ export class CircleLayout {
             return this.graphData;
         }
 
-        // フェーズ2: レベル・サブツリーサイズ・リーフ数の計算
-        for (const root of this.rootNodes) {
+        // 各始祖ツリーについて独立して配置を計算し、累積オフセットでずらして配置する
+        let currentOffset = 0;
+        const rootPadding = 150; // ツリー（サークル）同士の間隔の最小余白
+
+        for (let i = 0; i < this.rootNodes.length; i++) {
+            const root = this.rootNodes[i];
+            
+            // 1. レベル割り当て
             this.assignLevelsIterative(root, 0);
+            
+            // 2. サブツリーのノード数とリーフ数の計算
             this.calculateSubtreeMetricsIterative(root);
-        }
-
-        // フェーズ3: グループ認識と角度セクター割り当て
-        this.groupNodesByLevel();
-        this.buildGroupInfo();
-        this.assignGroupAngularSectors();
-        this.assignRootAngleRangesWithinGroups();
-
-        // フェーズ4: 子ノードへの角度範囲割り当て（リーフ数比例）
-        for (const root of this.rootNodes) {
+            
+            // 3. ルートノードの初期角度範囲（360度）を設定
+            root.startAngle = 0;
+            root.subtreeAngle = Math.PI * 2;
+            root.endAngle = Math.PI * 2;
+            root.angle = Math.PI; // ルート自身の角度は π にする
+            
+            // 4. 配下への角度の再帰的配分
             this.assignChildrenAngleRangesIterative(root);
+            
+            // 5. 始祖を (0,0) としたサークル配置計算
+            this.positionTreeNodes(root);
+            
+            // 6. 座標の平行移動（進行方向 X 軸にずらす）
+            const bounds = this.getLocalTreeBounds(root);
+            const treeWidth = bounds.maxX - bounds.minX;
+            const shiftX = currentOffset - bounds.minX;
+            
+            this.shiftTreeNodes(root, shiftX);
+            
+            // 次のツリーの開始オフセットを更新
+            currentOffset = currentOffset + treeWidth + rootPadding;
         }
 
-        // フェーズ5: ノードサイズ適応型の半径計算と座標配置
-        this.positionNodesInCircles();
+        // データ反映
         this.updateNodePositions();
 
         return this.graphData;
@@ -149,35 +169,118 @@ export class CircleLayout {
     }
 
     /**
-     * リンク情報から親子関係を構築する
-     * friendタイプのリンクは階層関係から除外する
+     * リンク情報から親子関係を構築する（選択された始祖ノードを優先）
      */
     private createParentChildRelationships(): void {
         const nodesWithParents = new Set<number>();
-
-        this.graphData.links.forEach(link => {
-            // 友達リンクは階層関係（円形レイアウト）の計算対象から除外する
+        
+        // リンクマップを構築して、親から子へのリンクを高速にたどれるようにする
+        const adjMap = new Map<number, { targetId: number; linkIdx: number }[]>();
+        
+        this.graphData.links.forEach((link, idx) => {
             if (link.type === 'friend') {
                 return;
             }
             const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
             const targetId = typeof link.target === 'object' ? link.target.id : link.target;
-            const sourceInfo = this.nodeMap.get(sourceId);
-            const targetInfo = this.nodeMap.get(targetId);
+            
+            if (!adjMap.has(sourceId)) {
+                adjMap.set(sourceId, []);
+            }
+            adjMap.get(sourceId)!.push({ targetId, linkIdx: idx });
+        });
 
-            if (sourceInfo && targetInfo) {
-                if (!nodesWithParents.has(targetId)) {
-                    sourceInfo.children.push(targetInfo);
-                    targetInfo.parent = sourceInfo;
-                    nodesWithParents.add(targetId);
+        // 親を持たないノード（始祖ノード）を検出する
+        const targetsOfParentChildLinks = new Set<number>();
+        this.graphData.links.forEach(link => {
+            if (link.type === 'friend') return;
+            const targetId = typeof link.target === 'object' ? link.target.id : link.target;
+            targetsOfParentChildLinks.add(targetId);
+        });
+
+        const rootIds: number[] = [];
+        this.graphData.nodes.forEach(node => {
+            if (!targetsOfParentChildLinks.has(node.id)) {
+                rootIds.push(node.id);
+            }
+        });
+
+        // 始祖ノードを選択されたものとされていないものに分け、それぞれID昇順（古い順）にソート
+        const selectedRoots: number[] = [];
+        const unselectedRoots: number[] = [];
+        rootIds.forEach(id => {
+            if (this.selectedNodeIds.has(id)) {
+                selectedRoots.push(id);
+            } else {
+                unselectedRoots.push(id);
+            }
+        });
+        selectedRoots.sort((a, b) => a - b);
+        unselectedRoots.sort((a, b) => a - b);
+
+        // BFSで親子構造を構築する処理
+        const traverse = (startRoots: number[]) => {
+            const queue = [...startRoots];
+            while (queue.length > 0) {
+                const parentId = queue.shift()!;
+                const parentInfo = this.nodeMap.get(parentId);
+                if (!parentInfo) continue;
+
+                // 子ノードへのリンクを取得し、定義順を保つためにソート
+                const childrenLinks = adjMap.get(parentId) || [];
+                childrenLinks.sort((a, b) => a.linkIdx - b.linkIdx);
+
+                childrenLinks.forEach(({ targetId }) => {
+                    if (!nodesWithParents.has(targetId)) {
+                        const childInfo = this.nodeMap.get(targetId);
+                        if (childInfo) {
+                            parentInfo.children.push(childInfo);
+                            childInfo.parent = parentInfo; // 親への参照を設定
+                            nodesWithParents.add(targetId);
+                            queue.push(targetId);
+                        }
+                    }
+                });
+            }
+        };
+
+        // 1回目の探索：選択された始祖ノードから1つずつ、IDの古い順に個別にツリーを構築
+        selectedRoots.forEach(rootId => {
+            traverse([rootId]);
+        });
+
+        // 2回目の探索：選択されていない始祖ノードから1つずつ、IDの古い順に個別にツリーを構築
+        unselectedRoots.forEach(rootId => {
+            traverse([rootId]);
+        });
+        
+        // 例外ノードの処理
+        const remainingRoots: number[] = [];
+        this.graphData.nodes.forEach(node => {
+            if (!nodesWithParents.has(node.id) && !selectedRoots.includes(node.id) && !unselectedRoots.includes(node.id)) {
+                let hasParentInMap = false;
+                this.nodeMap.forEach(info => {
+                    if (info.children.some(c => c.node.id === node.id)) {
+                        hasParentInMap = true;
+                    }
+                });
+                if (!hasParentInMap) {
+                    remainingRoots.push(node.id);
                 }
             }
         });
+        
+        if (remainingRoots.length > 0) {
+            traverse(remainingRoots);
+        }
     }
 
     /**
      * ルートノード（親を持たないノード）を検出する
-     * サブツリーサイズの降順でソートする
+     * 1. 選択されている始祖ノードを優先
+     * 2. その中でIDが古い順（ID昇順）
+     * 3. 選択されていない始祖ノードを後回し
+     * 4. その中でIDが古い順（ID昇順）
      */
     private findRootNodes(): void {
         let roots: NodeInfo[] = [];
@@ -192,8 +295,16 @@ export class CircleLayout {
             roots = [this.nodeMap.get(this.graphData.nodes[0].id)!];
         }
 
-        // 子ノード数の降順でソート（大きいサブツリーのルートを優先）
-        roots.sort((a, b) => b.children.length - a.children.length);
+        // 始祖ノードの優先順位でソート
+        roots.sort((a, b) => {
+            const aSelected = this.selectedNodeIds.has(a.node.id);
+            const bSelected = this.selectedNodeIds.has(b.node.id);
+            
+            if (aSelected && !bSelected) return -1;
+            if (!aSelected && bSelected) return 1;
+            
+            return a.node.id - b.node.id;
+        });
         this.rootNodes = roots;
     }
 
@@ -512,16 +623,32 @@ export class CircleLayout {
      * さらに、各ノードの角度位置における最小弧長を検証し、
      * ノード同士が重ならないよう保証する。
      */
-    private positionNodesInCircles(): void {
+    /**
+     * 単一のツリー（始祖ノードを起点とする）に対して、ノードサイズ適応型の半径計算と座標配置を行う
+     */
+    private positionTreeNodes(rootInfo: NodeInfo): void {
+        const localLevelMap = new Map<number, NodeInfo[]>();
+        
+        const collectNodes = (node: NodeInfo) => {
+            if (!localLevelMap.has(node.level)) {
+                localLevelMap.set(node.level, []);
+            }
+            localLevelMap.get(node.level)!.push(node);
+            for (const child of node.children) {
+                collectNodes(child);
+            }
+        };
+        collectNodes(rootInfo);
+
         let maxLevel = 0;
-        this.levelMap.forEach((_, level) => {
+        localLevelMap.forEach((_, level) => {
             maxLevel = Math.max(maxLevel, level);
         });
 
-        // 各レベルの最大ノード対角線サイズと適応パディングを計算
+        // 各レベルの最大サイズとパディングを計算
         const levelMetrics = new Map<number, { maxDiag: number; maxWidth: number; maxHeight: number; padding: number }>();
         for (let level = 0; level <= maxLevel; level++) {
-            const nodes = this.levelMap.get(level) || [];
+            const nodes = localLevelMap.get(level) || [];
             let maxDiag = 0;
             let maxW = 0;
             let maxH = 0;
@@ -529,14 +656,12 @@ export class CircleLayout {
             for (const nodeInfo of nodes) {
                 const w = nodeInfo.width;
                 const h = nodeInfo.height;
-                // ノードの対角線長（回転しても重ならない最小距離）
                 const diag = Math.sqrt(w * w + h * h);
                 maxDiag = Math.max(maxDiag, diag);
                 maxW = Math.max(maxW, w);
                 maxH = Math.max(maxH, h);
             }
 
-            // 適応パディング: ノードが大きいほどパディングも増やす
             const adaptivePadding = this.basePadding + Math.max(maxW, maxH) * 0.04;
 
             levelMetrics.set(level, {
@@ -547,14 +672,14 @@ export class CircleLayout {
             });
         }
 
-        // 各レベルの半径を計算
+        // 半径の計算
         const radii = new Map<number, number>();
+        radii.set(0, 0); // 始祖ノードは中心
 
-        // レベル0（ルート）の半径は baseRadius から開始
         let accumulatedRadius = this.baseRadius;
 
-        for (let level = 0; level <= maxLevel; level++) {
-            const nodes = this.levelMap.get(level) || [];
+        for (let level = 1; level <= maxLevel; level++) {
+            const nodes = localLevelMap.get(level) || [];
             const metrics = levelMetrics.get(level)!;
 
             if (nodes.length === 0) {
@@ -562,34 +687,23 @@ export class CircleLayout {
                 continue;
             }
 
-            // 方法A: 累積半径（前レベルからの距離に基づく）
             const cumulativeRadius = accumulatedRadius;
 
-            // 方法B: 角度範囲を考慮した最小半径
-            // 各ノードがその角度範囲内に収まるために必要な半径を計算
             let requiredRadiusFromAngles = 0;
             for (const nodeInfo of nodes) {
                 const arcAngle = nodeInfo.subtreeAngle ?? (Math.PI * 2 / Math.max(nodes.length, 1));
                 if (arcAngle > 0 && arcAngle < Math.PI * 2) {
-                    // ノードの幅が弧長内に収まるために必要な半径
-                    // 弧長 = radius * arcAngle >= nodeWidth + padding
-                    // 非常に狭い角度で巨大化するのを防ぐため、最小角度制限とノード幅の比率を緩和
                     const minR = (nodeInfo.width * 0.45 + metrics.padding) / Math.max(arcAngle, 0.12);
                     requiredRadiusFromAngles = Math.max(requiredRadiusFromAngles, minR);
                 }
             }
 
-            // 方法C: 全ノードが円周上に等間隔で並ぶ場合の最小半径
-            // （角度配分が極端に不均一な場合のフォールバック）
             const uniformCircumference = nodes.length * (metrics.maxWidth + metrics.padding);
             const uniformMinRadius = uniformCircumference / (2 * Math.PI);
 
-            // 三つの方法の最大値を採用して、確実に重ならない半径を確保
             const finalRadius = Math.max(cumulativeRadius, requiredRadiusFromAngles, uniformMinRadius);
             radii.set(level, finalRadius);
 
-            // 次レベルの累積半径: 現在の半径 + 最大ノード高さ + パディング
-            // radiusIncrementも考慮し、最低限の間隔を保証
             const nextIncrement = Math.max(
                 this.radiusIncrement,
                 metrics.maxHeight + metrics.padding
@@ -597,12 +711,15 @@ export class CircleLayout {
             accumulatedRadius = finalRadius + nextIncrement;
         }
 
-        // 各ノードに座標を割り当て
-        this.levelMap.forEach((nodesInLevel, level) => {
-            const radius = radii.get(level) || this.baseRadius;
+        // 座標割り当て（始祖を (0,0) とした相対座標）
+        localLevelMap.forEach((nodesInLevel, level) => {
+            const radius = radii.get(level) || 0;
 
             for (const nodeInfo of nodesInLevel) {
-                if (nodeInfo.angle !== undefined) {
+                if (level === 0) {
+                    nodeInfo.x = 0;
+                    nodeInfo.y = 0;
+                } else if (nodeInfo.angle !== undefined) {
                     const angle = nodeInfo.angle;
                     nodeInfo.x = radius * Math.cos(angle);
                     nodeInfo.y = radius * Math.sin(angle);
@@ -610,9 +727,76 @@ export class CircleLayout {
             }
         });
 
-        // 重なり検出と微調整（ポストプロセス）
-        this.resolveOverlaps(radii);
-    }
+        // 重なり微調整
+        this.resolveLocalOverlaps(localLevelMap, radii);
+      }
+
+      private resolveLocalOverlaps(localLevelMap: Map<number, NodeInfo[]>, radii: Map<number, number>): void {
+          localLevelMap.forEach((nodesInLevel, level) => {
+              if (level === 0 || nodesInLevel.length <= 1) return;
+
+              const radius = radii.get(level) || this.baseRadius;
+              const sorted = [...nodesInLevel].filter(n => n.angle !== undefined);
+              sorted.sort((a, b) => (a.angle || 0) - (b.angle || 0));
+
+              for (let i = 0; i < sorted.length; i++) {
+                  const nodeA = sorted[i];
+                  const nodeB = sorted[(i + 1) % sorted.length];
+
+                  if (nodeA.x === undefined || nodeA.y === undefined ||
+                      nodeB.x === undefined || nodeB.y === undefined) {
+                      continue;
+                  }
+
+                  const dx = nodeB.x - nodeA.x;
+                  const dy = nodeB.y - nodeA.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy);
+                  const minDist = (nodeA.width + nodeB.width) / 2 + this.basePadding * 0.5;
+
+                  if (dist < minDist && dist > 0) {
+                      const outerNode = (nodeA.angle || 0) < (nodeB.angle || 0) ? nodeB : nodeA;
+                      const pushFactor = 1 + (minDist - dist) / radius * 0.5;
+
+                      if (outerNode.x !== undefined && outerNode.y !== undefined) {
+                          outerNode.x *= pushFactor;
+                          outerNode.y *= pushFactor;
+                      }
+                  }
+              }
+          });
+      }
+
+      /**
+       * 指定されたノードのツリー（子孫全体）のローカルバウンディングボックス（x座標の最小・最大）を計算する
+       */
+      private getLocalTreeBounds(nodeInfo: NodeInfo): { minX: number; maxX: number } {
+          let minX = nodeInfo.x ?? 0;
+          let maxX = nodeInfo.x ?? 0;
+
+          const w = nodeInfo.width / 2;
+          minX -= w;
+          maxX += w;
+
+          for (const child of nodeInfo.children) {
+              const childBounds = this.getLocalTreeBounds(child);
+              minX = Math.min(minX, childBounds.minX);
+              maxX = Math.max(maxX, childBounds.maxX);
+          }
+
+          return { minX, maxX };
+      }
+
+      /**
+       * 指定されたノードのツリー（子孫全体）を指定した量だけX軸方向に平行移動する
+       */
+      private shiftTreeNodes(nodeInfo: NodeInfo, shiftX: number): void {
+          if (nodeInfo.x !== undefined) {
+              nodeInfo.x += shiftX;
+          }
+          for (const child of nodeInfo.children) {
+              this.shiftTreeNodes(child, shiftX);
+          }
+      }
 
     /**
      * 同一レベル内のノード重なりを検出し、微調整で解消する
@@ -713,9 +897,10 @@ export function executeCircleLayout(
     graphData: GraphData,
     baseRadius?: number,
     radiusIncrement?: number,
-    z_layer: number = -300
+    z_layer: number = -300,
+    selectedNodeIds: number[] = []
 ): GraphData {
-    const layout = new CircleLayout(graphData, baseRadius, radiusIncrement, z_layer);
+    const layout = new CircleLayout(graphData, baseRadius, radiusIncrement, z_layer, selectedNodeIds);
     return layout.executeLayout();
 }
 

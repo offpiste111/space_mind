@@ -104,6 +104,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const [funcMode, setFuncMode] = useState<boolean>(false);
     // レイアウトモードを管理するstate ('static' | 'force')
     const [layoutMode, setLayoutMode] = useState<string>('static');
+    const layoutModeRef = useRef<string>('static');
+    useEffect(() => {
+        layoutModeRef.current = layoutMode;
+    }, [layoutMode]);
     // フォースレイアウトでの反発係数 (Repulsion Strength)
     const [chargeStrength, setChargeStrength] = useState<number>(-120);
 
@@ -474,7 +478,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             textureCache.current.clear();
 
             // 3Dモデルリソースのクリア
-            [catModel, birdModel, bird2Model, airplaneModel].forEach(modelRef => {
+            [catModel, birdModel, bird2Model, airplaneModel, treeModel, bulbModel, earthModel, humanModel].forEach(modelRef => {
                 if (modelRef && modelRef.current) {
                     modelRef.current.traverse((child: any) => {
                         if (child.isMesh) {
@@ -1325,7 +1329,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 // 1秒後に固定位置を復元 (ForceONのときはアンピン状態を維持するため固定しない)
                 setTimeout(() => {
                     graphData.nodes.forEach(node => {
-                        if (layoutMode !== 'force') {
+                        if (layoutModeRef.current !== 'force') {
                             // 現在の位置をfx, fy, fzに設定
                             node.fx = node.x;
                             node.fy = node.y;
@@ -1366,11 +1370,29 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 // 選択されたレイアウトに基づいて配置
                 if (layout.endsWith('-tree')) {
                     const direction = layout.split('-')[0] as 'right' | 'left' | 'upper' | 'lower';
-                    executeTreeLayout(tempGraphData, direction, z_layer);
+                    const selectedIds: number[] = [];
+                    if (selectedNode) {
+                        selectedIds.push(selectedNode.id);
+                    }
+                    selectedNodeList.forEach(node => {
+                        if (!selectedIds.includes(node.id)) {
+                            selectedIds.push(node.id);
+                        }
+                    });
+                    executeTreeLayout(tempGraphData, direction, z_layer, selectedIds);
                 } else if (layout === 'circle') {
                     const baseRadius = 80; // 中心円の基本半径
                     const radiusIncrement = 100; // レベルごとの半径の増分
-                    executeCircleLayout(tempGraphData, baseRadius, radiusIncrement, z_layer);
+                    const selectedIds: number[] = [];
+                    if (selectedNode) {
+                        selectedIds.push(selectedNode.id);
+                    }
+                    selectedNodeList.forEach(node => {
+                        if (!selectedIds.includes(node.id)) {
+                            selectedIds.push(node.id);
+                        }
+                    });
+                    executeCircleLayout(tempGraphData, baseRadius, radiusIncrement, z_layer, selectedIds);
                 }
                 
                 // 各コンポーネントのグラフの範囲を計算
@@ -1392,6 +1414,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 
                 // 次のコンポーネントの開始位置を更新
                 xOffset += componentWidth + spacing;
+            }
+            
+            if (layout !== 'free') {
+                setLayoutMode('static');
             }
             
             // グラフを更新
@@ -2051,10 +2077,15 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
     const horseModel = useMemo(() => useGLTF('./assets/Horse.glb'), []);
     const watchModel = useMemo(() => useGLTF('./assets/watch-v1.glb'), []);
+    const dogModel = useMemo(() => useGLTF('./assets/dog.glb'), []);
     const catModel = useRef<THREE.Group | null>(null);
     const birdModel = useRef<THREE.Group | null>(null);
     const bird2Model = useRef<THREE.Group | null>(null);
     const airplaneModel = useRef<THREE.Group | null>(null);
+    const treeModel = useRef<THREE.Group | null>(null);
+    const bulbModel = useRef<THREE.Group | null>(null);
+    const earthModel = useRef<THREE.Group | null>(null);
+    const humanModel = useRef<THREE.Group | null>(null);
     const loadingModels = useRef<Set<number>>(new Set());
 
     const loadModelOnDemand = useCallback((styleId: number) => {
@@ -2116,6 +2147,66 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 objLoader.setPath('./assets/airplane/');
                 objLoader.load('11803_Airplane_v1_l1.obj', (object) => {
                     airplaneModel.current = object;
+                    loadingModels.current.delete(styleId);
+                    if (fgRef.current) fgRef.current.refresh();
+                }, undefined, () => { loadingModels.current.delete(styleId); });
+            }, undefined, () => { loadingModels.current.delete(styleId); });
+        } else if (styleId === 7 && !treeModel.current) {
+            loadingModels.current.add(styleId);
+            const treeMtlLoader = new MTLLoader();
+            treeMtlLoader.setPath('./assets/tree/');
+            treeMtlLoader.load('tree.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('./assets/tree/');
+                objLoader.load('tree.obj', (object) => {
+                    treeModel.current = object;
+                    loadingModels.current.delete(styleId);
+                    if (fgRef.current) fgRef.current.refresh();
+                }, undefined, () => { loadingModels.current.delete(styleId); });
+            }, undefined, () => { loadingModels.current.delete(styleId); });
+        } else if (styleId === 8 && !bulbModel.current) {
+            loadingModels.current.add(styleId);
+            const bulbMtlLoader = new MTLLoader();
+            bulbMtlLoader.setPath('./assets/bulb/');
+            bulbMtlLoader.load('bulb.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('./assets/bulb/');
+                objLoader.load('bulb.obj', (object) => {
+                    bulbModel.current = object;
+                    loadingModels.current.delete(styleId);
+                    if (fgRef.current) fgRef.current.refresh();
+                }, undefined, () => { loadingModels.current.delete(styleId); });
+            }, undefined, () => { loadingModels.current.delete(styleId); });
+        } else if (styleId === 9 && !earthModel.current) {
+            loadingModels.current.add(styleId);
+            const earthMtlLoader = new MTLLoader();
+            earthMtlLoader.setPath('./assets/earth/');
+            earthMtlLoader.load('earth.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('./assets/earth/');
+                objLoader.load('earth.obj', (object) => {
+                    earthModel.current = object;
+                    loadingModels.current.delete(styleId);
+                    if (fgRef.current) fgRef.current.refresh();
+                }, undefined, () => { loadingModels.current.delete(styleId); });
+            }, undefined, () => { loadingModels.current.delete(styleId); });
+        } else if (styleId === 10 && !humanModel.current) {
+            loadingModels.current.add(styleId);
+            const humanMtlLoader = new MTLLoader();
+            humanMtlLoader.setPath('./assets/human/');
+            humanMtlLoader.load('human.mtl', (materials) => {
+                materials.preload();
+                const objLoader = new OBJLoader();
+                objLoader.setMaterials(materials);
+                objLoader.setPath('./assets/human/');
+                objLoader.load('human.obj', (object) => {
+                    humanModel.current = object;
                     loadingModels.current.delete(styleId);
                     if (fgRef.current) fgRef.current.refresh();
                 }, undefined, () => { loadingModels.current.delete(styleId); });
@@ -2361,6 +2452,121 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 } else {
                     loadModelOnDemand(6);
                 }
+            } else if (node.style_id === 7) {  // Tree.objモデル
+                if (treeModel.current) {
+                    const scene = treeModel.current.clone();
+                    scene.traverse((child: any) => { 
+                        child.raycast = () => {}; 
+                        if (child.isMesh && child.material) {
+                            child.material = Array.isArray(child.material)
+                                ? child.material.map((m: any) => m.clone())
+                                : child.material.clone();
+                        }
+                    });
+                    const scale = node.scale || 1;  
+                    scene.scale.set(scale * 1.6, scale * 1.6, scale * 1.6);
+                    scene.rotation.x = 0;
+                    innerGroup.add(scene);
+                    added = true;
+                } else {
+                    loadModelOnDemand(7);
+                }
+            } else if (node.style_id === 8) {  // Bulb.objモデル
+                if (bulbModel.current) {
+                    const scene = bulbModel.current.clone();
+                    scene.traverse((child: any) => { 
+                        child.raycast = () => {}; 
+                        if (child.isMesh && child.material) {
+                            child.material = Array.isArray(child.material)
+                                ? child.material.map((m: any) => m.clone())
+                                : child.material.clone();
+                        }
+                    });
+                    const scale = node.scale || 1;  
+                    scene.scale.set(scale * 1.4, scale * 1.4, scale * 1.4);
+                    scene.rotation.x = 0;
+                    innerGroup.add(scene);
+                    added = true;
+                } else {
+                    loadModelOnDemand(8);
+                }
+            } else if (node.style_id === 9) {  // Earth.objモデル
+                if (earthModel.current) {
+                    const scene = earthModel.current.clone();
+                    scene.traverse((child: any) => { 
+                        child.raycast = () => {}; 
+                        if (child.isMesh && child.material) {
+                            child.material = Array.isArray(child.material)
+                                ? child.material.map((m: any) => m.clone())
+                                : child.material.clone();
+                        }
+                    });
+                    const scale = node.scale || 1;  
+                    scene.scale.set(scale * 1.6, scale * 1.6, scale * 1.6);
+                    scene.rotation.x = 0;
+                    innerGroup.add(scene);
+                    added = true;
+                } else {
+                    loadModelOnDemand(9);
+                }
+            } else if (node.style_id === 10) {  // Human.objモデル
+                if (humanModel.current) {
+                    const scene = humanModel.current.clone();
+                    scene.traverse((child: any) => { 
+                        child.raycast = () => {}; 
+                        if (child.isMesh && child.material) {
+                            child.material = Array.isArray(child.material)
+                                ? child.material.map((m: any) => m.clone())
+                                : child.material.clone();
+                        }
+                    });
+                    const scale = node.scale || 1;  
+                    scene.scale.set(scale * 1.2, scale * 1.2, scale * 1.2);
+                    scene.rotation.x = 0;
+                    innerGroup.add(scene);
+                    added = true;
+                } else {
+                    loadModelOnDemand(10);
+                }
+            } else if (node.style_id === 11) {  // dog.glbモデル
+                const scene = dogModel.scene.clone();
+                scene.traverse((child: any) => { 
+                    child.raycast = () => {}; 
+                    if (child.isMesh && child.material) {
+                        child.material = Array.isArray(child.material)
+                            ? child.material.map((m: any) => m.clone())
+                            : child.material.clone();
+                    }
+                });
+                const scale = node.scale || 1;  
+
+                // 自動サイズ・中心正規化ロジック
+                const tempBox = new THREE.Box3().setFromObject(scene);
+                const size = new THREE.Vector3();
+                tempBox.getSize(size);
+                const center = new THREE.Vector3();
+                tempBox.getCenter(center);
+
+                // デバッグ用ログ出力
+                console.log("dog.glb original size:", size, "center:", center);
+
+                // 中心位置を (0,0,0) にオフセット
+                scene.position.x -= center.x;
+                scene.position.y -= center.y;
+                scene.position.z -= center.z;
+
+                // 最大寸法が 45 ユニット（Horse等の標準サイズの3倍）になるように自動調整
+                const maxDim = Math.max(size.x, size.y, size.z);
+                if (maxDim > 0) {
+                    const normScale = 100 / maxDim;
+                    scene.scale.set(scale * normScale, scale * normScale, scale * normScale);
+                } else {
+                    scene.scale.set(scale * 2.4, scale * 2.4, scale * 2.4);
+                }
+
+                scene.rotation.y = Math.PI;
+                innerGroup.add(scene);
+                added = true;
             }
 
             if (added) {
@@ -2381,6 +2587,25 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 // モデルの見た目上の中心にヒットボックスを合わせる
                 hitBox.position.copy(sphere.center);
                 group.add(hitBox);
+
+                // テキストラベルを常に表示する
+                if (node[label_key]) {
+                    const labelText = new SpriteText(node[label_key], 4);
+                    labelText.color = '#ffffff'; // 文字色は白
+                    labelText.strokeColor = '#000000'; // 黒の縁取り（シャドウ効果）
+                    labelText.strokeWidth = 0.6; // 縁取りの幅
+                    // 背景や境界線は透過にして文字のみを綺麗に見せる
+                    labelText.backgroundColor = 'rgba(0, 0, 0, 0)';
+                    labelText.borderWidth = 0;
+                    labelText.padding = 0;
+                    
+                    // モデルの中央より少し下（全体の高さの25%分、中心から下）に配置
+                    const modelHeight = box.max.y - box.min.y;
+                    const modelCenterY = (box.max.y + box.min.y) / 2;
+                    const labelY = modelCenterY - modelHeight * 0.6;
+                    labelText.position.set(0, labelY, 0);
+                    group.add(labelText);
+                }
             } else {
                 // ロード完了前のプレースホルダー (ワイヤーフレームの立方体)
                 const placeholderGeometry = new THREE.BoxGeometry(15, 15, 15);
@@ -2394,6 +2619,19 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
                 );
                 group.add(hitBox);
+
+                // ロード完了前もラベルを表示する
+                if (node[label_key]) {
+                    const labelText = new SpriteText(node[label_key], 4);
+                    labelText.color = '#ffffff';
+                    labelText.strokeColor = '#000000';
+                    labelText.strokeWidth = 0.6;
+                    labelText.backgroundColor = 'rgba(0, 0, 0, 0)';
+                    labelText.borderWidth = 0;
+                    labelText.padding = 0;
+                    labelText.position.set(0, -4, 0); // プレースホルダーの中央より下に配置
+                    group.add(labelText);
+                }
             }
             return group;
         }
