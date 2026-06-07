@@ -312,6 +312,52 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         const handlePointerDownCapture = (e: PointerEvent) => {
             // funcMode（Ctrlキー押下中）かつ左クリック（button === 0）の場合に矩形選択を開始
             if (funcMode && e.button === 0) {
+                // ドラッグ開始位置がノードの上かどうかを判定する
+                const target = e.target as HTMLElement;
+                const isCanvas = target.tagName.toLowerCase() === 'canvas';
+                let isNode = false;
+
+                if (!isCanvas) {
+                    // canvas以外（CSS3DのDOM要素など）がクリックされた場合はノード上とみなす
+                    isNode = true;
+                } else {
+                    const camera = fgRef.current?.camera();
+                    const scene = fgRef.current?.scene();
+                    if (camera && scene) {
+                        const rect = container.getBoundingClientRect();
+                        const mouse = new THREE.Vector2(
+                            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+                            -((e.clientY - rect.top) / rect.height) * 2 + 1
+                        );
+                        const raycaster = new THREE.Raycaster();
+                        raycaster.setFromCamera(mouse, camera);
+                        // 表示されているオブジェクトと交差判定
+                        const intersects = raycaster.intersectObjects(scene.children, true);
+                        
+                        for (let i = 0; i < intersects.length; i++) {
+                            let obj: any = intersects[i].object;
+                            let foundNode = false;
+                            while (obj && obj !== scene) {
+                                // ノードには __data プロパティ（id付き）が割り当てられている
+                                if (obj.__data && obj.__data.id !== undefined) {
+                                    foundNode = true;
+                                    break;
+                                }
+                                obj = obj.parent;
+                            }
+                            if (foundNode) {
+                                isNode = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // ノード上のドラッグ開始なら矩形描画を行わず、そのまま処理を委譲（ノードのドラッグを許可する）
+                if (isNode) {
+                    return;
+                }
+
                 const rect = container.getBoundingClientRect();
                 const startX = e.clientX - rect.left;
                 const startY = e.clientY - rect.top;
@@ -1845,6 +1891,15 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     const handleNodeDrag = (dragNode:any) => {
 
         if (!isDraggingNode.current) {
+            // ドラッグ開始時に選択ノードを更新
+            const isDragNodeInSelection = selectedNodeList.some(sn => String(sn.id) === String(dragNode.id));
+            if (!isDragNodeInSelection) {
+                setSelectedNodeList([]);
+                setSelectedNode(dragNode);
+            } else {
+                setSelectedNode(dragNode);
+            }
+
             addToHistory('move_node', dragNode);
             
             // ドラッグ開始時に、自身に繋がっている子孫ノードのピン留めを解除（アンピン）して追従させる
@@ -3561,8 +3616,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     delete node.dz;
 
 
-                    // ドラッグによる選択は行わない（クリックのみで選択状態にする仕様）
-
+                    // ドラッグ時にも選択状態にするよう仕様変更済
                     if (interimLink) {
                         addToHistory('add_link', interimLink);
                         setInterimLinkState(null);
