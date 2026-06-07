@@ -68,15 +68,23 @@ export class TreeLayout {
     private direction: LayoutDirection;
     private z_layer: number;
     private selectedNodeIds: Set<number>;
+    private customRootNodeId?: number;
     // パディング値（ノードサイズに応じて動的に調整される基準値）
     private basePaddingThickness: number = 40;  // ノードの厚み方向（配置直交方向）の最小余白
     private basePaddingLength: number = 80;     // ノードの長さ方向（配置進行方向）の最小余白
 
-    constructor(graphData: GraphData, direction: LayoutDirection = 'right', z_layer: number = -300, selectedNodeIds: number[] = []) {
+    constructor(
+        graphData: GraphData, 
+        direction: LayoutDirection = 'right', 
+        z_layer: number = -300, 
+        selectedNodeIds: number[] = [],
+        customRootNodeId?: number
+    ) {
         this.graphData = graphData;
         this.direction = direction;
         this.z_layer = z_layer;
         this.selectedNodeIds = new Set(selectedNodeIds);
+        this.customRootNodeId = customRootNodeId;
     }
 
     public executeLayout(): GraphData {
@@ -315,6 +323,14 @@ export class TreeLayout {
 
     /** ルートノードを検出 */
     private findRootNodes(): void {
+        if (this.customRootNodeId !== undefined) {
+            const customRoot = this.nodeMap.get(this.customRootNodeId);
+            if (customRoot) {
+                this.rootNodes = [customRoot];
+                return;
+            }
+        }
+
         let roots: NodeInfo[] = [];
         
         // 親を持たないノードをルートとする
@@ -634,11 +650,52 @@ export class TreeLayout {
 
     /** ノードの最終位置をGraphDataに反映 */
     private updateNodePositions(): void {
-        this.nodeMap.forEach(nodeInfo => {
-            nodeInfo.node.fx = nodeInfo.x;
-            nodeInfo.node.fy = nodeInfo.y;
-            nodeInfo.node.fz = this.z_layer;
-        });
+        if (this.customRootNodeId !== undefined) {
+            const nodesToUpdate = new Set<number>();
+            const collectNodes = (nodeInfo: NodeInfo) => {
+                if (!nodeInfo) return;
+                nodesToUpdate.add(nodeInfo.node.id);
+                nodeInfo.children.forEach(collectNodes);
+            };
+            
+            const customRoot = this.nodeMap.get(this.customRootNodeId);
+            if (customRoot) {
+                collectNodes(customRoot);
+                
+                // 1. ルートノードの「現在の元の位置」を取得
+                const origX = customRoot.node.fx !== undefined ? customRoot.node.fx : (customRoot.node.x || 0);
+                const origY = customRoot.node.fy !== undefined ? customRoot.node.fy : (customRoot.node.y || 0);
+                
+                // 2. 計算されたルート位置との差分 (シフト量) を計算
+                const calculatedX = customRoot.x || 0;
+                const calculatedY = customRoot.y || 0;
+                
+                const dx = origX - calculatedX;
+                const dy = origY - calculatedY;
+                
+                // 3. サブツリー内のノードを平行移動させ、ルートノードの位置は完全に元のままにする
+                this.nodeMap.forEach(nodeInfo => {
+                    if (nodesToUpdate.has(nodeInfo.node.id)) {
+                        if (nodeInfo.node.id === this.customRootNodeId) {
+                            // ルートノード自身の位置は変更しない（元のfx, fyを維持）
+                            nodeInfo.node.fx = origX;
+                            nodeInfo.node.fy = origY;
+                        } else {
+                            // 子孫ノードは差分だけシフトした位置に配置
+                            nodeInfo.node.fx = (nodeInfo.x || 0) + dx;
+                            nodeInfo.node.fy = (nodeInfo.y || 0) + dy;
+                        }
+                        nodeInfo.node.fz = this.z_layer;
+                    }
+                });
+            }
+        } else {
+            this.nodeMap.forEach(nodeInfo => {
+                nodeInfo.node.fx = nodeInfo.x;
+                nodeInfo.node.fy = nodeInfo.y;
+                nodeInfo.node.fz = this.z_layer;
+            });
+        }
     }
 
     /** グラフの境界を取得 */
@@ -668,9 +725,10 @@ export function executeTreeLayout(
     graphData: GraphData, 
     direction: LayoutDirection = 'right', 
     z_layer: number = -300,
-    selectedNodeIds: number[] = []
+    selectedNodeIds: number[] = [],
+    customRootNodeId?: number
 ): GraphData {
-    const layout = new TreeLayout(graphData, direction, z_layer, selectedNodeIds);
+    const layout = new TreeLayout(graphData, direction, z_layer, selectedNodeIds, customRootNodeId);
     return layout.executeLayout();
 }
 

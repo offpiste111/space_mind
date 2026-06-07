@@ -67,7 +67,7 @@ interface MindMapGraphRef {
     undo: () => boolean;
     canRedo: () => boolean;
     redo: () => boolean;
-    arrangeNodes: (layout: string) => void;
+    arrangeNodes: (layout: string, customRootNodeId?: number) => void;
     setForceMode: (enabled: boolean) => void;
     getCameraState: () => any;
     setGlobalBackground: (bg: string) => void;
@@ -431,6 +431,16 @@ const App = () => {
 
                         mindMapGraphRef.current.addNode(copied, selectedNode);
                     }
+                }
+            }
+        },
+        {
+            key: 'layout',
+            label: 'レイアウト',
+            onClick: () => {
+                const selectedNode = mindMapGraphRef.current?.getSelectedNode();
+                if (selectedNode && mindMapGraphRef.current) {
+                    mindMapGraphRef.current.arrangeNodes('right-tree', selectedNode.id);
                 }
             }
         },
@@ -946,34 +956,34 @@ const App = () => {
                         } else if (key === 'right_tree_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('right-tree');
-                                setIsForceMode(false);
+                                // setIsForceMode(false);
                             }
                         } else if (key === 'left_tree_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('left-tree');
-                                setIsForceMode(false);
+                                // setIsForceMode(false);
                             }
                         } else if (key === 'up_tree_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('lower-tree');
-                                setIsForceMode(false);
+                                // setIsForceMode(false);
                             }
                         } else if (key === 'low_tree_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('upper-tree');
-                                setIsForceMode(false);
+                                // setIsForceMode(false);
                             }
                         } else if (key === 'circle_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('circle');
-                                setIsForceMode(false);
+                                // setIsForceMode(false);
                             }
                         } else if (key === 'free_layout') {
                             if (mindMapGraphRef.current) {
                                 mindMapGraphRef.current.arrangeNodes('free');
-                                mindMapGraphRef.current.setForceMode(true);
-                                setIsForceMode(true);
-                                message.success('ForceモードをONにしました');
+                                // mindMapGraphRef.current.setForceMode(true);
+                                // setIsForceMode(true);
+                                // message.success('ForceモードをONにしました');
                             }
                         } else if (key === 'setting_force_toggle') {
                             if (mindMapGraphRef.current) {

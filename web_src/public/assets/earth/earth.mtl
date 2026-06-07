@@ -1,0 +1,8 @@
+# Earth MTL File
+newmtl earth
+Ka 0.2 0.2 0.2
+Kd 1.0 1.0 1.0
+Ks 0.2 0.2 0.2
+Ns 20
+d 1.0
+map_Kd earthmap1k.jpg

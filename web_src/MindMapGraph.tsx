@@ -66,6 +66,7 @@ import HtmlNodeComponent from './components/HtmlNodeComponent';
 
 const scratchColor1 = new THREE.Color();
 const scratchColor2 = new THREE.Color();
+const z_layer = -700;
 
 const MindMapGraph = forwardRef((props: any, ref:any) => {
     const fgRef = useRef<any>();
@@ -109,7 +110,11 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         layoutModeRef.current = layoutMode;
     }, [layoutMode]);
     // フォースレイアウトでの反発係数 (Repulsion Strength)
-    const [chargeStrength, setChargeStrength] = useState<number>(-120);
+    const [chargeStrength, setChargeStrength] = useState<number>(0);
+    // 中心引力調整の強さ (0〜100)
+    const [centerStrength, setCenterStrength] = useState<number>(0);
+    // 摩擦 (速度の減衰率) (0.1〜0.9)
+    const [velocityDecay, setVelocityDecay] = useState<number>(0.8);
 
     // 矩形選択用のRef (パフォーマンス最適化のためReactステートではなく生DOMとRefで処理)
     const selectionBoxRef = useRef<{ startX: number, startY: number, endX: number, endY: number } | null>(null);
@@ -177,10 +182,29 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             const chargeForce = fgRef.current.d3Force('charge');
             if (chargeForce) {
                 chargeForce.strength(chargeStrength);
-                fgRef.current.d3ReheatSimulation();
             }
+
+            if (chargeStrength === 0) {
+                // 反発力が0（物理力が働かない設定）のとき、中心への引力（センタリング力）を無効化
+                fgRef.current.d3Force('center', null);
+            } else {
+                // 反発力があるとき、中心への引力を再有効化
+                fgRef.current.d3Force('center', (d3force.forceCenter as any)(0, 0, z_layer));
+            }
+
+            // 中心引力の強さを反映 (centerStrength / 500 で最大 0.2)
+            const strengthVal = centerStrength / 500;
+            if (strengthVal > 0) {
+                fgRef.current.d3Force('x', d3force.forceX(0).strength(strengthVal));
+                fgRef.current.d3Force('y', d3force.forceY(0).strength(strengthVal));
+            } else {
+                fgRef.current.d3Force('x', null);
+                fgRef.current.d3Force('y', null);
+            }
+
+            fgRef.current.d3ReheatSimulation();
         }
-    }, [chargeStrength, graphData, layoutMode]);
+    }, [chargeStrength, centerStrength, graphData, layoutMode]);
 
     // 形状計算のパフォーマンス最適化のため、メッシュ用のジオメトリをメモ化して再利用
     const sphereGeom = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
@@ -510,6 +534,44 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    useEffect(() => {
+        let animationFrameId: number;
+        const updateCameraTracking = () => {
+            if (fgRef.current && graphData.nodes) {
+                const camera = fgRef.current.camera();
+                if (camera) {
+                    graphData.nodes.forEach((node: any) => {
+                        if (node.type === "3dobject" && node.camera_tracking && node.__threeObj) {
+                            const alignGroup = node.__threeObj.children.find((c:any) => c.name === "camera_align_group");
+                            if (alignGroup) {
+                                // 画面端にある場合に透視投影で側面が見えてしまうのを防ぐため、
+                                // カメラと平行にするのではなく、カメラの座標を直接「見つめる」ようにする
+                                const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+                                
+                                // 絶対座標系での正確な向きを計算するため、まずは親のワールド座標を取得
+                                const worldPos = new THREE.Vector3();
+                                alignGroup.getWorldPosition(worldPos);
+                                
+                                alignGroup.up.copy(cameraUp);
+                                alignGroup.lookAt(camera.position);
+                            }
+                        }
+                        // Reset align group to neutral if tracking is off
+                        if (node.type === "3dobject" && !node.camera_tracking && node.__threeObj) {
+                            const alignGroup = node.__threeObj.children.find((c:any) => c.name === "camera_align_group");
+                            if (alignGroup) {
+                                alignGroup.quaternion.identity();
+                            }
+                        }
+                    });
+                }
+            }
+            animationFrameId = requestAnimationFrame(updateCameraTracking);
+        };
+        updateCameraTracking();
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [graphData.nodes]);
     const [backgroundColor, setBackgroundColor] = useState<string>("rgba(0,0,0,0)");
     const setRotateVecFunc = () => {
         return new THREE.Vector3(0,0,3000);
@@ -520,7 +582,6 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const dragCounter = useRef<number>(0);
     const isHovering = useRef<boolean>(false);
     const label_key = "name";
-    const z_layer = -700
     const [rotateVec, setRotateVec] = useState<THREE.Vector3>(setRotateVecFunc);
     const [lookAtTarget, setLookAtTarget] = useState<THREE.Vector3>(new THREE.Vector3(0, 0, z_layer));
     useImperativeHandle(ref, () => ({
@@ -586,7 +647,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             if (graphData.chargeStrength !== undefined) {
                 setChargeStrength(graphData.chargeStrength);
             } else {
-                setChargeStrength(-120); // デフォルト値
+                setChargeStrength(0); // デフォルト値
             }
 
             // nodesとlinksが空の場合、を作成
@@ -1251,7 +1312,28 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             }
             return result;
         },
-        arrangeNodes: (layout: string) => {
+        arrangeNodes: (layout: string, customRootNodeId?: number) => {
+            setChargeStrength(0);
+
+            if (customRootNodeId !== undefined && layout.endsWith('-tree')) {
+                const direction = layout.split('-')[0] as 'right' | 'left' | 'upper' | 'lower';
+                const selectedIds: number[] = [];
+                if (selectedNode) {
+                    selectedIds.push(selectedNode.id);
+                }
+                selectedNodeList.forEach(node => {
+                    if (!selectedIds.includes(node.id)) {
+                        selectedIds.push(node.id);
+                    }
+                });
+                executeTreeLayout(graphData, direction, z_layer, selectedIds, customRootNodeId);
+
+                if (fgRef.current) {
+                    fgRef.current.refresh();
+                }
+                return;
+            }
+
             // 連結成分を特定する関数
             const findConnectedComponents = () => {
                 const visited = new Set<number>();
@@ -1416,9 +1498,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 xOffset += componentWidth + spacing;
             }
             
-            if (layout !== 'free') {
-                setLayoutMode('static');
-            }
+            // if (layout !== 'free') {
+            //     setLayoutMode('static');
+            // }
             
             // グラフを更新
             fgRef.current.refresh();
@@ -1854,7 +1936,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 dragNode.rot_x = (dragNode.rot_x || 0) + rotDy * 0.005;
 
                 if (dragNode.__threeObj) {
-                    const innerGroup = dragNode.__threeObj.children.find((c:any) => c.name === "rotation_group");
+                    const innerGroup = dragNode.__threeObj.getObjectByName("rotation_group");
                     if (innerGroup) {
                         innerGroup.rotation.y = dragNode.rot_y;
                         innerGroup.rotation.x = dragNode.rot_x;
@@ -2076,7 +2158,6 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     };
 
     const horseModel = useMemo(() => useGLTF('./assets/Horse.glb'), []);
-    const watchModel = useMemo(() => useGLTF('./assets/watch-v1.glb'), []);
     const dogModel = useMemo(() => useGLTF('./assets/dog.glb'), []);
     const catModel = useRef<THREE.Group | null>(null);
     const birdModel = useRef<THREE.Group | null>(null);
@@ -2334,11 +2415,15 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
         if (node.type === "3dobject") {
             const group = new THREE.Group();
+            const cameraAlignGroup = new THREE.Group();
+            cameraAlignGroup.name = "camera_align_group";
+            group.add(cameraAlignGroup);
+
             const innerGroup = new THREE.Group();
             innerGroup.name = "rotation_group";
             if (node.rot_x) innerGroup.rotation.x = node.rot_x;
             if (node.rot_y) innerGroup.rotation.y = node.rot_y;
-            group.add(innerGroup);
+            cameraAlignGroup.add(innerGroup);
 
             let added = false;
 
@@ -2355,21 +2440,6 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 const scale = node.scale || 1;  
                 scene.scale.set(scale * 0.7, scale * 0.7, scale * 0.7);
                 scene.rotation.y = Math.PI/2;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 2 && watchModel) {  // watchモデル
-                const scene = watchModel.scene.clone();
-                scene.traverse((child: any) => { 
-                    child.raycast = () => {}; 
-                    if (child.isMesh && child.material) {
-                        child.material = Array.isArray(child.material)
-                            ? child.material.map((m: any) => m.clone())
-                            : child.material.clone();
-                    }
-                });
-                const scale = node.scale || 1; 
-                scene.scale.set(scale* 0.1, scale * 0.1, scale* 0.1);
-                scene.rotation.y = Math.PI/12;
                 innerGroup.add(scene);
                 added = true;
             } else if (node.style_id === 3) {  // Cat.objモデル
@@ -2697,7 +2767,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         
         sprite.scale.set(initSizeX, initSizeY, 1);
         return sprite;
-    }, [horseModel,watchModel,catModel,birdModel,bird2Model,airplaneModel]);
+    }, [horseModel,catModel,birdModel,bird2Model,airplaneModel]);
 
     const [interimLink, setInterimLinkState] = useState<any>(null);
 
@@ -3047,21 +3117,65 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     color: '#ffffff',
                     fontFamily: 'system-ui, -apple-system, sans-serif'
                 }}>
-                    <div style={{ marginBottom: '12px', fontWeight: 600, fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>反発係数 (Repulsion)</span>
-                        <span style={{ color: '#1677ff', fontFamily: 'monospace', fontSize: '12px' }}>{chargeStrength}</span>
+                    <div style={{ marginBottom: '16px', fontWeight: 700, fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.15)', paddingBottom: '8px' }}>
+                        物理係数
                     </div>
-                    <Slider
-                        min={-1000}
-                        max={0}
-                        step={10}
-                        value={chargeStrength}
-                        onChange={(val) => setChargeStrength(val)}
-                        tooltip={{ formatter: (val) => `${val}` }}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#8c8c8c', marginTop: '4px' }}>
-                        <span>強反発 (-1000)</span>
-                        <span>弱反発 (0)</span>
+                    
+                    {/* 反発力 */}
+                    <div style={{ marginBottom: '12px' }}>
+                        <div style={{ marginBottom: '6px', fontWeight: 600, fontSize: '12px' }}>
+                            反発力
+                        </div>
+                        <Slider
+                            min={0}
+                            max={1000}
+                            step={10}
+                            value={-chargeStrength}
+                            onChange={(val) => setChargeStrength(-val)}
+                            tooltip={{ open: false }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#8c8c8c', marginTop: '-2px' }}>
+                            <span>弱</span>
+                            <span>強</span>
+                        </div>
+                    </div>
+
+                    {/* 中心引力 */}
+                    <div style={{ marginBottom: '12px' }}>
+                        <div style={{ marginBottom: '6px', fontWeight: 600, fontSize: '12px' }}>
+                            中心引力
+                        </div>
+                        <Slider
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={centerStrength}
+                            onChange={(val) => setCenterStrength(val)}
+                            tooltip={{ open: false }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#8c8c8c', marginTop: '-2px' }}>
+                            <span>弱</span>
+                            <span>強</span>
+                        </div>
+                    </div>
+
+                    {/* 摩擦 */}
+                    <div style={{ marginBottom: '4px' }}>
+                        <div style={{ marginBottom: '6px', fontWeight: 600, fontSize: '12px' }}>
+                            摩擦
+                        </div>
+                        <Slider
+                            min={10}
+                            max={90}
+                            step={5}
+                            value={Math.round(velocityDecay * 100)}
+                            onChange={(val) => setVelocityDecay(val / 100)}
+                            tooltip={{ open: false }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#8c8c8c', marginTop: '-2px' }}>
+                            <span>弱</span>
+                            <span>強</span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -3340,7 +3454,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     return bgType === 'sky' ? '#333333' : '#ffffff';
                 }}
                 //linkLineDash={(link:any) => link === interimLink ? [2, 2] : []}
-                d3VelocityDecay={0.35}
+                d3VelocityDecay={velocityDecay}
                 onNodeClick={handleClick}
 
                 onNodeRightClick={handleRightClick}

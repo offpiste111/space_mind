@@ -1,5 +1,5 @@
 import React,{useState, forwardRef, useImperativeHandle, useEffect, useRef } from 'react'
-import { Modal, Input, Button, Flex, Select, Upload, Slider, ColorPicker, message, Divider } from 'antd';
+import { Modal, Input, Button, Flex, Select, Upload, Slider, ColorPicker, message, Divider, Switch } from 'antd';
 import { UploadOutlined, FolderOutlined, UserOutlined } from '@ant-design/icons';
 import _ from 'lodash';
 import type { UploadProps } from 'antd';
@@ -38,6 +38,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
     const [isGroupLeader, setIsGroupLeader] = useState<boolean>(false);
     const [groupShape, setGroupShape] = useState<'cloud' | 'aura' | 'none'>('cloud');
     const [groupColor, setGroupColor] = useState<string>('#4c9ac0');
+    const [cameraTracking, setCameraTracking] = useState<boolean>(false);
 
     // ノーマルノード用カラーパレット（虹色パステル）
     // 背景色: 薄いパステル、模様色: 濃い色（強調は逆）
@@ -101,6 +102,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         node_bg_color?: number;
         node_pattern_color?: number;
         node_custom_bg_color?: string;
+        camera_tracking?: boolean;
     }
     
     const [editNode, setEditNode] = useState<Node | null>(null);
@@ -152,7 +154,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setIsChildNode(!!node.isChild);
             setContents(node.name);
             // style_idはnodeからそのまま取得する
-            setStyleId(node.style_id || 1);
+            setStyleId(node.style_id || (node.type === '3dobject' ? 8 : 1));
             setDeadline(node.deadline || "");
             setPriority(node.priority !== undefined ? node.priority : null);
             setUrgency(node.urgency !== undefined ? node.urgency : null);
@@ -180,6 +182,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             setIsGroupLeader(node.isGroupLeader || false);
             setGroupShape(node.groupShape || "cloud");
             setGroupColor(node.groupColor || "#4c9ac0");
+            setCameraTracking(!!node.camera_tracking);
             
             setEditNode(node);
             setPopupCoords(coords || null);
@@ -232,6 +235,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
         isGroupLeader?: boolean;
         groupShape?: 'cloud' | 'aura' | 'none';
         groupColor?: string;
+        cameraTracking?: boolean;
     }) => {
         const nodeToUpdate: any = _.cloneDeep(targetNode);
         
@@ -353,6 +357,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             case "3dobject":
                 nodeToUpdate.style_id = currentStates.styleId;
                 nodeToUpdate.scale = currentStates.scale !== undefined ? currentStates.scale : (targetNode.scale || 1.0);
+                nodeToUpdate.camera_tracking = currentStates.cameraTracking;
                 delete nodeToUpdate.deadline;
                 delete nodeToUpdate.priority;
                 delete nodeToUpdate.urgency;
@@ -397,6 +402,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
             isGroupLeader: updatedFields.isGroupLeader !== undefined ? updatedFields.isGroupLeader : isGroupLeader,
             groupShape: updatedFields.groupShape !== undefined ? updatedFields.groupShape : groupShape,
             groupColor: updatedFields.groupColor !== undefined ? updatedFields.groupColor : groupColor,
+            cameraTracking: updatedFields.cameraTracking !== undefined ? updatedFields.cameraTracking : cameraTracking,
         };
 
         const previewNode = getUpdatedNode(editNode, currentStates);
@@ -425,6 +431,7 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                 isGroupLeader,
                 groupShape,
                 groupColor,
+                cameraTracking,
             });
 
             // URLが有効で、かつ変更されている場合にOGP画像を取得
@@ -632,17 +639,16 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                     triggerPreview({ styleId: value });
                                 }}
                                 options={[
+                                    { value: 8, label: 'Light Bulb' },
                                     { value: 1, label: 'Horse' },
-                                    { value: 2, label: 'Watch' },
+                                    { value: 11, label: 'Dog' },
                                     { value: 3, label: 'Cat' },
                                     { value: 4, label: 'Bird' },
                                     { value: 5, label: 'Duck' },
                                     { value: 6, label: 'Airplane' },
                                     { value: 7, label: 'Great Tree' },
-                                    { value: 8, label: 'Light Bulb' },
                                     { value: 9, label: 'Earth' },
                                     { value: 10, label: 'Human' },
-                                    { value: 11, label: 'dog' },
                                 ]}
                             />
                         </Flex>
@@ -663,6 +669,16 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                                     }}
                                 />
                             </Flex>
+                        </Flex>
+                        <Flex gap="middle" align="center">
+                            <div style={{ width: '80px' }}>カメラ追従</div>
+                            <Switch
+                                checked={cameraTracking}
+                                onChange={(checked) => {
+                                    setCameraTracking(checked);
+                                    triggerPreview({ cameraTracking: checked });
+                                }}
+                            />
                         </Flex>
                     </Flex>
                 );
@@ -774,7 +790,12 @@ const NodeEditor = forwardRef<ModalRef, NodeEditorProps>((props, ref) => {
                           value={nodeType}
                           onChange={(value) => {
                               setNodeType(value);
-                              triggerPreview({ nodeType: value });
+                              if (value === '3dobject' && (styleId === undefined || styleId === 1)) {
+                                  setStyleId(8);
+                                  triggerPreview({ nodeType: value, styleId: 8 });
+                              } else {
+                                  triggerPreview({ nodeType: value });
+                              }
                           }}
                           options={[
                             { value: "normal", label: 'ノーマル' },
