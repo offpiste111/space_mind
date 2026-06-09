@@ -4,6 +4,7 @@ export interface NodeData {
     id: number;
     img: string;
     name?: string;
+    collapsed?: boolean;
     _originalX?: number;
     _originalY?: number;
     _originalZ?: number;

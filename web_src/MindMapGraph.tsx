@@ -632,6 +632,9 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
     const [rotateVec, setRotateVec] = useState<THREE.Vector3>(setRotateVecFunc);
     const [lookAtTarget, setLookAtTarget] = useState<THREE.Vector3>(new THREE.Vector3(0, 0, z_layer));
     useImperativeHandle(ref, () => ({
+        toggleNodeCollapse: (nodeId: any) => {
+            toggleNodeCollapse(nodeId);
+        },
         getNodeScreenCoords: (node: any) => {
             if (fgRef.current && node) {
                 const px = node.fx !== undefined ? node.fx : (node.x !== undefined ? node.x : 0);
@@ -1613,6 +1616,68 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         }
     }));
 
+    const toggleNodeCollapse = (nodeId: any) => {
+        setGraphData(prevData => {
+            const targetIds = Array.isArray(nodeId)
+                ? nodeId.map(id => String(id))
+                : [String(nodeId)];
+
+            const newNodes = prevData.nodes.map(node => {
+                if (targetIds.includes(String(node.id))) {
+                    return {
+                        ...node,
+                        collapsed: !node.collapsed
+                    };
+                }
+                return node;
+            });
+
+            // リンクの source / target を ID に戻した新しい links 配列を作成して参照ズレを防ぐ
+            const newLinks = prevData.links.map(link => {
+                const sourceId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+                const targetId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+                return {
+                    ...link,
+                    source: sourceId,
+                    target: targetId
+                };
+            });
+
+            // 選択状態の更新：非表示になるノードの選択を解除する
+            const checkIsVisible = (node: any) => {
+                const ancestors = getAncestors(node.id, newLinks);
+                for (const ancestorId of ancestors) {
+                    const ancestorNode = newNodes.find(n => String(n.id) === String(ancestorId));
+                    if (ancestorNode && ancestorNode.collapsed) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            if (selectedNodeRef.current && !checkIsVisible(selectedNodeRef.current)) {
+                setSelectedNode(null);
+            }
+
+            const nextSelectedNodeList = selectedNodeListRef.current.filter(n => checkIsVisible(n));
+            if (nextSelectedNodeList.length !== selectedNodeListRef.current.length) {
+                setSelectedNodeList(nextSelectedNodeList);
+            }
+
+            return {
+                ...prevData,
+                nodes: newNodes,
+                links: newLinks
+            };
+        });
+
+        setTimeout(() => {
+            if (fgRef.current) {
+                fgRef.current.refresh();
+            }
+        }, 50);
+    };
+
     // node.idと一致するnodeをgraphDataから削除する関数
     const deleteNode = (nodeId: number) => {
         setGraphData(prevData => ({
@@ -2393,7 +2458,8 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 icon_size: node.icon_size, // アイコンサイズの変更を検知
                 icon_img: !!node.icon_img, // アイコンの有無
                 img: node.img, // imgの変更を検知
-                disabled: !!node.disabled // 無効化状態の変更を検知
+                disabled: !!node.disabled, // 無効化状態の変更を検知
+                collapsed: !!node.collapsed // 折りたたみ状態の変更を検知
             });
 
             if (!cache) {
@@ -2871,6 +2937,32 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         return ancestors;
     };
 
+    const isNodeVisible = useCallback((node: any) => {
+        if (!node) return false;
+        const ancestors = getAncestors(node.id, graphData.links);
+        for (const ancestorId of ancestors) {
+            const ancestorNode = graphData.nodes.find(n => String(n.id) === String(ancestorId));
+            if (ancestorNode && ancestorNode.collapsed) {
+                return false;
+            }
+        }
+        return true;
+    }, [graphData.nodes, graphData.links]);
+
+    const isLinkVisible = useCallback((link: any) => {
+        if (!link) return false;
+        const sourceId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+        const targetId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+
+        const sourceNode = graphData.nodes.find(n => String(n.id) === String(sourceId));
+        const targetNode = graphData.nodes.find(n => String(n.id) === String(targetId));
+
+        if (sourceNode && !isNodeVisible(sourceNode)) return false;
+        if (targetNode && !isNodeVisible(targetNode)) return false;
+
+        return true;
+    }, [graphData.nodes, isNodeVisible]);
+
     const setInterimLink = (linkId: number, source: any, target: any) => {
         // 既存のリンクと同じsourceとtargetの組み合わせがあるかチェック
         const existingLink = graphData.links.find(link => 
@@ -3063,6 +3155,9 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
     }, [graphData.nodes, getNodeColor]);
 
     const handleNodeThreeObject = useCallback((node: any) => {
+        if (!isNodeVisible(node)) {
+            return new THREE.Group();
+        }
         const groupOrSprite = nodeThreeObjectImageTexture(node);
         
         // 3Dオブジェクト（古い形式のスプライトなど）
@@ -3111,7 +3206,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         }
 
         return groupOrSprite;
-    }, [nodeThreeObjectImageTexture, selectedNode, selectedNodeList]);
+    }, [nodeThreeObjectImageTexture, selectedNode, selectedNodeList, isNodeVisible]);
 
     return (
         <div style={{
@@ -3250,6 +3345,9 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 
                 linkThreeObjectExtend={false}
                 linkThreeObject={link => {
+                    if (!isLinkVisible(link)) {
+                        return new THREE.Group();
+                    }
                     let link_name = link.name;
                     if (link_name === "") {
                         link_name = ``;
@@ -3461,6 +3559,7 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                     return true;
                 }}
                 linkDirectionalParticles={link => {
+                    if (!isLinkVisible(link)) return 0;
                     if (!enableParticlesRef.current) return 0;
                     if (link.type === 'friend') return 0;
                     const selNode = selectedNodeRef.current;

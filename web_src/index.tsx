@@ -42,6 +42,7 @@ if (eel && import.meta.env.VITE_APP_MODE !== 'web') {
 interface MindMapGraphRef {
     getGraphData: () => any;
     setGraphData: (data: any) => void;
+    toggleNodeCollapse: (nodeId: any) => void;
     refreshNode: (node: any, options?: { skipHistory?: boolean, initialNode?: any }) => void;
     deleteNode: (node: any) => void;
     refreshLink: (link: any) => void;
@@ -349,6 +350,7 @@ const App = () => {
 
     const [menuPosition, setMenuPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
     const [menuOpen, setMenuOpen] = useState(false);
+    const [rightClickedNode, setRightClickedNode] = useState<any>(null);
 
     const handleNodeEdit = (node:any) => {
         if(nodeEditorRef.current){
@@ -369,6 +371,7 @@ const App = () => {
         if (mindMapGraphRef.current) {
             mindMapGraphRef.current.selectNode(node);
         }
+        setRightClickedNode(node);
         setMenuPosition({x, y});
         setMenuOpen(true);
     };
@@ -441,6 +444,25 @@ const App = () => {
                 const selectedNode = mindMapGraphRef.current?.getSelectedNode();
                 if (selectedNode && mindMapGraphRef.current) {
                     mindMapGraphRef.current.arrangeNodes('right-tree', selectedNode.id);
+                }
+            }
+        },
+        {
+            key: 'collapse_toggle',
+            label: rightClickedNode?.collapsed ? '子ノード展開' : '子ノード格納',
+            disabled: (() => {
+                if (!rightClickedNode || !mindMapGraphRef.current) return true;
+                const gData = mindMapGraphRef.current.getGraphData();
+                return !gData.links.some((l: any) => {
+                    if (l.type === 'friend') return false;
+                    const sourceId = (l.source && typeof l.source === 'object') ? l.source.id : l.source;
+                    return String(sourceId) === String(rightClickedNode.id);
+                });
+            })(),
+            onClick: () => {
+                if (rightClickedNode && mindMapGraphRef.current) {
+                    mindMapGraphRef.current.toggleNodeCollapse(rightClickedNode.id);
+                    setRightClickedNode((prev: any) => prev ? { ...prev, collapsed: !prev.collapsed } : null);
                 }
             }
         },
@@ -727,6 +749,23 @@ const App = () => {
                     const data = mindMapGraphRef.current.getGraphData();
                     mindMapGraphRef.current.clearSelectedNode();
                     mindMapGraphRef.current.setSelectedNodeList(data.nodes);
+                }
+            }
+            // Ctrl+O で選択ノードの格納・展開
+            else if(event.code === "KeyO"){
+                event.preventDefault();
+                if(mindMapGraphRef.current) {
+                    const selectedNodeList = mindMapGraphRef.current.getSelectedNodeList();
+                    const selectedNode = mindMapGraphRef.current.getSelectedNode();
+                    
+                    if (selectedNodeList && selectedNodeList.length > 0) {
+                        const nodeIds = selectedNodeList.map(n => n.id);
+                        mindMapGraphRef.current.toggleNodeCollapse(nodeIds);
+                        console.log("Toggle Node Collapse via Ctrl+O for multiple nodes:", nodeIds);
+                    } else if (selectedNode) {
+                        mindMapGraphRef.current.toggleNodeCollapse(selectedNode.id);
+                        console.log("Toggle Node Collapse via Ctrl+O for single node:", selectedNode.id);
+                    }
                 }
             }
         }

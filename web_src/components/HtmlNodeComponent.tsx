@@ -303,7 +303,7 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
     opacity: 0.3,
   } : {};
 
-  return (
+  const mainCard = (
     <div style={{ ...baseContainerStyle, ...specificStyle, ...disabledStyle }} className={`node-html-content style-${style_id} type-${type}`}>
       {backgroundElement}
       {leftBorder}
@@ -358,6 +358,121 @@ const HtmlNodeComponent: React.FC<HtmlNodeComponentProps> = ({ node }) => {
           {folder_path}
         </div>
       )}
+    </div>
+  );
+
+  if (!node.collapsed) {
+    return mainCard;
+  }
+
+  // 重ねるダミーカードのスタイル
+  const dummy1Style: React.CSSProperties = {
+    ...baseContainerStyle,
+    ...specificStyle,
+    position: 'absolute',
+    top: `${4.5 * SCALE}px`,
+    left: `${4.5 * SCALE}px`,
+    width: `calc(100% - ${12 * SCALE}px)`,
+    height: `calc(100% - ${12 * SCALE}px)`,
+    zIndex: 2,
+    backgroundColor: '#dcdcdc',
+    borderColor: '#b0b0b0',
+    backgroundImage: 'none', // 背景パターン画像・ドット等をダミーからクリア
+    opacity: 0.7,
+    pointerEvents: 'none',
+    boxShadow: 'none',
+  };
+
+  const dummy2Style: React.CSSProperties = {
+    ...baseContainerStyle,
+    ...specificStyle,
+    position: 'absolute',
+    top: `${9 * SCALE}px`,
+    left: `${9 * SCALE}px`,
+    width: `calc(100% - ${12 * SCALE}px)`,
+    height: `calc(100% - ${12 * SCALE}px)`,
+    zIndex: 1,
+    backgroundColor: '#c0c0c0',
+    borderColor: '#909090',
+    backgroundImage: 'none',
+    opacity: 0.5,
+    pointerEvents: 'none',
+    boxShadow: 'none',
+  };
+
+  return (
+    <div 
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        paddingRight: `${12 * SCALE}px`,
+        paddingBottom: `${12 * SCALE}px`,
+        boxSizing: 'border-box',
+        pointerEvents: 'none',
+        overflow: 'visible',
+      }}
+      className="node-collapsed-wrapper"
+    >
+      {/* 重なり用ダミーカード2（一番奥） */}
+      <div style={dummy2Style} />
+      {/* 重なり用ダミーカード1（中間） */}
+      <div style={dummy1Style} />
+      {/* メインカード */}
+      <div style={{ ...baseContainerStyle, ...specificStyle, ...disabledStyle, position: 'relative', zIndex: 3 }} className={`node-html-content style-${style_id} type-${type}`}>
+        {backgroundElement}
+        {leftBorder}
+        {isHtmlLink && <LinkIcon />}
+        {isHtmlFile && <FileIcon />}
+        {isHtmlFolder && <FolderIcon />}
+        
+        {icon_img && <img src={icon_img} alt="icon" style={iconStyle} />}
+        
+        <div style={nameStyle}>{name}</div>
+        
+        {deadline && (
+          <div style={{ ...infoStyle, color: '#ff4d4f' }}>
+            <span>📅 期限: {deadline}</span>
+          </div>
+        )}
+        
+        {priority !== undefined && priority !== null && (
+          <div style={{ ...infoStyle, color: '#1890ff' }}>
+            <span>⭐ 重要度: {'★'.repeat(priority)}</span>
+          </div>
+        )}
+        
+        {urgency !== undefined && urgency !== null && (
+          <div style={{ ...infoStyle, color: '#52c41a' }}>
+            <span>🔥 緊急度: {'★'.repeat(urgency)}</span>
+          </div>
+        )}
+        
+        {assignee && (
+          <div style={infoStyle}>
+            <svg xmlns="http://www.w3.org/2000/svg" width={14 * SCALE} height={14 * SCALE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5 * SCALE, verticalAlign: 'middle' }}>
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>{assignee}</span>
+          </div>
+        )}
+
+        {isHtmlLink && url && (
+          <div style={{ ...infoStyle, color: themeColor, fontSize: `${10 * SCALE}px` }}>
+            {url}
+          </div>
+        )}
+        {(isHtmlFile && file_path) && (
+          <div style={{ ...infoStyle, color: themeColor, fontSize: `${10 * SCALE}px` }}>
+            {file_path}
+          </div>
+        )}
+        {(isHtmlFolder && folder_path) && (
+          <div style={{ ...infoStyle, color: themeColor, fontSize: `${10 * SCALE}px` }}>
+            {folder_path}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

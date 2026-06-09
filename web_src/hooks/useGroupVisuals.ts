@@ -57,6 +57,56 @@ export const useGroupVisuals = (
                 return descendants;
             };
 
+            const getAncestors = (nodeId: number, links: any[]): Set<string> => {
+                const ancestors = new Set<string>();
+                const queue: string[] = [String(nodeId)];
+                const visited = new Set<string>([String(nodeId)]);
+
+                while (queue.length > 0) {
+                    const curr = queue.shift()!;
+                    for (const link of links) {
+                        const sId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+                        const tId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+
+                        if (String(tId) === curr) {
+                            const parentId = String(sId);
+                            if (!visited.has(parentId)) {
+                                visited.add(parentId);
+                                ancestors.add(parentId);
+                                queue.push(parentId);
+                            }
+                        }
+                    }
+                }
+                return ancestors;
+            };
+
+            const isNodeVisible = (node: any): boolean => {
+                if (!node) return false;
+                const ancestors = getAncestors(node.id, graphData.links);
+                for (const ancestorId of ancestors) {
+                    const ancestorNode = graphData.nodes.find(n => String(n.id) === String(ancestorId));
+                    if (ancestorNode && ancestorNode.collapsed) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            const isLinkVisible = (link: any): boolean => {
+                if (!link) return false;
+                const sourceId = (link.source && typeof link.source === 'object') ? link.source.id : link.source;
+                const targetId = (link.target && typeof link.target === 'object') ? link.target.id : link.target;
+
+                const sourceNode = graphData.nodes.find(n => String(n.id) === String(sourceId));
+                const targetNode = graphData.nodes.find(n => String(n.id) === String(targetId));
+
+                if (sourceNode && !isNodeVisible(sourceNode)) return false;
+                if (targetNode && !isNodeVisible(targetNode)) return false;
+
+                return true;
+            };
+
             // nodes の中から type === 'group' のノードを探してグループ定義を作成
             const groups: any[] = [];
             graphData.nodes.forEach((node: any) => {
@@ -77,7 +127,7 @@ export const useGroupVisuals = (
                 }
 
                 const descendantIds = getDescendantIds(group.id, graphData.nodes, graphData.links);
-                const nodesInGroup = graphData.nodes.filter(n => descendantIds.has(n.id));
+                const nodesInGroup = graphData.nodes.filter(n => descendantIds.has(n.id) && isNodeVisible(n));
                 if (nodesInGroup.length === 0) return; // ノードがないグループは描画しない
 
                 activeGroupIds.add(group.id);
@@ -228,7 +278,8 @@ export const useGroupVisuals = (
                     const linksInGroup = graphData.links.filter(l => 
                         l.source && l.target && 
                         groupNodeIds.has(l.source.id) && 
-                        groupNodeIds.has(l.target.id)
+                        groupNodeIds.has(l.target.id) &&
+                        isLinkVisible(l)
                     );
 
                     const activeLinkKeys = new Set<string>();
@@ -355,7 +406,7 @@ export const useGroupVisuals = (
             groups.forEach((group: any) => {
                 if (group.shape === 'aura') {
                     const descendantIds = getDescendantIds(group.id, graphData.nodes, graphData.links);
-                    const nodesInGroup = graphData.nodes.filter(n => descendantIds.has(n.id));
+                    const nodesInGroup = graphData.nodes.filter(n => descendantIds.has(n.id) && isNodeVisible(n));
 
                     const hexColor = group.color || '#4c9ac0';
 
