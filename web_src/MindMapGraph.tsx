@@ -63,6 +63,7 @@ import { SkyScene } from './components/SkyScene';
 import { SnowScene } from './components/SnowScene';
 import { SunsetScene } from './components/SunsetScene';
 import HtmlNodeComponent from './components/HtmlNodeComponent';
+import ThreeModelViewer, { ThreeModelViewerHandle } from './components/ThreeModelViewer';
 
 const scratchColor1 = new THREE.Color();
 const scratchColor2 = new THREE.Color();
@@ -86,6 +87,21 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         sprite: CSS3DSprite,
         group: THREE.Group,
         lastData?: string
+    }>());
+
+    // 3Dオブジェクトノード用のHTMLキャッシュ（CSS3DSprite + 独立キャンバス）
+    const obj3dNodeCache = useRef(new Map<number, {
+        div: HTMLDivElement,
+        root: any,
+        hitBox: THREE.Mesh,
+        sprite: CSS3DSprite,
+        group: THREE.Group,
+        viewerRef: React.RefObject<ThreeModelViewerHandle>,
+        lastStyleId?: number,
+        lastScale?: number,
+        lastHasModel?: boolean,  // モデルがロード済みかどうかを記録（ロード完了後の再描画に使用）
+        lastCameraTracking?: boolean,
+        lastLabel?: string,
     }>());
     const { addToHistory, undo, redo, canUndo, canRedo } = useHistory();
 
@@ -588,26 +604,10 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                 const camera = fgRef.current.camera();
                 if (camera) {
                     graphData.nodes.forEach((node: any) => {
-                        if (node.type === "3dobject" && node.camera_tracking && node.__threeObj) {
-                            const alignGroup = node.__threeObj.children.find((c:any) => c.name === "camera_align_group");
-                            if (alignGroup) {
-                                // 画面端にある場合に透視投影で側面が見えてしまうのを防ぐため、
-                                // カメラと平行にするのではなく、カメラの座標を直接「見つめる」ようにする
-                                const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-                                
-                                // 絶対座標系での正確な向きを計算するため、まずは親のワールド座標を取得
-                                const worldPos = new THREE.Vector3();
-                                alignGroup.getWorldPosition(worldPos);
-                                
-                                alignGroup.up.copy(cameraUp);
-                                alignGroup.lookAt(camera.position);
-                            }
-                        }
-                        // Reset align group to neutral if tracking is off
-                        if (node.type === "3dobject" && !node.camera_tracking && node.__threeObj) {
-                            const alignGroup = node.__threeObj.children.find((c:any) => c.name === "camera_align_group");
-                            if (alignGroup) {
-                                alignGroup.quaternion.identity();
+                        if (node.type === "3dobject") {
+                            const cache3d = obj3dNodeCache.current.get(node.id);
+                            if (cache3d?.viewerRef?.current) {
+                                cache3d.viewerRef.current.alignToCamera(camera.quaternion);
                             }
                         }
                     });
@@ -618,6 +618,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         updateCameraTracking();
         return () => cancelAnimationFrame(animationFrameId);
     }, [graphData.nodes]);
+
     const [backgroundColor, setBackgroundColor] = useState<string>("rgba(0,0,0,0)");
     const setRotateVecFunc = () => {
         return new THREE.Vector3(0,0,3000);
@@ -678,7 +679,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
             setGraphData(prev => ({ ...prev, globalBackground: bg }));
         },
         setFuncMode: (mode: boolean) => {
-            console.log('setFuncMode', mode);
+            //console.log('setFuncMode', mode);
             setFuncMode(mode);
         },
         setGraphData: (graphData:any) => {
@@ -1613,7 +1614,7 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
         }));
     };
     const refreshLink = (link: any) => {
-        console.log('refreshLink', link);
+        //console.log('refreshLink', link);
         //linkにisNewがある場合、キーを削除する
         if (link && has(link, 'isNew')) {
             delete link.isNew;
@@ -1991,10 +1992,10 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
                 dragNode.rot_x = (dragNode.rot_x || 0) + rotDy * 0.005;
 
                 if (dragNode.__threeObj) {
-                    const innerGroup = dragNode.__threeObj.getObjectByName("rotation_group");
-                    if (innerGroup) {
-                        innerGroup.rotation.y = dragNode.rot_y;
-                        innerGroup.rotation.x = dragNode.rot_x;
+                    // 3DオブジェクトHTML化後はThreeModelViewer経由で回転を適用
+                    const cache3d = obj3dNodeCache.current.get(dragNode.id);
+                    if (cache3d?.viewerRef?.current) {
+                        cache3d.viewerRef.current.setRotation(dragNode.rot_x ?? 0, dragNode.rot_y ?? 0);
                     }
                 }
 
@@ -2055,11 +2056,11 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
 
         dragCounter.current = 0;
         for (let node of graphData.nodes) {
-          console.log("onNodeDrag loop")
+          //console.log("onNodeDrag loop")
           if (dragNode.id === node.id) {
             continue;
           }
-          console.log("onNodeDrag",distance(dragNode, node))
+          //console.log("onNodeDrag",distance(dragNode, node))
           // 十分に近い：推奨リンクのターゲットとしてノードにスナップする
           if (!interimLink && distance(dragNode, node) < snapInDistance) {
             setInterimLink(-1, node, dragNode);
@@ -2469,296 +2470,254 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
         }
 
         if (node.type === "3dobject") {
-            const group = new THREE.Group();
-            const cameraAlignGroup = new THREE.Group();
-            cameraAlignGroup.name = "camera_align_group";
-            group.add(cameraAlignGroup);
+            // --- 3DオブジェクトをHTML（CSS3D）レイヤーに移行 ---
+            // 通常ノードと同じCSS3DRendererレイヤーで描画することで、
+            // 雲・オーラ（WebGLレイヤー）よりも必ず手前に表示される。
 
-            const innerGroup = new THREE.Group();
-            innerGroup.name = "rotation_group";
-            if (node.rot_x) innerGroup.rotation.x = node.rot_x;
-            if (node.rot_y) innerGroup.rotation.y = node.rot_y;
-            cameraAlignGroup.add(innerGroup);
+            const scale = node.scale || 1;
 
-            let added = false;
+            // 使用するThree.jsモデルを選択（ロード済みのものをcloneして使う）
+            let modelObject: THREE.Object3D | null = null;
 
-            if (node.style_id === 1) {  // Horse.glbモデル
+            if (node.style_id === 1) {  // Horse.glb
                 const scene = horseModel.scene.clone();
-                scene.traverse((child: any) => { 
-                    child.raycast = () => {}; 
-                    if (child.isMesh && child.material) {
-                        child.material = Array.isArray(child.material)
-                            ? child.material.map((m: any) => m.clone())
-                            : child.material.clone();
-                    }
-                });
-                const scale = node.scale || 1;  
                 scene.scale.set(scale * 0.7, scale * 0.7, scale * 0.7);
-                scene.rotation.y = Math.PI/2;
-                innerGroup.add(scene);
-                added = true;
-            } else if (node.style_id === 3) {  // Cat.objモデル
-                if (catModel.current) {
-                    const scene = catModel.current.clone();
-                    scene.traverse((child: any) => { 
-                        child.raycast = () => {}; 
-                        if (child.isMesh && child.material) {
-                            child.material = Array.isArray(child.material)
-                                ? child.material.map((m: any) => m.clone())
-                                : child.material.clone();
-                        }
-                    });
-                    const scale = node.scale || 1; 
-                    scene.scale.set(scale * 2, scale * 2, scale * 2);
-                    scene.rotation.x = -Math.PI/2;
-                    scene.rotation.z = -Math.PI/6;
-                    innerGroup.add(scene);
-                    added = true;
-                } else {
-                    loadModelOnDemand(3);
-                }
-            } else if (node.style_id === 4) {  // Bird.objモデル
-                if (birdModel.current) {
-                    const scene = birdModel.current.clone();
-                    scene.traverse((child: any) => { 
-                        child.raycast = () => {}; 
-                        if (child.isMesh && child.material) {
-                            child.material = Array.isArray(child.material)
-                                ? child.material.map((m: any) => m.clone())
-                                : child.material.clone();
-                        }
-                    });
-                    const scale = node.scale || 1;  
-                    scene.scale.set(scale * 5, scale * 5, scale * 5);
-                    scene.rotation.x = -Math.PI/2;
-                    scene.rotation.z = Math.PI/6;
-                    innerGroup.add(scene);
-                    added = true;
-                } else {
-                    loadModelOnDemand(4);
-                }
-            } else if (node.style_id === 5) {  // Bird2.objモデル
-                if (bird2Model.current) {
-                    const scene = bird2Model.current.clone();
-                    scene.traverse((child: any) => { 
-                        child.raycast = () => {}; 
-                        if (child.isMesh && child.material) {
-                            child.material = Array.isArray(child.material)
-                                ? child.material.map((m: any) => m.clone())
-                                : child.material.clone();
-                        }
-                    });
-                    const scale = node.scale || 1;  
-                    scene.scale.set(scale, scale, scale);
-                    scene.rotation.x = -Math.PI/2;
-                    scene.rotation.z = Math.PI/6;
-                    innerGroup.add(scene);
-                    added = true;
-                } else {
-                    loadModelOnDemand(5);
-                }
-            } else if (node.style_id === 6) {  // Airplane.objモデル
-                if (airplaneModel.current) {
-                    const scene = airplaneModel.current.clone();
-                    scene.traverse((child: any) => { 
-                        child.raycast = () => {}; 
-                        if (child.isMesh && child.material) {
-                            child.material = Array.isArray(child.material)
-                                ? child.material.map((m: any) => m.clone())
-                                : child.material.clone();
-                        }
-                    });
-                    const scale = node.scale || 1;  // デフォルトスケール0.05
-                    scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
-                    scene.rotation.x = -Math.PI/3;
-                    scene.rotation.z = Math.PI/6;
-                    innerGroup.add(scene);
-                    added = true;
-                } else {
-                    loadModelOnDemand(6);
-                }
-            } else if (node.style_id === 7) {  // Tree.objモデル
-                if (treeModel.current) {
-                    const scene = treeModel.current.clone();
-                    scene.traverse((child: any) => { 
-                        child.raycast = () => {}; 
-                        if (child.isMesh && child.material) {
-                            child.material = Array.isArray(child.material)
-                                ? child.material.map((m: any) => m.clone())
-                                : child.material.clone();
-                        }
-                    });
-                    const scale = node.scale || 1;  
-                    scene.scale.set(scale * 1.6, scale * 1.6, scale * 1.6);
-                    scene.rotation.x = 0;
-                    innerGroup.add(scene);
-                    added = true;
-                } else {
-                    loadModelOnDemand(7);
-                }
-            } else if (node.style_id === 8) {  // Bulb.objモデル
-                if (bulbModel.current) {
-                    const scene = bulbModel.current.clone();
-                    scene.traverse((child: any) => { 
-                        child.raycast = () => {}; 
-                        if (child.isMesh && child.material) {
-                            child.material = Array.isArray(child.material)
-                                ? child.material.map((m: any) => m.clone())
-                                : child.material.clone();
-                        }
-                    });
-                    const scale = node.scale || 1;  
-                    scene.scale.set(scale * 1.4, scale * 1.4, scale * 1.4);
-                    scene.rotation.x = 0;
-                    innerGroup.add(scene);
-                    added = true;
-                } else {
-                    loadModelOnDemand(8);
-                }
-            } else if (node.style_id === 9) {  // Earth.objモデル
-                if (earthModel.current) {
-                    const scene = earthModel.current.clone();
-                    scene.traverse((child: any) => { 
-                        child.raycast = () => {}; 
-                        if (child.isMesh && child.material) {
-                            child.material = Array.isArray(child.material)
-                                ? child.material.map((m: any) => m.clone())
-                                : child.material.clone();
-                        }
-                    });
-                    const scale = node.scale || 1;  
-                    scene.scale.set(scale * 1.6, scale * 1.6, scale * 1.6);
-                    scene.rotation.x = 0;
-                    innerGroup.add(scene);
-                    added = true;
-                } else {
-                    loadModelOnDemand(9);
-                }
-            } else if (node.style_id === 10) {  // Human.objモデル
-                if (humanModel.current) {
-                    const scene = humanModel.current.clone();
-                    scene.traverse((child: any) => { 
-                        child.raycast = () => {}; 
-                        if (child.isMesh && child.material) {
-                            child.material = Array.isArray(child.material)
-                                ? child.material.map((m: any) => m.clone())
-                                : child.material.clone();
-                        }
-                    });
-                    const scale = node.scale || 1;  
-                    scene.scale.set(scale * 1.2, scale * 1.2, scale * 1.2);
-                    scene.rotation.x = 0;
-                    innerGroup.add(scene);
-                    added = true;
-                } else {
-                    loadModelOnDemand(10);
-                }
-            } else if (node.style_id === 11) {  // dog.glbモデル
+                scene.rotation.y = Math.PI / 2;
+                modelObject = scene;
+            } else if (node.style_id === 3 && catModel.current) {
+                const scene = catModel.current.clone();
+                scene.scale.set(scale * 2, scale * 2, scale * 2);
+                scene.rotation.x = -Math.PI / 2;
+                scene.rotation.z = -Math.PI / 6;
+                modelObject = scene;
+            } else if (node.style_id === 4 && birdModel.current) {
+                const scene = birdModel.current.clone();
+                scene.scale.set(scale * 5, scale * 5, scale * 5);
+                scene.rotation.x = -Math.PI / 2;
+                scene.rotation.z = Math.PI / 6;
+                modelObject = scene;
+            } else if (node.style_id === 5 && bird2Model.current) {
+                const scene = bird2Model.current.clone();
+                scene.scale.set(scale, scale, scale);
+                scene.rotation.x = -Math.PI / 2;
+                scene.rotation.z = Math.PI / 6;
+                modelObject = scene;
+            } else if (node.style_id === 6 && airplaneModel.current) {
+                const scene = airplaneModel.current.clone();
+                scene.scale.set(scale * 0.05, scale * 0.05, scale * 0.05);
+                scene.rotation.x = -Math.PI / 3;
+                scene.rotation.z = Math.PI / 6;
+                modelObject = scene;
+            } else if (node.style_id === 7 && treeModel.current) {
+                const scene = treeModel.current.clone();
+                scene.scale.set(scale * 1.6, scale * 1.6, scale * 1.6);
+                modelObject = scene;
+            } else if (node.style_id === 8 && bulbModel.current) {
+                const scene = bulbModel.current.clone();
+                scene.scale.set(scale * 1.4, scale * 1.4, scale * 1.4);
+                modelObject = scene;
+            } else if (node.style_id === 9 && earthModel.current) {
+                const scene = earthModel.current.clone();
+                scene.scale.set(scale * 1.6, scale * 1.6, scale * 1.6);
+                modelObject = scene;
+            } else if (node.style_id === 10 && humanModel.current) {
+                const scene = humanModel.current.clone();
+                scene.scale.set(scale * 1.2, scale * 1.2, scale * 1.2);
+                modelObject = scene;
+            } else if (node.style_id === 11) {  // dog.glb
                 const scene = dogModel.scene.clone();
-                scene.traverse((child: any) => { 
-                    child.raycast = () => {}; 
-                    if (child.isMesh && child.material) {
-                        child.material = Array.isArray(child.material)
-                            ? child.material.map((m: any) => m.clone())
-                            : child.material.clone();
-                    }
-                });
-                const scale = node.scale || 1;  
-
-                // 自動サイズ・中心正規化ロジック
                 const tempBox = new THREE.Box3().setFromObject(scene);
-                const size = new THREE.Vector3();
-                tempBox.getSize(size);
-                const center = new THREE.Vector3();
-                tempBox.getCenter(center);
-
-                // デバッグ用ログ出力
-                console.log("dog.glb original size:", size, "center:", center);
-
-                // 中心位置を (0,0,0) にオフセット
-                scene.position.x -= center.x;
-                scene.position.y -= center.y;
-                scene.position.z -= center.z;
-
-                // 最大寸法が 45 ユニット（Horse等の標準サイズの3倍）になるように自動調整
-                const maxDim = Math.max(size.x, size.y, size.z);
-                if (maxDim > 0) {
-                    const normScale = 100 / maxDim;
-                    scene.scale.set(scale * normScale, scale * normScale, scale * normScale);
-                } else {
-                    scene.scale.set(scale * 2.4, scale * 2.4, scale * 2.4);
-                }
-
+                const tempSize = new THREE.Vector3();
+                tempBox.getSize(tempSize);
+                const tempCenter = new THREE.Vector3();
+                tempBox.getCenter(tempCenter);
+                scene.position.sub(tempCenter);
+                const maxDim = Math.max(tempSize.x, tempSize.y, tempSize.z);
+                const normScale = maxDim > 0 ? 100 / maxDim : 2.4;
+                scene.scale.set(scale * normScale, scale * normScale, scale * normScale);
                 scene.rotation.y = Math.PI;
-                innerGroup.add(scene);
-                added = true;
+                modelObject = scene;
+            } else {
+                // モデルが未ロードなら非同期ロードをトリガー
+                if (node.style_id === 3) loadModelOnDemand(3);
+                else if (node.style_id === 4) loadModelOnDemand(4);
+                else if (node.style_id === 5) loadModelOnDemand(5);
+                else if (node.style_id === 6) loadModelOnDemand(6);
+                else if (node.style_id === 7) loadModelOnDemand(7);
+                else if (node.style_id === 8) loadModelOnDemand(8);
+                else if (node.style_id === 9) loadModelOnDemand(9);
+                else if (node.style_id === 10) loadModelOnDemand(10);
             }
 
-            if (added) {
-                // モデルのバウンディングボックスから適切なサイズのヒットボックスを作成
-                const box = new THREE.Box3().setFromObject(group);
-                const sphere = new THREE.Sphere();
-                box.getBoundingSphere(sphere);
-                
-                // Horseモデル等、内部のアニメーション用ボーンなどでバウンディングボックスが極端に大きくなる場合があるため上限を設ける
-                const maxRadius = 40 * (node.scale || 1);
-                const radius = Math.min(Math.max(sphere.radius, 15), maxRadius);
-                
-                // ドラッグやクリックの判定を正しく中心で受けるための透明なヒットボックス
-                const hitBox = new THREE.Mesh(
-                    new THREE.SphereGeometry(radius), 
+            // キャッシュを確認（styleIdが変わった場合、またはモデルのロード状態が変わった場合は再生成）
+            const existingCache3d = obj3dNodeCache.current.get(node.id);
+            const hasModelNow = modelObject !== null;
+            const needsRebuild = !existingCache3d
+                || existingCache3d.lastStyleId !== node.style_id
+                || existingCache3d.lastHasModel !== hasModelNow;  // モデルロード完了時も再描画
+
+            let cache3d = existingCache3d;
+
+            if (needsRebuild) {
+                // 古いキャッシュがあればクリーンアップ
+                if (existingCache3d) {
+                    existingCache3d.root.unmount();
+                }
+
+                // 表示サイズ（px）— ノードのscale設定に比例
+                // モデルの種類によってベースサイズを変える
+                const baseSizeMap: { [styleId: number]: number } = {
+                    1: 450,  // Horse: 3倍
+                };
+                const baseSize = baseSizeMap[node.style_id] ?? 150;
+                const displaySize = Math.round(baseSize * scale);
+
+                const SCALE3D = 4;  // 高解像度表示のスケール係数（通常ノードと統一）
+
+                // CSS3DSprite内に配置するdiv
+                const div3d = document.createElement('div');
+                div3d.style.pointerEvents = 'none';
+                div3d.style.display = 'inline-block';
+
+                // CSS3DSprite（HTML要素をThree.jsの3D空間に配置するオブジェクト）
+                const css3dSprite = new CSS3DSprite(div3d);
+                css3dSprite.scale.set(1 / SCALE3D, 1 / SCALE3D, 1 / SCALE3D);
+                css3dSprite.frustumCulled = false;
+
+                // ヒットボックス（WebGL側、透明）: ドラッグ・クリック判定用
+                const hitBox3d = new THREE.Mesh(
+                    new THREE.SphereGeometry(30), // 基準サイズで作成
                     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
                 );
-                // モデルの見た目上の中心にヒットボックスを合わせる
-                hitBox.position.copy(sphere.center);
-                group.add(hitBox);
+                hitBox3d.scale.setScalar(scale); // スケールを適用
 
-                // テキストラベルを常に表示する
-                if (node[label_key]) {
-                    const labelText = new SpriteText(node[label_key], 4);
-                    labelText.color = '#ffffff'; // 文字色は白
-                    labelText.strokeColor = '#000000'; // 黒の縁取り（シャドウ効果）
-                    labelText.strokeWidth = 0.6; // 縁取りの幅
-                    // 背景や境界線は透過にして文字のみを綺麗に見せる
-                    labelText.backgroundColor = 'rgba(0, 0, 0, 0)';
-                    labelText.borderWidth = 0;
-                    labelText.padding = 0;
-                    
-                    // モデルの中央より少し下（全体の高さの25%分、中心から下）に配置
-                    const modelHeight = box.max.y - box.min.y;
-                    const modelCenterY = (box.max.y + box.min.y) / 2;
-                    const labelY = modelCenterY - modelHeight * 0.6;
-                    labelText.position.set(0, labelY, 0);
-                    group.add(labelText);
+                // ThreeModelViewerのRefを作成
+                const viewerRef3d = React.createRef<ThreeModelViewerHandle>();
+
+                // Reactルートをdiv3dにマウント
+                const root3d = ReactDOM.createRoot(div3d);
+
+                const group3d = new THREE.Group();
+                group3d.add(css3dSprite);
+                group3d.add(hitBox3d);
+
+                cache3d = {
+                    div: div3d,
+                    root: root3d,
+                    hitBox: hitBox3d,
+                    sprite: css3dSprite,
+                    group: group3d,
+                    viewerRef: viewerRef3d,
+                    lastStyleId: node.style_id,
+                    lastScale: node.scale,
+                    lastHasModel: hasModelNow,
+                    lastCameraTracking: !!node.camera_tracking,
+                    lastLabel: node[label_key],
+                };
+                obj3dNodeCache.current.set(node.id, cache3d!);
+
+                if (modelObject) {
+                    root3d.render(
+                        <ThreeModelViewer
+                            ref={viewerRef3d}
+                            model={modelObject}
+                            styleId={node.style_id}
+                            size={displaySize * SCALE3D}
+                            cameraTracking={!!node.camera_tracking}
+                            label={node[label_key]}
+                        />
+                    );
+                } else {
+                    // ロード中のプレースホルダーHTML
+                    root3d.render(
+                        <div style={{
+                            width: displaySize * SCALE3D,
+                            height: displaySize * SCALE3D,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#aaaaaa',
+                            fontSize: 20,
+                            border: '2px dashed #555555',
+                            borderRadius: 8,
+                            background: 'rgba(0,0,0,0.3)',
+                        }}>
+                            ⏳
+                        </div>
+                    );
                 }
             } else {
-                // ロード完了前のプレースホルダー (ワイヤーフレームの立方体)
-                const placeholderGeometry = new THREE.BoxGeometry(15, 15, 15);
-                const placeholderMaterial = new THREE.MeshBasicMaterial({ color: 0x888888, wireframe: true, transparent: true, opacity: 0.5 });
-                const placeholderMesh = new THREE.Mesh(placeholderGeometry, placeholderMaterial);
-                innerGroup.add(placeholderMesh);
-                
-                // ヒットボックスも同サイズで作成
-                const hitBox = new THREE.Mesh(
-                    new THREE.SphereGeometry(12),
-                    new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
-                );
-                group.add(hitBox);
+                // すでにキャッシュがあるが、scaleが変更された場合は、ヒットボックスやサイズなどを更新する
+                if (cache3d) {
+                    const hasScaleChanged = cache3d.lastScale !== node.scale;
+                    const hasCameraTrackingChanged = cache3d.lastCameraTracking !== !!node.camera_tracking;
+                    const hasLabelChanged = cache3d.lastLabel !== node[label_key];
 
-                // ロード完了前もラベルを表示する
-                if (node[label_key]) {
-                    const labelText = new SpriteText(node[label_key], 4);
-                    labelText.color = '#ffffff';
-                    labelText.strokeColor = '#000000';
-                    labelText.strokeWidth = 0.6;
-                    labelText.backgroundColor = 'rgba(0, 0, 0, 0)';
-                    labelText.borderWidth = 0;
-                    labelText.padding = 0;
-                    labelText.position.set(0, -4, 0); // プレースホルダーの中央より下に配置
-                    group.add(labelText);
+                    if (hasScaleChanged || hasCameraTrackingChanged || hasLabelChanged) {
+                        const baseSizeMap: { [styleId: number]: number } = {
+                            1: 450,  // Horse: 3倍
+                        };
+                        const baseSize = baseSizeMap[node.style_id] ?? 150;
+                        const displaySize = Math.round(baseSize * scale);
+                        const SCALE3D = 4;
+
+                        // スケールが変わった場合のみヒットボックスを更新
+                        if (hasScaleChanged && cache3d.hitBox) {
+                            cache3d.hitBox.scale.setScalar(scale);
+                        }
+
+                        // Reactルートを通じて再レンダリング（Propsの更新）
+                        if (modelObject) {
+                            cache3d.root.render(
+                                <ThreeModelViewer
+                                    ref={cache3d.viewerRef}
+                                    model={modelObject}
+                                    styleId={node.style_id}
+                                    size={displaySize * SCALE3D}
+                                    cameraTracking={!!node.camera_tracking}
+                                    label={node[label_key]}
+                                />
+                            );
+                        } else {
+                            cache3d.root.render(
+                                <div style={{
+                                    width: displaySize * SCALE3D,
+                                    height: displaySize * SCALE3D,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#aaaaaa',
+                                    fontSize: 20,
+                                    border: '2px dashed #555555',
+                                    borderRadius: 8,
+                                    background: 'rgba(0,0,0,0.3)',
+                                }}>
+                                    ⏳
+                                </div>
+                            );
+                        }
+
+                        // キャッシュの記録を更新
+                        cache3d.lastScale = node.scale;
+                        cache3d.lastCameraTracking = !!node.camera_tracking;
+                        cache3d.lastLabel = node[label_key];
+                    }
                 }
             }
-            return group;
+
+            // 通常ノードと同様、毎回group.add()で子を再登録する（react-force-graph-3dがリフレッシュ時に
+            // オブジェクトをシーンから取り出すため、子が外れても確実に再追加されるようにする）
+            if (cache3d) {
+                cache3d.group.add(cache3d.sprite);
+                cache3d.group.add(cache3d.hitBox);
+            }
+
+            // Shiftドラッグ回転を反映
+            if (cache3d?.viewerRef?.current) {
+                cache3d.viewerRef.current.setRotation(node.rot_x ?? 0, node.rot_y ?? 0);
+            }
+
+            return cache3d!.group;
         }
         const imgPath = `./assets/${node['img']}`;
         let cachedTexture = textureCache.current.get(imgPath);
@@ -3118,27 +3077,22 @@ const handleKebabMenuClick = (event: React.MouseEvent) => {
             }
         }
         
-        // 3Dモデル（glbファイル等）の選択発光制御
-        if (groupOrSprite instanceof THREE.Group && node.type === "3dobject") {
-            groupOrSprite.traverse((child: any) => {
-                if (child.isMesh && child.material) {
-                    const materials = Array.isArray(child.material) ? child.material : [child.material];
-                    materials.forEach((material: any, index: number) => {
-                        if (material && 'emissive' in material) {
-                            const originalKey = `originalEmissive_${index}`;
-                            if (!child.userData[originalKey]) {
-                                child.userData[originalKey] = material.emissive ? material.emissive.clone() : new THREE.Color(0x000000);
-                            }
-                            if ((selectedNode && String(node.id) === String(selectedNode.id)) || selectedNodeList.some(n => String(n.id) === String(node.id))) {
-                                // 選択時（単一・複数）: 白っぽく光らせる
-                                material.emissive = new THREE.Color(0x555555);
-                            } else {
-                                material.emissive = child.userData[originalKey];
-                            }
-                        }
-                    });
-                }
-            });
+        // 3Dオブジェクト（HTML化済み）の選択エフェクト制御
+        if (node.type === "3dobject") {
+            const cache3d = obj3dNodeCache.current.get(node.id);
+            if (cache3d?.viewerRef?.current) {
+                const isSelected = (selectedNode && String(node.id) === String(selectedNode.id))
+                    || selectedNodeList.some(n => String(n.id) === String(node.id));
+                cache3d.viewerRef.current.setSelected(!!isSelected);
+            }
+            // 3Dオブジェクトは独立したdivなので、HTMLノードのdrop-shadowを適用する
+            if (cache3d?.div) {
+                const isSelected = (selectedNode && String(node.id) === String(selectedNode.id))
+                    || selectedNodeList.some(n => String(n.id) === String(node.id));
+                cache3d.div.style.filter = isSelected
+                    ? 'drop-shadow(0 0 20px rgba(255, 255, 255, 1)) drop-shadow(0 0 40px rgba(255, 255, 255, 0.8))'
+                    : 'none';
+            }
         }
 
         return groupOrSprite;
