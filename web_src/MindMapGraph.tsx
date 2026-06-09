@@ -1373,7 +1373,22 @@ const MindMapGraph = forwardRef((props: any, ref:any) => {
                         selectedIds.push(node.id);
                     }
                 });
-                executeTreeLayout(graphData, direction, z_layer, selectedIds, customRootNodeId);
+                
+                const camera = fgRef.current?.camera();
+                let cameraPos = undefined;
+                let cameraRight = undefined;
+                let cameraUp = undefined;
+                
+                if (camera) {
+                    cameraPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+                    const q = camera.quaternion;
+                    const vRight = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+                    const vUp = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+                    
+                    cameraRight = { x: vRight.x, y: vRight.y, z: vRight.z };
+                    cameraUp = { x: vUp.x, y: vUp.y, z: vUp.z };
+                }
+                executeTreeLayout(graphData, direction, z_layer, selectedIds, customRootNodeId, cameraPos, cameraRight, cameraUp);
 
                 if (fgRef.current) {
                     fgRef.current.refresh();

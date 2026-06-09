@@ -69,6 +69,9 @@ export class TreeLayout {
     private z_layer: number;
     private selectedNodeIds: Set<number>;
     private customRootNodeId?: number;
+    private cameraPosition?: { x: number, y: number, z: number };
+    private cameraRight?: { x: number, y: number, z: number };
+    private cameraUp?: { x: number, y: number, z: number };
     // パディング値（ノードサイズに応じて動的に調整される基準値）
     private basePaddingThickness: number = 40;  // ノードの厚み方向（配置直交方向）の最小余白
     private basePaddingLength: number = 80;     // ノードの長さ方向（配置進行方向）の最小余白
@@ -78,13 +81,19 @@ export class TreeLayout {
         direction: LayoutDirection = 'right', 
         z_layer: number = -300, 
         selectedNodeIds: number[] = [],
-        customRootNodeId?: number
+        customRootNodeId?: number,
+        cameraPosition?: { x: number, y: number, z: number },
+        cameraRight?: { x: number, y: number, z: number },
+        cameraUp?: { x: number, y: number, z: number }
     ) {
         this.graphData = graphData;
         this.direction = direction;
         this.z_layer = z_layer;
         this.selectedNodeIds = new Set(selectedNodeIds);
         this.customRootNodeId = customRootNodeId;
+        this.cameraPosition = cameraPosition;
+        this.cameraRight = cameraRight;
+        this.cameraUp = cameraUp;
     }
 
     public executeLayout(): GraphData {
@@ -663,29 +672,51 @@ export class TreeLayout {
                 collectNodes(customRoot);
                 
                 // 1. ルートノードの「現在の元の位置」を取得
-                const origX = customRoot.node.fx !== undefined ? customRoot.node.fx : (customRoot.node.x || 0);
-                const origY = customRoot.node.fy !== undefined ? customRoot.node.fy : (customRoot.node.y || 0);
+                let origX = customRoot.node.fx !== undefined ? customRoot.node.fx : (customRoot.node.x || 0);
+                let origY = customRoot.node.fy !== undefined ? customRoot.node.fy : (customRoot.node.y || 0);
+                const origZ = customRoot.node.fz !== undefined ? customRoot.node.fz : (customRoot.node.z !== undefined ? customRoot.node.z : this.z_layer);
                 
-                // 2. 計算されたルート位置との差分 (シフト量) を計算
-                const calculatedX = customRoot.x || 0;
-                const calculatedY = customRoot.y || 0;
-                
-                const dx = origX - calculatedX;
-                const dy = origY - calculatedY;
-                
-                // 3. サブツリー内のノードを平行移動させ、ルートノードの位置は完全に元のままにする
+                // カメラ位置が指定されている場合、画面上の見かけの位置を維持したまま、Z座標をthis.z_layerに投影する
+                if (this.cameraPosition && Math.abs(origZ - this.z_layer) > 0.1) {
+                    const cam = this.cameraPosition;
+                    // 分母がゼロになるのを防ぐ
+                    const denom = origZ - cam.z;
+                    if (Math.abs(denom) > 0.1) {
+                        const t = (this.z_layer - cam.z) / denom;
+                        origX = cam.x + t * (origX - cam.x);
+                        origY = cam.y + t * (origY - cam.y);
+                    }
+                }
+
+                // 2. 計算されたルート位置との相対位置を元に各ノードを配置
                 this.nodeMap.forEach(nodeInfo => {
                     if (nodesToUpdate.has(nodeInfo.node.id)) {
                         if (nodeInfo.node.id === this.customRootNodeId) {
-                            // ルートノード自身の位置は変更しない（元のfx, fyを維持）
+                            // ルートノード自身の位置は変更しない（補正後のfx, fyを維持、Z座標は投影後のthis.z_layer）
                             nodeInfo.node.fx = origX;
                             nodeInfo.node.fy = origY;
+                            nodeInfo.node.fz = this.z_layer;
                         } else {
-                            // 子孫ノードは差分だけシフトした位置に配置
-                            nodeInfo.node.fx = (nodeInfo.x || 0) + dx;
-                            nodeInfo.node.fy = (nodeInfo.y || 0) + dy;
+                            // ルートノードからの相対レイアウト座標
+                            const rx = (nodeInfo.x || 0) - (customRoot.x || 0);
+                            const ry = (nodeInfo.y || 0) - (customRoot.y || 0);
+
+                            if (this.cameraRight && this.cameraUp) {
+                                // カメラのローカル軸（画面に平行な面）に合わせて、3D空間での相対変位を計算
+                                const dx_3d = rx * this.cameraRight.x + ry * this.cameraUp.x;
+                                const dy_3d = rx * this.cameraRight.y + ry * this.cameraUp.y;
+                                const dz_3d = rx * this.cameraRight.z + ry * this.cameraUp.z;
+
+                                nodeInfo.node.fx = origX + dx_3d;
+                                nodeInfo.node.fy = origY + dy_3d;
+                                nodeInfo.node.fz = this.z_layer + dz_3d;
+                            } else {
+                                // フォールバック: ワールド座標系のXY平面上での平行移動
+                                nodeInfo.node.fx = origX + rx;
+                                nodeInfo.node.fy = origY + ry;
+                                nodeInfo.node.fz = this.z_layer;
+                            }
                         }
-                        nodeInfo.node.fz = this.z_layer;
                     }
                 });
             }
@@ -726,9 +757,12 @@ export function executeTreeLayout(
     direction: LayoutDirection = 'right', 
     z_layer: number = -300,
     selectedNodeIds: number[] = [],
-    customRootNodeId?: number
+    customRootNodeId?: number,
+    cameraPosition?: { x: number, y: number, z: number },
+    cameraRight?: { x: number, y: number, z: number },
+    cameraUp?: { x: number, y: number, z: number }
 ): GraphData {
-    const layout = new TreeLayout(graphData, direction, z_layer, selectedNodeIds, customRootNodeId);
+    const layout = new TreeLayout(graphData, direction, z_layer, selectedNodeIds, customRootNodeId, cameraPosition, cameraRight, cameraUp);
     return layout.executeLayout();
 }
 
